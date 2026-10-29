@@ -1,0 +1,21 @@
+{
+  "action_id": "mc",
+  "reason": "Check sampling and diagnostic output on a tiny periodic system.",
+  "settings": {
+    "burn_in": 8,
+    "seed": 91,
+    "spin_length": 0.5,
+    "supercell_shape": [
+      2,
+      1,
+      1
+    ],
+    "sweeps": 32,
+    "temperatures": [
+      0.7,
+      1.1
+    ]
+  },
+  "task": "classical_monte_carlo",
+  "type": "calculate"
+}

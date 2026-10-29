@@ -1,0 +1,371 @@
+{
+  "calculation": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "projector_distance",
+        "outcome": "pass",
+        "tolerance": 0.05,
+        "value": 1.2982073187987827e-12
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      }
+    ],
+    "validated_scope": {
+      "candidate_model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+      "energy_offset_per_cell": 0.0,
+      "energy_window_max": 2.0,
+      "experiments": [
+        {
+          "case_id": "reference",
+          "metrics": {
+            "energy_per_cell": 0.03,
+            "full_energy_penalty": 0.03,
+            "projector_distance": 0.05
+          },
+          "settings": {
+            "max_linear_size": 1,
+            "max_sweeps": 100,
+            "seed": 6,
+            "starts": 2
+          },
+          "task": "classical_ground_state"
+        },
+        {
+          "case_id": "modes",
+          "metrics": {
+            "spectrum": 0.03
+          },
+          "reference_case": "reference",
+          "settings": {
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ]
+          },
+          "task": "spin_wave_spectrum"
+        }
+      ],
+      "full_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+      "full_reference_tolerance": 1e-07,
+      "realized_cases": [
+        {
+          "case_id": "reference",
+          "local_dimension": 3,
+          "role": "full",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": 2,
+          "role": "candidate",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": 3,
+          "role": "full",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": 2,
+          "role": "candidate",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "validation_status": "accepted_within_scope"
+  },
+  "calculation_fingerprint": "ac81f7263f02ee72115d449834e1c1f6296ef5ec16604173cdd37fa56f8c0be0",
+  "candidate_id": "candidate",
+  "candidate_model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793293024.5574884,
+  "metrics": [
+    {
+      "case_id": "reference",
+      "name": "energy_per_cell",
+      "outcome": "pass",
+      "tolerance": 0.03,
+      "value": 0.0
+    },
+    {
+      "case_id": "reference",
+      "name": "full_energy_penalty",
+      "outcome": "pass",
+      "tolerance": 0.03,
+      "value": 0.0
+    },
+    {
+      "case_id": "reference",
+      "name": "projector_distance",
+      "outcome": "pass",
+      "tolerance": 0.05,
+      "value": 1.2982073187987827e-12
+    },
+    {
+      "case_id": "modes",
+      "name": "spectrum",
+      "outcome": "pass",
+      "tolerance": 0.03,
+      "value": 0.0
+    }
+  ],
+  "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+  "result_id": "validate",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.",
+    "Stationary variational states are not proofs of global or infinite-lattice ground states.",
+    "State distances can distinguish symmetry-related representatives; rejection concerns the stated metric.",
+    "Agreement does not certify phase equivalence, parameter robustness or virtual-excitation corrections."
+  ],
+  "scientific_status": "usable_within_scope",
+  "solver_runs": 4,
+  "suggested_actions": [
+    {
+      "reason": "Refine inadequate controls or extend the tested cells, momenta and parameter points.",
+      "requires_agent_choice": true,
+      "task": "reduction_validation",
+      "type": "calculate"
+    }
+  ],
+  "task": "reduction_validation",
+  "validated_scope": {
+    "candidate_model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+    "energy_offset_per_cell": 0.0,
+    "energy_window_max": 2.0,
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.03,
+          "full_energy_penalty": 0.03,
+          "projector_distance": 0.05
+        },
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.03
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+    "full_reference_tolerance": 1e-07,
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": 3,
+        "role": "full",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": 2,
+        "role": "candidate",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "role": "full",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 2,
+        "role": "candidate",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ]
+  },
+  "validation_status": "accepted_within_scope"
+}

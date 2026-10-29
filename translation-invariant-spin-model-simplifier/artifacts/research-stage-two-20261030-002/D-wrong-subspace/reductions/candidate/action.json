@@ -1,0 +1,22 @@
+{
+  "action_id": "candidate",
+  "reason": "Check this explicit local subspace against all three retained states.",
+  "transformation": {
+    "isometry": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "kind": "project_local_space"
+  },
+  "type": "propose_reduction"
+}

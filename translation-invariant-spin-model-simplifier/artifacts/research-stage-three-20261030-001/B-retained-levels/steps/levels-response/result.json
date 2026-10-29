@@ -1,0 +1,1266 @@
+{
+  "calculation": {
+    "energy_responses": [
+      {
+        "case_id": "rays",
+        "direct_energy_change": 0.09999999999999998,
+        "frozen_state_energy": -0.41000000000000003,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "half",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.41000000000000003,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.09999999999999998
+      },
+      {
+        "case_id": "rays",
+        "direct_energy_change": 0.0,
+        "frozen_state_energy": -0.51,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "control",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.51,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.0
+      },
+      {
+        "case_id": "rays",
+        "direct_energy_change": -0.10000000000000009,
+        "frozen_state_energy": -0.6100000000000001,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "strong",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.6100000000000001,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": -0.10000000000000009
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 0.5,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "half",
+            "scientific_status": "usable_within_scope",
+            "value": 1.1199999999999997
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 1.52
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.5,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "strong",
+            "scientific_status": "usable_within_scope",
+            "value": 1.9199999999999995
+          }
+        ],
+        "excluded_confounded_points": [],
+        "explanation": "Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gives observable 'frequency' values [1.12, 1.52, 1.92]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "group_id": "onsite",
+        "hypothesis_id": "levels-raise-mode",
+        "kind": "monotonic_response",
+        "min_effect": 0.7,
+        "numerical_tolerance": 1e-06,
+        "observable_id": "frequency",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 1.52,
+          "directed_span": 0.7999999999999998,
+          "factors": [
+            0.5,
+            1.0,
+            1.5
+          ],
+          "minimum_directed_increment": 0.39999999999999947,
+          "values": [
+            1.1199999999999997,
+            1.52,
+            1.9199999999999995
+          ]
+        },
+        "statement": "Stronger onsite splitting raises the selected mode.",
+        "status": "supported_within_scope",
+        "unused_isolated_points": [],
+        "used_points": [
+          "half",
+          "control",
+          "strong"
+        ]
+      },
+      {
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.classical_state",
+              "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+              "selector": {
+                "basis_index": 0,
+                "case_id": "rays",
+                "kind": "local_population",
+                "observable_id": "population"
+              }
+            },
+            "factor": 0.5,
+            "kind": "local_population",
+            "observable_id": "population",
+            "point_id": "half",
+            "scientific_status": "usable_within_scope",
+            "value": 1.0
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.classical_state",
+              "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+              "selector": {
+                "basis_index": 0,
+                "case_id": "rays",
+                "kind": "local_population",
+                "observable_id": "population"
+              }
+            },
+            "factor": 1.0,
+            "kind": "local_population",
+            "observable_id": "population",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 1.0
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.classical_state",
+              "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+              "selector": {
+                "basis_index": 0,
+                "case_id": "rays",
+                "kind": "local_population",
+                "observable_id": "population"
+              }
+            },
+            "factor": 1.5,
+            "kind": "local_population",
+            "observable_id": "population",
+            "point_id": "strong",
+            "scientific_status": "usable_within_scope",
+            "value": 1.0
+          }
+        ],
+        "excluded_confounded_points": [],
+        "explanation": "Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gives observable 'population' values [1.0, 1.0, 1.0]. All sampled isolated responses stay within the stated change bound.",
+        "group_id": "onsite",
+        "hypothesis_id": "population-preserved",
+        "kind": "insensitive_response",
+        "max_change": 1e-05,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "population",
+        "reason": "All sampled isolated responses stay within the stated change bound.",
+        "response": {
+          "baseline_value": 1.0,
+          "factors": [
+            0.5,
+            1.0,
+            1.5
+          ],
+          "maximum_change_from_control": 0.0,
+          "values": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "statement": "The selected local ground-level population remains unchanged.",
+        "status": "supported_within_scope",
+        "unused_isolated_points": [],
+        "used_points": [
+          "half",
+          "control",
+          "strong"
+        ]
+      }
+    ],
+    "observations": [
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "half",
+        "scientific_status": "usable_within_scope",
+        "value": 1.1199999999999997
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 1.52
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "strong",
+        "scientific_status": "usable_within_scope",
+        "value": 1.9199999999999995
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.classical_state",
+          "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+          "selector": {
+            "basis_index": 0,
+            "case_id": "rays",
+            "kind": "local_population",
+            "observable_id": "population"
+          }
+        },
+        "kind": "local_population",
+        "observable_id": "population",
+        "point_id": "half",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.classical_state",
+          "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+          "selector": {
+            "basis_index": 0,
+            "case_id": "rays",
+            "kind": "local_population",
+            "observable_id": "population"
+          }
+        },
+        "kind": "local_population",
+        "observable_id": "population",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.classical_state",
+          "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+          "selector": {
+            "basis_index": 0,
+            "case_id": "rays",
+            "kind": "local_population",
+            "observable_id": "population"
+          }
+        },
+        "kind": "local_population",
+        "observable_id": "population",
+        "point_id": "strong",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      }
+    ],
+    "validated_scope": {
+      "baseline_point_id": "control",
+      "experiments": [
+        {
+          "case_id": "rays",
+          "settings": {
+            "max_linear_size": 1,
+            "max_sweeps": 100,
+            "seed": 6,
+            "starts": 2
+          },
+          "task": "classical_ground_state"
+        },
+        {
+          "case_id": "modes",
+          "reference_case": "rays",
+          "settings": {
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ]
+          },
+          "task": "spin_wave_spectrum"
+        }
+      ],
+      "full_model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+      "groups": [
+        {
+          "description": "All onsite matrix elements.",
+          "group_id": "onsite",
+          "term_refs": [
+            "onsite:levels"
+          ]
+        }
+      ],
+      "local_basis_labels": [
+        "g",
+        "e1",
+        "e2"
+      ],
+      "mechanism_id": "levels",
+      "observables": [
+        {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "basis_index": 0,
+          "case_id": "rays",
+          "kind": "local_population",
+          "observable_id": "population"
+        }
+      ],
+      "points": [
+        {
+          "factors": {
+            "onsite": 0.5
+          },
+          "model_id": "d46b8eddc1e93902679a5a55cf9cc3fdeaf198f740f98f4e8ff11c78f26fadc2",
+          "point_id": "half"
+        },
+        {
+          "factors": {
+            "onsite": 1.0
+          },
+          "model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "onsite": 1.5
+          },
+          "model_id": "4a4a73ad06f3fdc865fe7eca417e13818c60ae970641fb17fffc67842f13a3db",
+          "point_id": "strong"
+        }
+      ],
+      "realized_cases": [
+        {
+          "case_id": "rays",
+          "local_dimension": 3,
+          "point_id": "half",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "rays",
+          "local_dimension": 3,
+          "point_id": "control",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "rays",
+          "local_dimension": 3,
+          "point_id": "strong",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": 3,
+          "point_id": "half",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": 3,
+          "point_id": "control",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": 3,
+          "point_id": "strong",
+          "spin": null,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "reference_tolerance": 1e-07,
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    }
+  },
+  "calculation_fingerprint": "ccdcc37135ebcb1356ca807b1afaa901d8cf7599d203e3fc124864f340bacd3b",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+      "reused": false,
+      "role": "half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+      "reused": false,
+      "role": "strong",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+      "reused": false,
+      "role": "half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+      "reused": false,
+      "role": "strong",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "energy_responses": [
+    {
+      "case_id": "rays",
+      "direct_energy_change": 0.09999999999999998,
+      "frozen_state_energy": -0.41000000000000003,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.51,
+      "point_id": "half",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.41000000000000003,
+      "relaxed_state_in_full_model_energy": -0.51,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.09999999999999998
+    },
+    {
+      "case_id": "rays",
+      "direct_energy_change": 0.0,
+      "frozen_state_energy": -0.51,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.51,
+      "point_id": "control",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.51,
+      "relaxed_state_in_full_model_energy": -0.51,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.0
+    },
+    {
+      "case_id": "rays",
+      "direct_energy_change": -0.10000000000000009,
+      "frozen_state_energy": -0.6100000000000001,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.51,
+      "point_id": "strong",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.6100000000000001,
+      "relaxed_state_in_full_model_energy": -0.51,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": -0.10000000000000009
+    }
+  ],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+      "reused": false,
+      "role": "half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "rays",
+      "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+      "reused": false,
+      "role": "strong",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+      "reused": false,
+      "role": "half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+      "reused": false,
+      "role": "strong",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793295947.3651772,
+  "hypotheses": [
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.5,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "half",
+          "scientific_status": "usable_within_scope",
+          "value": 1.1199999999999997
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 1.52
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.5,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "strong",
+          "scientific_status": "usable_within_scope",
+          "value": 1.9199999999999995
+        }
+      ],
+      "excluded_confounded_points": [],
+      "explanation": "Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gives observable 'frequency' values [1.12, 1.52, 1.92]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "group_id": "onsite",
+      "hypothesis_id": "levels-raise-mode",
+      "kind": "monotonic_response",
+      "min_effect": 0.7,
+      "numerical_tolerance": 1e-06,
+      "observable_id": "frequency",
+      "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "response": {
+        "baseline_value": 1.52,
+        "directed_span": 0.7999999999999998,
+        "factors": [
+          0.5,
+          1.0,
+          1.5
+        ],
+        "minimum_directed_increment": 0.39999999999999947,
+        "values": [
+          1.1199999999999997,
+          1.52,
+          1.9199999999999995
+        ]
+      },
+      "statement": "Stronger onsite splitting raises the selected mode.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "half",
+        "control",
+        "strong"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.classical_state",
+            "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+            "selector": {
+              "basis_index": 0,
+              "case_id": "rays",
+              "kind": "local_population",
+              "observable_id": "population"
+            }
+          },
+          "factor": 0.5,
+          "kind": "local_population",
+          "observable_id": "population",
+          "point_id": "half",
+          "scientific_status": "usable_within_scope",
+          "value": 1.0
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.classical_state",
+            "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+            "selector": {
+              "basis_index": 0,
+              "case_id": "rays",
+              "kind": "local_population",
+              "observable_id": "population"
+            }
+          },
+          "factor": 1.0,
+          "kind": "local_population",
+          "observable_id": "population",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 1.0
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.classical_state",
+            "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+            "selector": {
+              "basis_index": 0,
+              "case_id": "rays",
+              "kind": "local_population",
+              "observable_id": "population"
+            }
+          },
+          "factor": 1.5,
+          "kind": "local_population",
+          "observable_id": "population",
+          "point_id": "strong",
+          "scientific_status": "usable_within_scope",
+          "value": 1.0
+        }
+      ],
+      "excluded_confounded_points": [],
+      "explanation": "Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gives observable 'population' values [1.0, 1.0, 1.0]. All sampled isolated responses stay within the stated change bound.",
+      "group_id": "onsite",
+      "hypothesis_id": "population-preserved",
+      "kind": "insensitive_response",
+      "max_change": 1e-05,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "population",
+      "reason": "All sampled isolated responses stay within the stated change bound.",
+      "response": {
+        "baseline_value": 1.0,
+        "factors": [
+          0.5,
+          1.0,
+          1.5
+        ],
+        "maximum_change_from_control": 0.0,
+        "values": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "statement": "The selected local ground-level population remains unchanged.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "half",
+        "control",
+        "strong"
+      ]
+    }
+  ],
+  "mechanism_id": "levels",
+  "model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "half",
+      "scientific_status": "usable_within_scope",
+      "value": 1.1199999999999997
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": 1.52
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "strong",
+      "scientific_status": "usable_within_scope",
+      "value": 1.9199999999999995
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.classical_state",
+        "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json",
+        "selector": {
+          "basis_index": 0,
+          "case_id": "rays",
+          "kind": "local_population",
+          "observable_id": "population"
+        }
+      },
+      "kind": "local_population",
+      "observable_id": "population",
+      "point_id": "half",
+      "scientific_status": "usable_within_scope",
+      "value": 1.0
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.classical_state",
+        "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json",
+        "selector": {
+          "basis_index": 0,
+          "case_id": "rays",
+          "kind": "local_population",
+          "observable_id": "population"
+        }
+      },
+      "kind": "local_population",
+      "observable_id": "population",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": 1.0
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.classical_state",
+        "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json",
+        "selector": {
+          "basis_index": 0,
+          "case_id": "rays",
+          "kind": "local_population",
+          "observable_id": "population"
+        }
+      },
+      "kind": "local_population",
+      "observable_id": "population",
+      "point_id": "strong",
+      "scientific_status": "usable_within_scope",
+      "value": 1.0
+    }
+  ],
+  "result_id": "levels-response",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "scientific_status": "usable_within_scope",
+  "solver_runs": 6,
+  "suggested_actions": [
+    {
+      "reason": "Resolve inadequate controls or test additional finite sizes, momenta and isolated coupling points.",
+      "requires_agent_choice": true,
+      "task": "mechanism_test",
+      "type": "calculate"
+    }
+  ],
+  "task": "mechanism_test",
+  "validated_scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "rays",
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "rays",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+    "groups": [
+      {
+        "description": "All onsite matrix elements.",
+        "group_id": "onsite",
+        "term_refs": [
+          "onsite:levels"
+        ]
+      }
+    ],
+    "local_basis_labels": [
+      "g",
+      "e1",
+      "e2"
+    ],
+    "mechanism_id": "levels",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "basis_index": 0,
+        "case_id": "rays",
+        "kind": "local_population",
+        "observable_id": "population"
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "onsite": 0.5
+        },
+        "model_id": "d46b8eddc1e93902679a5a55cf9cc3fdeaf198f740f98f4e8ff11c78f26fadc2",
+        "point_id": "half"
+      },
+      {
+        "factors": {
+          "onsite": 1.0
+        },
+        "model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "onsite": 1.5
+        },
+        "model_id": "4a4a73ad06f3fdc865fe7eca417e13818c60ae970641fb17fffc67842f13a3db",
+        "point_id": "strong"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "half",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "strong",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "half",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "strong",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  }
+}

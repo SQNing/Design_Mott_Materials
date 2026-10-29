@@ -1,0 +1,12 @@
+{
+  "answer_status": "answered_within_scope",
+  "artifacts": [],
+  "calculations_started": 0,
+  "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+  "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/D-wrong-subspace-report/report.md",
+  "results": [
+    "validate"
+  ],
+  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/D-wrong-subspace",
+  "schema_version": "research-report/v1"
+}

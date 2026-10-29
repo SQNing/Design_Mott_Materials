@@ -1,0 +1,45 @@
+{
+  "action_id": "response",
+  "reason": "Measure controlled responses and test the stated mechanism hypotheses.",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "levels",
+        "settings": {
+          "eigenvalues": 3,
+          "seed": 31,
+          "spin": 0.5,
+          "supercell_shape": [
+            2,
+            2,
+            2
+          ]
+        },
+        "task": "quantum_low_energy"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Anisotropy raises the sampled frequency."
+      }
+    ],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "case_id": "levels",
+        "kind": "quantum_gap",
+        "level": 2,
+        "observable_id": "frequency"
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "type": "calculate"
+}

@@ -165,7 +165,7 @@ def _validate_hermiticity(model, request):
                 atol=tolerance,
                 rtol=0.0,
             )
-        elif family in {"quadratic_spin_tensor", "pair_matrix"}:
+        elif family in {"quadratic_spin_tensor", "pair_matrix", "local_operator_matrix"}:
             array = np.asarray(coefficient, dtype=complex)
             valid = bool(
                 array.ndim == 2

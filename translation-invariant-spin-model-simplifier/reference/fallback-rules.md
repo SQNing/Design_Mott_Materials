@@ -1,5 +1,13 @@
 # Fallback Rules
 
-- If the user does not choose among simplification candidates and timed continuation is supported, use the recommended candidate after the configured timeout.
-- If the model cannot be mapped to spin operators, ask whether to project or truncate; if the user stays silent beyond the configured projection timeout and timed continuation is supported, apply the default combined heuristic.
-- If a requested solver is outside implemented scope or required dependencies are missing, ask whether to install dependencies or relax assumptions instead of silently proceeding.
+- The default readable view keeps the complete Hamiltonian. A display preference
+  can use that default without waiting; no small term is removed from computation.
+- A missing physical convention remains needs_input. Silence and elapsed time
+  never authorize projection, truncation, symmetry repair or another physical model.
+- If a requested solver cannot handle every term, preserve the model and report
+  unsupported with the term families and arities. Do not drop terms to continue.
+- Probe dependencies before asking about them. If an explicitly requested backend
+  is unavailable, report its blocker. A different backend may be suggested with
+  its scope; do not label it as execution of the requested backend.
+- Once the numerical budget is exhausted, keep the evidence and assess partial or
+  inconclusive. Reports read saved evidence and never launch missing calculations.

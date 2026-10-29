@@ -86,6 +86,30 @@ def registered_solver_capabilities():
     ]
 
 
+def registered_research_solver_capabilities():
+    """Only routes whose complete Hamiltonian is passed by research.adapters.
+
+    Keep the legacy classical pipeline's registry unchanged: its retained-local
+    bridge currently has a narrower term contract than the research bridge.
+    """
+    return [
+        {"solver_id": "periodic-spin-python", "backend": "python",
+         "tasks": ["classical_ground_state", "spin_wave_spectrum",
+                   "classical_monte_carlo", "classical_finite_size",
+                   "quantum_low_energy", "fourier_exchange_spectrum"],
+         "classical_spaces": ["unit_vector_sphere"],
+         "term_families": ["bilinear_exchange_tensor", "bilinear_exchange_matrix"],
+         "max_body_order": 2, "reference_kind": "spin_frame"},
+        {"solver_id": "retained-local-python", "backend": "python",
+         "tasks": ["classical_ground_state", "spin_wave_spectrum"],
+         "classical_spaces": ["complex_projective_space"],
+         "term_families": ["pair_matrix", "local_operator_matrix"],
+         "max_body_order": 2, "reference_kind": "local_rays"},
+        {"solver_id": "geometry-ewald-python", "backend": "python",
+         "tasks": ["dipolar_ewald"], "input_kind": "dipolar_geometry"},
+    ]
+
+
 def _request_from_payload(payload, request=None):
     if isinstance(request, Mapping):
         return dict(request)

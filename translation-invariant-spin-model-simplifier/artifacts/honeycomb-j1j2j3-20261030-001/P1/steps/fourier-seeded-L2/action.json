@@ -1,0 +1,60 @@
+{
+  "action_id": "fourier-seeded-L2",
+  "reason": "Validate an equal-length single-q state constructed from the model's own finite-cell Fourier minimum.",
+  "settings": {
+    "initial_spins": [
+      [
+        0.5,
+        0.0,
+        0.0
+      ],
+      [
+        -0.5,
+        6.123233995736766e-17,
+        0.0
+      ],
+      [
+        0.5,
+        0.0,
+        0.0
+      ],
+      [
+        -0.5,
+        6.123233995736766e-17,
+        0.0
+      ],
+      [
+        0.5,
+        0.0,
+        0.0
+      ],
+      [
+        -0.5,
+        6.123233995736766e-17,
+        0.0
+      ],
+      [
+        0.5,
+        0.0,
+        0.0
+      ],
+      [
+        -0.5,
+        6.123233995736766e-17,
+        0.0
+      ]
+    ],
+    "maxiter": 2000,
+    "seed": 109,
+    "spin_length": 0.5,
+    "starts": 1,
+    "stationarity_tolerance": 1e-06,
+    "supercell_shape": [
+      2,
+      2,
+      1
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

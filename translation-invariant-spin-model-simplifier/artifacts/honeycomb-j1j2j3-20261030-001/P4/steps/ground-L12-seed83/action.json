@@ -1,0 +1,18 @@
+{
+  "action_id": "ground-L12-seed83",
+  "reason": "Independent unconstrained starts, finite-cell LT bound and size checks.",
+  "settings": {
+    "maxiter": 2000,
+    "seed": 83,
+    "spin_length": 0.5,
+    "starts": 6,
+    "stationarity_tolerance": 1e-06,
+    "supercell_shape": [
+      12,
+      12,
+      1
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

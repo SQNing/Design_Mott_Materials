@@ -1,0 +1,123 @@
+{
+  "basis_sites": [
+    {
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "site_ref": "site:0"
+    }
+  ],
+  "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/points/half/models/model-0001",
+  "fidelity": {
+    "assessment": "not_assessed",
+    "reconstruction_error": null
+  },
+  "hamiltonian_hash": "b6260cc14dc9e73905fce522b2e4a3ce64a9fc1ae1a3db5c8e36c1486994b37b",
+  "lattice_vectors": [
+    [
+      1.1,
+      0.0,
+      0.0
+    ],
+    [
+      0.17,
+      1.23,
+      0.0
+    ],
+    [
+      0.09,
+      0.21,
+      1.37
+    ]
+  ],
+  "local_basis_labels": [
+    "g",
+    "e1",
+    "e2"
+  ],
+  "local_spaces": {
+    "space": {
+      "dimension": 3,
+      "kind": "complex_projective_space"
+    }
+  },
+  "model_id": "d46b8eddc1e93902679a5a55cf9cc3fdeaf198f740f98f4e8ff11c78f26fadc2",
+  "questions": [],
+  "site_count": 1,
+  "source_term_count": 2,
+  "status": "ready",
+  "symmetry_validation": {
+    "failed_operations": [],
+    "forbidden_terms": [],
+    "input_hamiltonian_subgroup": {
+      "operation_count": 1,
+      "operation_refs": [
+        "identity"
+      ],
+      "status": "verified-subgroup"
+    },
+    "max_absolute_residual": 0.0,
+    "max_relative_residual": 0.0,
+    "missing_symmetry_partners": [],
+    "operation_reports": [
+      {
+        "allowed_residual": 7.1e-09,
+        "frobenius_residual": 0.0,
+        "max_absolute_residual": 0.0,
+        "max_relative_residual": 0.0,
+        "missing_symmetry_partners": [],
+        "operation_ref": "identity",
+        "passed": true,
+        "worst_term": {
+          "absolute_residual": 0.0,
+          "canonical_key": [
+            "local_operator_matrix",
+            [
+              [
+                0,
+                [
+                  0,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "basis",
+            "default"
+          ],
+          "relative_residual": 0.0,
+          "source_term_refs": [
+            "onsite:levels"
+          ],
+          "threshold": 7.1e-09,
+          "transformed_term_refs": [
+            "onsite:levels"
+          ]
+        }
+      }
+    ],
+    "status": "passed",
+    "target_group": {
+      "international_symbol": "P1",
+      "kind": "structural_space_group",
+      "number": 1,
+      "operation_count": 1,
+      "operation_refs": [
+        "identity"
+      ]
+    }
+  },
+  "term_count": 2,
+  "term_families": {
+    "local_operator_matrix": 1,
+    "pair_matrix": 1
+  },
+  "units": {
+    "energy": "dimensionless model units",
+    "hbar": 1
+  },
+  "version": 1,
+  "warnings": []
+}

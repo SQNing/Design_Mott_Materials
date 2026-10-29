@@ -1,0 +1,21 @@
+{
+  "action_id": "gswt",
+  "reason": "Reuse the local rays without another classical search.",
+  "reference_result": "local-rays",
+  "settings": {
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.25,
+        0,
+        0
+      ]
+    ]
+  },
+  "task": "harmonic_spectrum",
+  "type": "calculate"
+}

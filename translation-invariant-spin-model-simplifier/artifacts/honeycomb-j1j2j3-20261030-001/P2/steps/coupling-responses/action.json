@@ -1,0 +1,54 @@
+{
+  "action_id": "coupling-responses",
+  "reason": "Test energetic insensitivity and inspect direct versus relaxation response.",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "ground",
+        "settings": {
+          "maxiter": 2000,
+          "seed": 53,
+          "spin_length": 0.5,
+          "starts": 6,
+          "stationarity_tolerance": 1e-06,
+          "supercell_shape": [
+            8,
+            8,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      }
+    ],
+    "hypotheses": [
+      {
+        "group_id": "J2",
+        "hypothesis_id": "J2-negligible",
+        "kind": "insensitive_response",
+        "max_change": 0.01,
+        "numerical_tolerance": 1e-06,
+        "observable_id": "energy",
+        "statement": "J2 scaling changes energy by at most the declared tolerance."
+      },
+      {
+        "group_id": "J3",
+        "hypothesis_id": "J3-negligible",
+        "kind": "insensitive_response",
+        "max_change": 0.01,
+        "numerical_tolerance": 1e-06,
+        "observable_id": "energy",
+        "statement": "J3 scaling changes energy by at most the declared tolerance."
+      }
+    ],
+    "mechanism_id": "coupling-controls",
+    "observables": [
+      {
+        "case_id": "ground",
+        "kind": "energy_per_cell",
+        "observable_id": "energy"
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "type": "calculate"
+}

@@ -1,0 +1,2778 @@
+{
+  "backend_result": {
+    "calculation": {
+      "backend": {
+        "implementation": "local-frame-quadratic-expansion",
+        "name": "python-glswt"
+      },
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "classical_reference": {},
+      "diagnostics": {
+        "bogoliubov": {
+          "max_A_antihermitian_norm": 0.0,
+          "max_B_asymmetry_norm": 1.2374006218698e-32,
+          "max_complex_eigenvalue_count": 0,
+          "mode_count": 8
+        },
+        "dispersion": {
+          "omega_max": 5.580000000000007,
+          "omega_min": -2.369741819997445e-16,
+          "omega_min_q_vector": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "soft_mode_count": 0,
+          "soft_mode_q_points": [],
+          "soft_mode_threshold": -1e-08
+        },
+        "quadratic_phase_dressing_consistency": {
+          "reason": "no-supercell-site-phases",
+          "status": "unsupported"
+        },
+        "rotating_frame_metadata_phase_sample_cross_check": {
+          "conflict_sources": [],
+          "likely_conflicting_path": "unknown",
+          "max_site_phase_offset_difference": null,
+          "max_wavevector_difference": null,
+          "metadata_status": "unavailable",
+          "phase_sample_status": "unavailable",
+          "status": "unavailable"
+        },
+        "stationarity": {
+          "is_stationary": true,
+          "linear_term_max_norm": 3.236823339921665e-14,
+          "linear_term_mean_norm": 1.1035081626683285e-14,
+          "scope": "full-local-tangent",
+          "sites": [
+            {
+              "annihilation_linear_norm": 2.4242243796605992e-14,
+              "cell": [
+                0,
+                0,
+                0
+              ],
+              "creation_linear_norm": 2.411440301305891e-14,
+              "linear_term_norm": 2.4242243796605992e-14,
+              "mode_site_index": 0,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 3.236823339921665e-14,
+              "cell": [
+                0,
+                0,
+                1
+              ],
+              "creation_linear_norm": 3.234054940598419e-14,
+              "linear_term_norm": 3.236823339921665e-14,
+              "mode_site_index": 1,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 4.857204155529237e-15,
+              "cell": [
+                0,
+                1,
+                0
+              ],
+              "creation_linear_norm": 4.905533463214111e-15,
+              "linear_term_norm": 4.905533463214111e-15,
+              "mode_site_index": 2,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 2.916637546786382e-15,
+              "cell": [
+                0,
+                1,
+                1
+              ],
+              "creation_linear_norm": 2.9116179024038577e-15,
+              "linear_term_norm": 2.916637546786382e-15,
+              "mode_site_index": 3,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.7241119315298548e-14,
+              "cell": [
+                1,
+                0,
+                0
+              ],
+              "creation_linear_norm": 1.727845447908717e-14,
+              "linear_term_norm": 1.727845447908717e-14,
+              "mode_site_index": 4,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 2.9609341593116946e-15,
+              "cell": [
+                1,
+                0,
+                1
+              ],
+              "creation_linear_norm": 2.9540418320183245e-15,
+              "linear_term_norm": 2.9609341593116946e-15,
+              "mode_site_index": 5,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 2.7584109965531764e-15,
+              "cell": [
+                1,
+                1,
+                0
+              ],
+              "creation_linear_norm": 2.7428785137986954e-15,
+              "linear_term_norm": 2.7584109965531764e-15,
+              "mode_site_index": 6,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 8.502051726910855e-16,
+              "cell": [
+                1,
+                1,
+                1
+              ],
+              "creation_linear_norm": 8.487150070696596e-16,
+              "linear_term_norm": 8.502051726910855e-16,
+              "mode_site_index": 7,
+              "site": 0
+            }
+          ],
+          "tolerance": 1e-07
+        }
+      },
+      "dispersion": [
+        {
+          "bands": [
+            1.8600000000000003,
+            1.8600000000000008,
+            1.8600000000000012,
+            3.720000000000001,
+            3.7200000000000015,
+            3.720000000000009,
+            5.580000000000006,
+            4.0645804233328653e-16
+          ],
+          "omega": 4.0645804233328653e-16,
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            1.8599999999999997,
+            1.86,
+            1.8600000000000005,
+            3.719999999999995,
+            3.72,
+            3.7200000000000033,
+            5.580000000000007,
+            -2.369741819997445e-16
+          ],
+          "omega": -2.369741819997445e-16,
+          "q": [
+            0.5,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "limitations": [
+        "Harmonic approximation about the supplied or numerically optimized reference.",
+        "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+        "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+      ],
+      "method": "spin-coherent-reference-generalized-linear-spin-wave",
+      "momentum_coordinates": "primitive-reciprocal-lattice-units",
+      "ordering": {},
+      "path": {},
+      "payload_kind": "python_glswt_local_rays",
+      "spin": 0.5,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "stability": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.236823339921665e-14,
+        "maximum_imaginary_frequency": 3.8033812210791496e-16,
+        "minimum_bdg_hessian_eigenvalue": -9.43689570931383e-16,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "status": "ok",
+      "supercell_shape": [
+        2,
+        2,
+        2
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:5a7eaa6e2cfdfe8e6f78a284b1d5bb4adddac29b0789760a024ded39ca32d255",
+        "content_hash": "5a7eaa6e2cfdfe8e6f78a284b1d5bb4adddac29b0789760a024ded39ca32d255"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:5a7eaa6e2cfdfe8e6f78a284b1d5bb4adddac29b0789760a024ded39ca32d255",
+        "content_hash": "5a7eaa6e2cfdfe8e6f78a284b1d5bb4adddac29b0789760a024ded39ca32d255"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "Pm-3m",
+          "kind": "structural_space_group",
+          "number": 221,
+          "operation_count": 48,
+          "operation_refs": [
+            "symop:0",
+            "symop:1",
+            "symop:2",
+            "symop:3",
+            "symop:4",
+            "symop:5",
+            "symop:6",
+            "symop:7",
+            "symop:8",
+            "symop:9",
+            "symop:10",
+            "symop:11",
+            "symop:12",
+            "symop:13",
+            "symop:14",
+            "symop:15",
+            "symop:16",
+            "symop:17",
+            "symop:18",
+            "symop:19",
+            "symop:20",
+            "symop:21",
+            "symop:22",
+            "symop:23",
+            "symop:24",
+            "symop:25",
+            "symop:26",
+            "symop:27",
+            "symop:28",
+            "symop:29",
+            "symop:30",
+            "symop:31",
+            "symop:32",
+            "symop:33",
+            "symop:34",
+            "symop:35",
+            "symop:36",
+            "symop:37",
+            "symop:38",
+            "symop:39",
+            "symop:40",
+            "symop:41",
+            "symop:42",
+            "symop:43",
+            "symop:44",
+            "symop:45",
+            "symop:46",
+            "symop:47"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "5a7eaa6e2cfdfe8e6f78a284b1d5bb4adddac29b0789760a024ded39ca32d255",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 48,
+        "operation_refs": [
+          "symop:0",
+          "symop:1",
+          "symop:2",
+          "symop:3",
+          "symop:4",
+          "symop:5",
+          "symop:6",
+          "symop:7",
+          "symop:8",
+          "symop:9",
+          "symop:10",
+          "symop:11",
+          "symop:12",
+          "symop:13",
+          "symop:14",
+          "symop:15",
+          "symop:16",
+          "symop:17",
+          "symop:18",
+          "symop:19",
+          "symop:20",
+          "symop:21",
+          "symop:22",
+          "symop:23",
+          "symop:24",
+          "symop:25",
+          "symop:26",
+          "symop:27",
+          "symop:28",
+          "symop:29",
+          "symop:30",
+          "symop:31",
+          "symop:32",
+          "symop:33",
+          "symop:34",
+          "symop:35",
+          "symop:36",
+          "symop:37",
+          "symop:38",
+          "symop:39",
+          "symop:40",
+          "symop:41",
+          "symop:42",
+          "symop:43",
+          "symop:44",
+          "symop:45",
+          "symop:46",
+          "symop:47"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:0",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:1",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:2",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:3",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:4",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:5",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:6",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:7",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:8",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:9",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:10",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:11",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:12",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:13",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:14",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:15",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:16",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:17",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:18",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:19",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:20",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:21",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:22",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:23",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:24",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:25",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:26",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:27",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:28",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:29",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:30",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:31",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:32",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:33",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:34",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:35",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:36",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:37",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:38",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:39",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:40",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:41",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:42",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:43",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:44",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:45",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:46",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 9.4e-09,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "symop:47",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "operator-basis:spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "term:J2"
+            ],
+            "threshold": 9.4e-09,
+            "transformed_term_refs": [
+              "term:J0"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "Pm-3m",
+        "kind": "structural_space_group",
+        "number": 221,
+        "operation_count": 48,
+        "operation_refs": [
+          "symop:0",
+          "symop:1",
+          "symop:2",
+          "symop:3",
+          "symop:4",
+          "symop:5",
+          "symop:6",
+          "symop:7",
+          "symop:8",
+          "symop:9",
+          "symop:10",
+          "symop:11",
+          "symop:12",
+          "symop:13",
+          "symop:14",
+          "symop:15",
+          "symop:16",
+          "symop:17",
+          "symop:18",
+          "symop:19",
+          "symop:20",
+          "symop:21",
+          "symop:22",
+          "symop:23",
+          "symop:24",
+          "symop:25",
+          "symop:26",
+          "symop:27",
+          "symop:28",
+          "symop:29",
+          "symop:30",
+          "symop:31",
+          "symop:32",
+          "symop:33",
+          "symop:34",
+          "symop:35",
+          "symop:36",
+          "symop:37",
+          "symop:38",
+          "symop:39",
+          "symop:40",
+          "symop:41",
+          "symop:42",
+          "symop:43",
+          "symop:44",
+          "symop:45",
+          "symop:46",
+          "symop:47"
+        ]
+      }
+    },
+    "task": "spin_wave_spectrum",
+    "warnings": []
+  },
+  "calculation": {
+    "backend": {
+      "implementation": "local-frame-quadratic-expansion",
+      "name": "python-glswt"
+    },
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "classical_reference": {},
+    "diagnostics": {
+      "bogoliubov": {
+        "max_A_antihermitian_norm": 0.0,
+        "max_B_asymmetry_norm": 1.2374006218698e-32,
+        "max_complex_eigenvalue_count": 0,
+        "mode_count": 8
+      },
+      "dispersion": {
+        "omega_max": 5.580000000000007,
+        "omega_min": -2.369741819997445e-16,
+        "omega_min_q_vector": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "soft_mode_count": 0,
+        "soft_mode_q_points": [],
+        "soft_mode_threshold": -1e-08
+      },
+      "quadratic_phase_dressing_consistency": {
+        "reason": "no-supercell-site-phases",
+        "status": "unsupported"
+      },
+      "rotating_frame_metadata_phase_sample_cross_check": {
+        "conflict_sources": [],
+        "likely_conflicting_path": "unknown",
+        "max_site_phase_offset_difference": null,
+        "max_wavevector_difference": null,
+        "metadata_status": "unavailable",
+        "phase_sample_status": "unavailable",
+        "status": "unavailable"
+      },
+      "stationarity": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.236823339921665e-14,
+        "linear_term_mean_norm": 1.1035081626683285e-14,
+        "scope": "full-local-tangent",
+        "sites": [
+          {
+            "annihilation_linear_norm": 2.4242243796605992e-14,
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "creation_linear_norm": 2.411440301305891e-14,
+            "linear_term_norm": 2.4242243796605992e-14,
+            "mode_site_index": 0,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 3.236823339921665e-14,
+            "cell": [
+              0,
+              0,
+              1
+            ],
+            "creation_linear_norm": 3.234054940598419e-14,
+            "linear_term_norm": 3.236823339921665e-14,
+            "mode_site_index": 1,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 4.857204155529237e-15,
+            "cell": [
+              0,
+              1,
+              0
+            ],
+            "creation_linear_norm": 4.905533463214111e-15,
+            "linear_term_norm": 4.905533463214111e-15,
+            "mode_site_index": 2,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 2.916637546786382e-15,
+            "cell": [
+              0,
+              1,
+              1
+            ],
+            "creation_linear_norm": 2.9116179024038577e-15,
+            "linear_term_norm": 2.916637546786382e-15,
+            "mode_site_index": 3,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.7241119315298548e-14,
+            "cell": [
+              1,
+              0,
+              0
+            ],
+            "creation_linear_norm": 1.727845447908717e-14,
+            "linear_term_norm": 1.727845447908717e-14,
+            "mode_site_index": 4,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 2.9609341593116946e-15,
+            "cell": [
+              1,
+              0,
+              1
+            ],
+            "creation_linear_norm": 2.9540418320183245e-15,
+            "linear_term_norm": 2.9609341593116946e-15,
+            "mode_site_index": 5,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 2.7584109965531764e-15,
+            "cell": [
+              1,
+              1,
+              0
+            ],
+            "creation_linear_norm": 2.7428785137986954e-15,
+            "linear_term_norm": 2.7584109965531764e-15,
+            "mode_site_index": 6,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 8.502051726910855e-16,
+            "cell": [
+              1,
+              1,
+              1
+            ],
+            "creation_linear_norm": 8.487150070696596e-16,
+            "linear_term_norm": 8.502051726910855e-16,
+            "mode_site_index": 7,
+            "site": 0
+          }
+        ],
+        "tolerance": 1e-07
+      }
+    },
+    "dispersion": [
+      {
+        "bands": [
+          1.8600000000000003,
+          1.8600000000000008,
+          1.8600000000000012,
+          3.720000000000001,
+          3.7200000000000015,
+          3.720000000000009,
+          5.580000000000006,
+          4.0645804233328653e-16
+        ],
+        "omega": 4.0645804233328653e-16,
+        "q": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          1.8599999999999997,
+          1.86,
+          1.8600000000000005,
+          3.719999999999995,
+          3.72,
+          3.7200000000000033,
+          5.580000000000007,
+          -2.369741819997445e-16
+        ],
+        "omega": -2.369741819997445e-16,
+        "q": [
+          0.5,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "limitations": [
+      "Harmonic approximation about the supplied or numerically optimized reference.",
+      "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+      "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+    ],
+    "method": "spin-coherent-reference-generalized-linear-spin-wave",
+    "momentum_coordinates": "primitive-reciprocal-lattice-units",
+    "ordering": {},
+    "path": {},
+    "payload_kind": "python_glswt_local_rays",
+    "spin": 0.5,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "stability": {
+      "is_stationary": true,
+      "linear_term_max_norm": 3.236823339921665e-14,
+      "maximum_imaginary_frequency": 3.8033812210791496e-16,
+      "minimum_bdg_hessian_eigenvalue": -9.43689570931383e-16,
+      "scope": "requested q points and zero-point quadrature only"
+    },
+    "status": "ok",
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "calculation_fingerprint": "71c2d59a1a0104dd0a491f00008cb481bf0a26beb5686fafd1a70e16334c1c33",
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "906b75394a4cdf54c1982a69ff868fa0bf39279cf66118e47f0a40115c120783"
+  },
+  "diagnostics": [
+    {
+      "details": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.236823339921665e-14,
+        "maximum_imaginary_frequency": 3.8033812210791496e-16,
+        "minimum_bdg_hessian_eigenvalue": -9.43689570931383e-16,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "kind": "harmonic_stability",
+      "satisfied": true
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793289817.4927945,
+  "model_id": "58d703c063d0393a07c9ff533efb3bd4bc8e5e80fb96aba600f5525dffe2904f",
+  "reference_result": "host-ground",
+  "result_id": "host-spectrum",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Harmonic approximation about the supplied or numerically optimized reference.",
+    "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+    "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 2048.0,
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.5,
+        0,
+        0
+      ]
+    ],
+    "spin": 0.5
+  },
+  "suggested_actions": [
+    {
+      "reason": "Refine the reference if unstable; otherwise increase q sampling for broader claims.",
+      "requires_agent_choice": true,
+      "task": "spin_wave_spectrum",
+      "type": "calculate"
+    }
+  ],
+  "task": "spin_wave_spectrum"
+}

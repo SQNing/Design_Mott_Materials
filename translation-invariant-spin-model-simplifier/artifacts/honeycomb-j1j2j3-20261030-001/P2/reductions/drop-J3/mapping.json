@@ -1,0 +1,246 @@
+{
+  "assessment": "requires_physical_validation",
+  "coefficient_distances": [
+    {
+      "coefficient_frobenius_norm": 1.385640646055102,
+      "term_ref": "J3:0:0"
+    },
+    {
+      "coefficient_frobenius_norm": 1.385640646055102,
+      "term_ref": "J3:0:1"
+    },
+    {
+      "coefficient_frobenius_norm": 1.385640646055102,
+      "term_ref": "J3:0:2"
+    }
+  ],
+  "kind": "drop_terms",
+  "limitations": [
+    "Coefficient norms alone do not bound the requested observables."
+  ],
+  "physical_error": null,
+  "removed_terms": [
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          }
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.8,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.8,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.8
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.8
+          }
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:2"
+    }
+  ]
+}

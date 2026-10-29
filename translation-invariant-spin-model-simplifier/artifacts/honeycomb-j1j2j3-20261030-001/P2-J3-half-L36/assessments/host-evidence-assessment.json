@@ -1,0 +1,20 @@
+{
+  "action_id": "host-evidence-assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "A model-derived single-q state saturates the 36x36 finite-cell bound, resolving part of the 8x8 commensurability error.",
+  "evidence": [
+    {
+      "path": "calculation.finite_cell_bound_gap",
+      "result_id": "fourier-seeded-L36"
+    }
+  ],
+  "limitations": [
+    "No full parameter-space phase diagram or unique ordered state is claimed.",
+    "No thermal or quantum fluctuation selection was computed.",
+    "The continuous Fourier minimization is numerical and is not an interval-certified global proof.",
+    "Small cells can miss incommensurate minima; larger Fourier-seeded cells are not independent random-start searches."
+  ],
+  "reason": "Interpret recorded computations and distinguish stationary states, finite-cell optima and degeneracy.",
+  "scope": "Only the listed coupling points, finite periodic cells and explicitly sampled harmonic momenta.",
+  "type": "assess"
+}

@@ -1,0 +1,4 @@
+{"run": "P2-J3-off-L36", "action": "fourier-seeded-L36", "seconds": 0.04, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P2-J3-half-L36", "action": "fourier-seeded-L36", "seconds": 0.04, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "fourier-seeded-L12", "seconds": 1.05, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"study_complete": true, "solver_runs": 30, "compute_seconds": 171.96289825439453, "verification": {"all_saved_observations_usable": true, "stationary_nonminimum_observations": ["P4-ground-L12-seed83"], "all_nonminimum_observations_have_verified_replacements": true, "max_abs_finite_cell_gap_per_site_unit_spin": 2.4214297737135126e-05, "max_stationarity_residual": 3.195300853559411e-07, "observation_count": 26, "notes": "Machine precision agreement is numerical evidence, not a rigorous interval-arithmetic certificate."}}

@@ -1,0 +1,11 @@
+{
+  "question": "Find the requested finite reference and spectrum after clarifying operator normalization.",
+  "requested_tasks": [
+    "classical_ground_state",
+    "harmonic_spectrum"
+  ],
+  "source": {
+    "kind": "document",
+    "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/scripts/research/fixtures/host-document-C.txt"
+  }
+}

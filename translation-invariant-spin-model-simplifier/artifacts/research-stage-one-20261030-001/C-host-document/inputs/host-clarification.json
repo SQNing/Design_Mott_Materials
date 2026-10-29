@@ -1,0 +1,1413 @@
+{
+  "action_id": "host-clarification",
+  "answers": {
+    "answer_source": "scripted acceptance fixture, not live project-owner input",
+    "operator_normalization": "This is the scripted researcher's reply for acceptance task C, not a live reply\nfrom the project owner:\n\nUse ordinary spin-1/2 operators, with hbar=1 and classical spin length 0.5.\nDo not rescale the stated exchange coefficient. Use the full model and the\nspace group stated in the original document.\n"
+  },
+  "model": {
+    "lattice_structure": {
+      "basis_sites": [
+        {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "site_ref": "site:0"
+        }
+      ],
+      "lattice_vectors": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    "local_hilbert": {
+      "classical_spaces": {
+        "classical-space:spin": {
+          "dimension": 3,
+          "kind": "unit_vector_sphere"
+        }
+      },
+      "operator_bases": {
+        "operator-basis:spin": {
+          "kind": "spin_vector",
+          "labels": [
+            "Sx",
+            "Sy",
+            "Sz"
+          ]
+        }
+      }
+    },
+    "parameters": {},
+    "schema_version": "lattice-term-contract/v1",
+    "symmetry": {
+      "operations": [
+        {
+          "operation_ref": "symop:0",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:1",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:2",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:3",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:4",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:5",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:6",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:7",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:8",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:9",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:10",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:11",
+          "rotation": [
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:12",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:13",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:14",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:15",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:16",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:17",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:18",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:19",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:20",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:21",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:22",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:23",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:24",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:25",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:26",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:27",
+          "rotation": [
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:28",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:29",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:30",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:31",
+          "rotation": [
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:32",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:33",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:34",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:35",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:36",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:37",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:38",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              -1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:39",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:40",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:41",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:42",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:43",
+          "rotation": [
+            [
+              0,
+              0,
+              -1
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:44",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:45",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              -1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:46",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "operation_ref": "symop:47",
+          "rotation": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              1,
+              0,
+              0
+            ]
+          ],
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "source": {
+        "international_symbol": "Pm-3m",
+        "number": 221
+      },
+      "unresolved": []
+    },
+    "term_attachments": {
+      "bond_terms": [
+        {
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "operator-basis:spin",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": [
+              [
+                -0.93,
+                -0.0,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.93,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.0,
+                -0.93
+              ]
+            ]
+          },
+          "term_ref": "term:J0"
+        },
+        {
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                0,
+                1,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "operator-basis:spin",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": [
+              [
+                -0.93,
+                -0.0,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.93,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.0,
+                -0.93
+              ]
+            ]
+          },
+          "term_ref": "term:J1"
+        },
+        {
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                1
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "operator-basis:spin",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": [
+              [
+                -0.93,
+                -0.0,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.93,
+                -0.0
+              ],
+              [
+                -0.0,
+                -0.0,
+                -0.93
+              ]
+            ]
+          },
+          "term_ref": "term:J2"
+        }
+      ],
+      "higher_body_terms": [],
+      "site_terms": []
+    },
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "reason": "Host extracted the one-site cubic nearest-neighbour model from the original document; the scripted researcher clarified ordinary spin-1/2, so the exchange is not rescaled.",
+  "request_updates": {
+    "normalization": {
+      "selected_classical_bond_label": "spin-only"
+    }
+  },
+  "type": "provide_input"
+}

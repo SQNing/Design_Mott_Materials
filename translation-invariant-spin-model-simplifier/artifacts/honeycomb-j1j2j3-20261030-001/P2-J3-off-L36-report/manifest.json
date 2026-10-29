@@ -1,0 +1,12 @@
+{
+  "answer_status": "answered_within_scope",
+  "artifacts": [],
+  "calculations_started": 0,
+  "model_id": "09a3300d46e5add86b1c6f7fb6aac3677ed8dbc6dd197a3fd182229ba3d3dd9d",
+  "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-off-L36-report/report.md",
+  "results": [
+    "fourier-seeded-L36"
+  ],
+  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-off-L36",
+  "schema_version": "research-report/v1"
+}

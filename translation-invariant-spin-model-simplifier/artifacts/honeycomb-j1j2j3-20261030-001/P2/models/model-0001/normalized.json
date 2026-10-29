@@ -1,0 +1,3080 @@
+{
+  "allowed_breaking": [],
+  "coordinate_convention": {
+    "axis_labels": [],
+    "axis_mapping": {},
+    "bond_overrides": {},
+    "frame": "unspecified",
+    "label_to_bond_orbit_overrides": {},
+    "quantization_axis": null,
+    "raw_description": "",
+    "resolved_axis_labels": [],
+    "resolved_frame": null,
+    "rotation_matrix": null,
+    "status": "unspecified"
+  },
+  "hamiltonian_description": {
+    "representation": {
+      "kind": "natural_language",
+      "value": "Classical isotropic Heisenberg exchange on the honeycomb lattice through third neighbours. Positive J is antiferromagnetic, each undirected bond once, no field or anisotropy. Agent-selected representative couplings are J1=1, J2=0.6, J3=0.8. The user requested representative-point ground-state competition, not a quantum phase diagram."
+    },
+    "support": []
+  },
+  "interaction": {
+    "id": "classical_bond_label_selection",
+    "options": [
+      "spin-only",
+      "cpn"
+    ],
+    "question": "This input can be interpreted either as a spin-only model or as a CP^(N-1) multiplet model. Which classical bond_label should the workflow use?",
+    "status": "needs_input"
+  },
+  "lattice": {
+    "dimension": null,
+    "kind": "unspecified",
+    "unit_cell": []
+  },
+  "lattice_description": {
+    "kind": "natural_language",
+    "value": "Classical isotropic Heisenberg exchange on the honeycomb lattice through third neighbours. Positive J is antiferromagnetic, each undirected bond once, no field or anisotropy. Agent-selected representative couplings are J1=1, J2=0.6, J3=0.8. The user requested representative-point ground-state competition, not a quantum phase diagram."
+  },
+  "lattice_structure": {
+    "basis_sites": [],
+    "bond_orbits": [
+      {
+        "directed": true,
+        "kind": "pair",
+        "members": [
+          {
+            "generated_by_operation_ref": "symmetry-operation:47",
+            "source": 0,
+            "target": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "orbit_ref": "bond-orbit:unlabeled",
+        "orientation_convention": "source_to_target",
+        "representative": {
+          "source": 0,
+          "target": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "reverse_orientation": {
+          "kind": "transpose_and_swap",
+          "source_target_swap": true,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "transpose": true
+        },
+        "selection_aliases": [
+          "unlabeled"
+        ],
+        "shell": 1,
+        "source_labels": [
+          "unlabeled"
+        ]
+      }
+    ],
+    "higher_body_orbits": [],
+    "lattice_vectors": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "local_frames": [],
+    "site_orbits": [],
+    "source_labels": []
+  },
+  "local_hilbert": {
+    "basis_registry": {
+      "basis:spin_s_half": {
+        "basis_order": [
+          "up",
+          "down"
+        ],
+        "dimension": 2,
+        "kind": "spin_multiplet"
+      }
+    },
+    "classical_spaces": {
+      "classical_space:spin_unit_vector": {
+        "dimension": 3,
+        "kind": "unit_vector_sphere"
+      }
+    },
+    "operator_bases": {
+      "op_basis:spin_cartesian": {
+        "basis_order": [
+          "Sx",
+          "Sy",
+          "Sz"
+        ],
+        "kind": "spin_cartesian"
+      }
+    },
+    "sites": [
+      {
+        "basis_ref": "basis:spin_s_half",
+        "classical_space_ref": "classical_space:spin_unit_vector",
+        "operator_basis_refs": [
+          "op_basis:spin_cartesian"
+        ],
+        "site_ref": "site:0",
+        "space_ref": "space:spin_s_half"
+      }
+    ]
+  },
+  "local_term": {
+    "representation": {
+      "kind": "natural_language",
+      "value": "Classical isotropic Heisenberg exchange on the honeycomb lattice through third neighbours. Positive J is antiferromagnetic, each undirected bond once, no field or anisotropy. Agent-selected representative couplings are J1=1, J2=0.6, J3=0.8. The user requested representative-point ground-state competition, not a quantum phase diagram."
+    },
+    "support": []
+  },
+  "magnetic_order": {
+    "kind": "unspecified",
+    "raw_description": "",
+    "reference_frame": {
+      "kind": "laboratory",
+      "phase_origin": null
+    },
+    "status": "unspecified",
+    "wavevector": [],
+    "wavevector_units": null
+  },
+  "parameters": {},
+  "projection": {
+    "heuristic": [
+      "low-energy",
+      "symmetry",
+      "template"
+    ],
+    "status": "not-needed"
+  },
+  "provenance": {
+    "parsed_at": "2026-10-29T18:13:49.279428Z",
+    "source_mode": "freeform",
+    "sources": [
+      {
+        "source_kind": "freeform",
+        "source_path": null
+      }
+    ]
+  },
+  "rotating_frame": {
+    "kind": "not-needed",
+    "status": "not-needed"
+  },
+  "rotating_frame_transform": {
+    "kind": "not-needed",
+    "status": "not-needed"
+  },
+  "schema_version": "lattice-term-contract/v1",
+  "solver_request": {
+    "outputs": [
+      "classical_state"
+    ],
+    "preferred_methods": [
+      "auto"
+    ],
+    "selected_bond_orbit_refs": [],
+    "selected_term_refs": [],
+    "selected_term_set_ref": null,
+    "selection_policy": "term_set_then_explicit_refs",
+    "symmetry_repair": false,
+    "task": "classical_ground_state"
+  },
+  "symmetry": {
+    "local_frame_actions": [
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:0",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:1",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:2",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:3",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:4",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:5",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:6",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:7",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:8",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:9",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:10",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:11",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:12",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:13",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:14",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:15",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:16",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:17",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:18",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:19",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:20",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:21",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:22",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:23",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:24",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:25",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:26",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:27",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:28",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:29",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:30",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:31",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:32",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:33",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:34",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:35",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:36",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:37",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:38",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:39",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:40",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:41",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:42",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:43",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:44",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:45",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:46",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      },
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:47",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      }
+    ],
+    "operations": [
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:0",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:1",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:2",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:3",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:4",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:5",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:6",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:7",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:8",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:9",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:10",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:11",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:12",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:13",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:14",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:15",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:16",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:17",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:18",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:19",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:20",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:21",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:22",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:23",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:24",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:25",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:26",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:27",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:28",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:29",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:30",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:31",
+        "rotation": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:32",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:33",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:34",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:35",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:36",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:37",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:38",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:39",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:40",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:41",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:42",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:43",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:44",
+        "rotation": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:45",
+        "rotation": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:46",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:47",
+        "rotation": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "source": {
+      "source_kind": "freeform",
+      "source_labels": [],
+      "source_path": null
+    },
+    "spin_space_rotations": [
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:0",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:1",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:2",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:3",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:4",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:5",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:6",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:7",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:8",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:9",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:10",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:11",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:12",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:13",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:14",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:15",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:16",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:17",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:18",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:19",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:20",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:21",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:22",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:23",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:24",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:25",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:26",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:27",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:28",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:29",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:30",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:31",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:32",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:33",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:34",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:35",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:36",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:37",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:38",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            1.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:39",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            -1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:40",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:41",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            -1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:42",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:43",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:44",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:45",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:46",
+        "source_labels": [
+          "spin-term"
+        ]
+      },
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ],
+          [
+            -0.0,
+            1.0,
+            -0.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:47",
+        "source_labels": [
+          "spin-term"
+        ]
+      }
+    ],
+    "unresolved": [
+      {
+        "code": "unresolved-lattice-symmetry",
+        "reason": "lattice symmetry could not be determined from the available document model"
+      }
+    ]
+  },
+  "symmetry_hints": [],
+  "system": {
+    "name": "",
+    "units": "arb."
+  },
+  "term_attachments": {
+    "bond_terms": [],
+    "candidate_terms": [],
+    "higher_body_terms": [],
+    "site_terms": [],
+    "term_sets": []
+  },
+  "timeouts": {
+    "classical_solver_seconds": 600,
+    "projection_seconds": 300,
+    "simplification_seconds": 600
+  },
+  "user_notes": "Classical isotropic Heisenberg exchange on the honeycomb lattice through third neighbours. Positive J is antiferromagnetic, each undirected bond once, no field or anisotropy. Agent-selected representative couplings are J1=1, J2=0.6, J3=0.8. The user requested representative-point ground-state competition, not a quantum phase diagram.",
+  "user_required_symmetries": []
+}

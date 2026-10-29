@@ -40,6 +40,13 @@ backends. It is not a novice-first guided tutorial.
 
 ## Workflow
 
+For a research question that spans preparation, calculations, interpretation or
+continuation, use the public Research workflow described in
+[reference/research-workflow.md](reference/research-workflow.md). The host agent
+chooses and explains each action. Read the recorded diagnostics before choosing
+another calculation; do not treat a successful process as an answered question.
+Use the existing individual commands for a narrowly requested one-stage task.
+
 1. Identify the input route.
 2. Check environment and execution constraints.
 3. Land the input into a trusted normalized form.
@@ -50,6 +57,31 @@ backends. It is not a novice-first guided tutorial.
 7. Select a solver only if its capability covers every retained term.
 8. Run optional downstream analysis when appropriate.
 9. Report assumptions, limits, choices, hashes, and recommendations.
+
+Stage-one simplification is a faithful readable view of the complete Hamiltonian.
+No measured reconstruction error means null with assessment=not_assessed.
+Coefficient weights do not validate physical reduction. Silence or a timeout
+never authorizes projection, truncation, symmetry repair or a change of model.
+
+For an authorized physical approximation, use `propose_reduction` followed by
+`calculate/task=reduction_validation` as described in
+[reference/physical-reductions.md](reference/physical-reductions.md). Supply the
+selected full terms or local isometry, matched experiments and explicit observable
+tolerances. Keep the complete Hamiltonian as the control. Read both
+`scientific_status` and `validation_status`; a prepared candidate is not an
+accepted approximation, and a reliable rejection can answer the research question.
+Report the checked cells, momenta, energy window and observables with the verdict.
+Never promote a candidate to the original model automatically.
+
+For a mechanism question, use `propose_mechanism` and
+`calculate/task=mechanism_test` from
+[reference/mechanism-workflow.md](reference/mechanism-workflow.md). Declare the
+interaction groups, coupling points, scalar observables and falsifiable
+hypotheses. Keep all other groups at the full-model values when attributing a
+response to one group. Read the fixed-state and relaxed-state energy diagnostics
+before interpreting reference-dependent spectra. Report supporting evidence,
+counterexamples, missing controls and the exact finite scope. A hypothesis
+supported under these interventions is not a unique or universal mechanism.
 
 ## Output Contract
 

@@ -1,0 +1,70 @@
+{
+  "action_id": "finite-momentum",
+  "reason": "Measure controlled responses and test the stated mechanism hypotheses.",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "harmonic_spectrum"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Exchange raises the sampled frequency."
+      }
+    ],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0.25,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "type": "calculate"
+}

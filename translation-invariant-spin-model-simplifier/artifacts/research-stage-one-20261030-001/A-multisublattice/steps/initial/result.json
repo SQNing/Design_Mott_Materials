@@ -1,0 +1,316 @@
+{
+  "backend_result": {
+    "calculation": {
+      "boundary": "periodic",
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "energy_per_cell": -4.4252325,
+      "energy_total": -4.4252325,
+      "finite_cell_bound_gap": 0.0024222338616608496,
+      "finite_cell_lt_lower_bound_per_cell": -4.427654733861661,
+      "finite_cell_lt_minimum_q": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "infinite_lattice_certified": false,
+      "limitations": [
+        "Local minimization on the requested finite periodic supercell.",
+        "An LT bound gap near zero certifies this cell, not the infinite lattice."
+      ],
+      "method": "fixed-length-real-space-L-BFGS-B",
+      "seed": 28,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "spin_length": 0.5,
+      "spins": [
+        [
+          -1.3552193376596822e-12,
+          2.0404313927617576e-20,
+          0.5
+        ],
+        [
+          -1.2600154251825584e-12,
+          1.8180729458556428e-20,
+          0.5
+        ],
+        [
+          -1.1669932243624329e-12,
+          1.609719079907757e-20,
+          0.5
+        ],
+        [
+          -1.078575538972729e-12,
+          1.4206256020170457e-20,
+          0.5
+        ]
+      ],
+      "starts": [
+        {
+          "energy_per_cell": -4.4252325,
+          "iterations": 1,
+          "local_field_polishing": true,
+          "optimizer_success": false,
+          "stationarity_max_norm": 3.1607434352722436e-12
+        }
+      ],
+      "stationarity_max_norm": 3.1607434352722436e-12,
+      "stationarity_tolerance": 1e-06,
+      "status": "ok",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472",
+        "content_hash": "b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472",
+        "content_hash": "b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P1",
+          "kind": "structural_space_group",
+          "number": 1,
+          "operation_count": 1,
+          "operation_refs": [
+            "identity"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.1226699999999997e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:0"
+            ],
+            "threshold": 8.641e-09,
+            "transformed_term_refs": [
+              "exchange:0"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "task": "classical_ground_state",
+    "warnings": []
+  },
+  "calculation": {
+    "boundary": "periodic",
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "energy_per_cell": -4.4252325,
+    "energy_total": -4.4252325,
+    "finite_cell_bound_gap": 0.0024222338616608496,
+    "finite_cell_lt_lower_bound_per_cell": -4.427654733861661,
+    "finite_cell_lt_minimum_q": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "infinite_lattice_certified": false,
+    "limitations": [
+      "Local minimization on the requested finite periodic supercell.",
+      "An LT bound gap near zero certifies this cell, not the infinite lattice."
+    ],
+    "method": "fixed-length-real-space-L-BFGS-B",
+    "seed": 28,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "spin_length": 0.5,
+    "spins": [
+      [
+        -1.3552193376596822e-12,
+        2.0404313927617576e-20,
+        0.5
+      ],
+      [
+        -1.2600154251825584e-12,
+        1.8180729458556428e-20,
+        0.5
+      ],
+      [
+        -1.1669932243624329e-12,
+        1.609719079907757e-20,
+        0.5
+      ],
+      [
+        -1.078575538972729e-12,
+        1.4206256020170457e-20,
+        0.5
+      ]
+    ],
+    "starts": [
+      {
+        "energy_per_cell": -4.4252325,
+        "iterations": 1,
+        "local_field_polishing": true,
+        "optimizer_success": false,
+        "stationarity_max_norm": 3.1607434352722436e-12
+      }
+    ],
+    "stationarity_max_norm": 3.1607434352722436e-12,
+    "stationarity_tolerance": 1e-06,
+    "status": "ok",
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ]
+  },
+  "calculation_fingerprint": "6904a49cf4237c0dad438cc71034a0a6d125f0076f683e192cb14da1c698fe94",
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "906b75394a4cdf54c1982a69ff868fa0bf39279cf66118e47f0a40115c120783"
+  },
+  "diagnostics": [
+    {
+      "kind": "stationarity",
+      "satisfied": true,
+      "value": 3.1607434352722436e-12
+    },
+    {
+      "finite_cell_bound_gap": 0.0024222338616608496,
+      "kind": "global_ground_state",
+      "note": "Only the recorded finite search was performed.",
+      "satisfied": false
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793289668.941811,
+  "model_id": "10b544492b6eb3bc5d92f8063e2aacf6a852bab00455cff4956b78a872e01e78",
+  "reference_result": null,
+  "result_id": "initial",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Local minimization on the requested finite periodic supercell.",
+    "An LT bound gap near zero certifies this cell, not the infinite lattice.",
+    "Energy is per primitive cell in the supplied Hamiltonian's energy units."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 2048.0,
+    "maxiter": 1,
+    "seed": 28,
+    "spin_length": 0.5,
+    "starts": 1,
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ]
+  },
+  "suggested_actions": [
+    {
+      "reason": "Check robustness with more starts, an independent seed or a larger finite cell.",
+      "requires_agent_choice": true,
+      "task": "classical_ground_state",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_ground_state"
+}

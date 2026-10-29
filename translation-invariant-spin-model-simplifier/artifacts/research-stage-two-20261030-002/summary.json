@@ -1,0 +1,239 @@
+{
+  "A-weak-exchange": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.00024999999999997247
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "spin_correlations",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.0
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "pass",
+        "tolerance": 0.005,
+        "value": 0.001000000000000445
+      }
+    ],
+    "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/A-weak-exchange-report/report.md",
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 4,
+    "verdict": "accepted_within_scope"
+  },
+  "B-small-anisotropy": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.004999999999999782
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.000744743129729053
+      },
+      {
+        "case_id": "reference",
+        "name": "spin_correlations",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 2.220446049250313e-16
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "fail",
+        "tolerance": 0.005,
+        "value": 0.019999999999999907
+      }
+    ],
+    "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy-report/report.md",
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 4,
+    "verdict": "rejected"
+  },
+  "C-two-level": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "projector_distance",
+        "outcome": "pass",
+        "tolerance": 0.05,
+        "value": 1.2982073187987827e-12
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      }
+    ],
+    "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level-report/report.md",
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 4,
+    "verdict": "accepted_within_scope"
+  },
+  "C-window-comparison": {
+    "narrow_window_verdict": "accepted_within_scope",
+    "tighter_tolerance_solver_runs": 0,
+    "wide_window_metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.03,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "projector_distance",
+        "outcome": "pass",
+        "tolerance": 0.05,
+        "value": 1.2982073187987827e-12
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum_mode_count",
+        "outcome": "fail",
+        "reason": "Different numbers of modes in the requested energy window at q=[0.0, 0.0, 0.0]",
+        "tolerance": 0,
+        "value": 1.0
+      }
+    ],
+    "wide_window_solver_runs": 0,
+    "wide_window_verdict": "rejected"
+  },
+  "D-wrong-subspace": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "fail",
+        "tolerance": 0.03,
+        "value": 1.1099999999999999
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "fail",
+        "tolerance": 0.03,
+        "value": 1.1099999999999999
+      },
+      {
+        "case_id": "reference",
+        "name": "projector_distance",
+        "outcome": "fail",
+        "tolerance": 0.05,
+        "value": 1.4142135623730951
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum_mode_count",
+        "outcome": "fail",
+        "reason": "Different numbers of modes in the requested energy window at q=[0.0, 0.0, 0.0]",
+        "tolerance": 0,
+        "value": 1.0
+      }
+    ],
+    "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace-report/report.md",
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 4,
+    "verdict": "rejected"
+  },
+  "E-resume": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.00024999999999997247
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.0
+      },
+      {
+        "case_id": "reference",
+        "name": "spin_correlations",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.0
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "pass",
+        "tolerance": 0.005,
+        "value": 0.001000000000000445
+      }
+    ],
+    "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/E-resume-report/report.md",
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 4,
+    "verdict": "accepted_within_scope",
+    "worker": {
+      "host": "login001",
+      "pid": 47741,
+      "start_ticks": "217545997"
+    }
+  },
+  "F-budget": {
+    "blocker": "solver-run-budget-exhausted",
+    "metrics": null,
+    "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget-report/report.md",
+    "scientific_status": "inconclusive",
+    "solver_runs": 0,
+    "verdict": null
+  }
+}

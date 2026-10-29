@@ -1,0 +1,41 @@
+{
+  "scientific_status": "usable_within_scope",
+  "validation_status": "rejected",
+  "metrics": [
+    {
+      "case_id": "reference",
+      "name": "energy_per_cell",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.1000000000000002
+    },
+    {
+      "case_id": "reference",
+      "name": "full_energy_penalty",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.607783652850554
+    },
+    {
+      "case_id": "reference",
+      "name": "spin_correlations",
+      "outcome": "fail",
+      "tolerance": 0.05,
+      "value": 2.0
+    },
+    {
+      "case_id": "modes",
+      "name": "spectrum",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.9485858657604984
+    }
+  ],
+  "scientific_scope": [
+    "Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.",
+    "Stationary variational states are not proofs of global or infinite-lattice ground states.",
+    "State distances can distinguish symmetry-related representatives; rejection concerns the stated metric.",
+    "Agreement does not certify phase equivalence, parameter robustness or virtual-excitation corrections."
+  ],
+  "blocker": null
+}

@@ -1,0 +1,9 @@
+Classical honeycomb J1-J2-J3 study, requested 2026-10-30.
+User selected classical Heisenberg spins and representative points for Neel, zigzag, stripy and spiral competition.
+Agent-selected couplings (J1,J2,J3): P1=(1,0.1,0.1), P2=(1,0.6,0.8), P3=(1,0.4,-0.5), P4=(1,0.3,0.05).
+All 12 undirected terms per primitive cell retained. Full structural P6/mmm symmetry with 24 operations.
+Classical spin length 0.5 is a convention; energies reported as E/(N*S^2*J1).
+First validate geometry, symmetry, independent starts, cell-specific LT bound and finite-size dependence.
+Then at P2 compare removal of J3 and isolated J2/J3 scaling; report energetics, relaxed states, and numerical limits.
+No quantum ground-state conclusions, thermodynamic phase diagram, or unique collinear ordering assumed.
+Literature context only: Fouet et al., arXiv:cond-mat/0101421, especially classical degeneracy in M-point regions.

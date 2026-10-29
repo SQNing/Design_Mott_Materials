@@ -1,8 +1,9 @@
 # Environment Reference for `translation-invariant-spin-model-simplifier`
 
 This document is the skill-facing source of truth for environment readiness.
-Before choosing a solver path, the skill should read this file and ask the user
-which required and optional dependencies are already installed.
+Before choosing a solver path, read this file and probe the current runtime.
+Ask the user only about execution constraints or missing information that cannot
+be obtained from the environment.
 
 ## How the skill should use this document
 
@@ -259,7 +260,7 @@ test -d /path/to/output-dir
 
 ## Skill preflight checklist
 
-Before execution, the skill should ask the user for a quick environment status:
+Before execution, inspect the following environment facts:
 
 - Is `python3` available in the workspace environment?
 - Are `numpy` and `scipy` installed?

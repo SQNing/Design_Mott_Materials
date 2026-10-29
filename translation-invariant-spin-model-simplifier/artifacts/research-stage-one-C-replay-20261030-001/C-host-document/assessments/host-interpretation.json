@@ -1,0 +1,22 @@
+{
+  "action_id": "host-interpretation",
+  "answer_status": "answered_within_scope",
+  "conclusion": "A stationary finite-cell reference is harmonically stable at the requested momenta.",
+  "evidence": [
+    {
+      "path": "calculation.energy_per_cell",
+      "result_id": "host-ground"
+    },
+    {
+      "path": "calculation.stability",
+      "result_id": "host-spectrum"
+    }
+  ],
+  "limitations": [
+    "No infinite-system claim; modes are folded by the reference supercell.",
+    "The clarification is a scripted acceptance reply."
+  ],
+  "reason": "Replay the host's finite-scope interpretation of the recorded diagnostics.",
+  "scope": "2x2x2 periodic cell; two sampled wavevectors.",
+  "type": "assess"
+}

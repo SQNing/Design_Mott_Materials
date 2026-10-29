@@ -1,0 +1,49 @@
+{
+  "action_id": "response",
+  "reason": "Measure controlled responses and test the stated mechanism hypotheses.",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "thermal",
+        "settings": {
+          "burn_in": 8,
+          "seed": 45,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            2,
+            1,
+            1
+          ],
+          "sweeps": 24,
+          "temperatures": [
+            0.7
+          ]
+        },
+        "task": "classical_monte_carlo"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Anisotropy raises the sampled frequency."
+      }
+    ],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "case_id": "thermal",
+        "kind": "mc_energy_per_site",
+        "observable_id": "frequency",
+        "temperature": 0.7
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "type": "calculate"
+}

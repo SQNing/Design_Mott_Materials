@@ -1,0 +1,317 @@
+{
+  "backend_result": {
+    "calculation": {
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "definitions": {
+        "binder_cumulant": "1-binder_ratio/3",
+        "binder_ratio": "<|M|^4>/<|M|^2>^2",
+        "heat_capacity_per_site": "Var(H_total)/(N*T^2)",
+        "order": "M(q)=sum_i exp(2pi i q.r_i) S_i / N",
+        "temperature": "model energy units, k_B=1",
+        "uniform_susceptibility_per_component": "N*sum_a Var(m_a)/(3*T)"
+      },
+      "grid": [
+        {
+          "acceptance_rate": 0.6875,
+          "binder_cumulant": 0.5864781815510536,
+          "binder_ratio": 1.2405654553468395,
+          "binder_stderr": null,
+          "effective_sample_warning": true,
+          "energy_effective_samples": 7.727192285333935,
+          "energy_per_site": -0.5118007334547553,
+          "energy_stderr": 0.04718656178371537,
+          "energy_tau_int_samples": 1.5529573429634687,
+          "heat_capacity_per_site": 0.0672990443504891,
+          "heat_capacity_stderr": null,
+          "jackknife_block_size": 16,
+          "jackknife_blocks": 1,
+          "order_effective_samples": 7.7271922853339365,
+          "order_parameter_squared": 0.13090036672737768,
+          "order_squared_stderr": 0.02359328089185768,
+          "samples": 24,
+          "temperature": 0.7,
+          "uniform_susceptibility_per_component": 0.11794024678445424
+        }
+      ],
+      "limitations": [
+        "Classical, not quantum Monte Carlo; local updates can be slow near transitions.",
+        "Reported statistical errors do not establish equilibration or remove finite-size bias."
+      ],
+      "method": "classical-periodic-sphere-Metropolis",
+      "order_momentum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "sampling": {
+        "burn_in_sweeps": 8,
+        "equilibration_verified": false,
+        "independent_initialization_each_temperature": true,
+        "measurement_interval": 1,
+        "measurement_sweeps": 24,
+        "seed": 45
+      },
+      "site_count": 2,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "spin_length": 0.5,
+      "status": "ok",
+      "supercell_shape": [
+        2,
+        1,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+        "content_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+        "content_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P1",
+          "kind": "structural_space_group",
+          "number": 1,
+          "operation_count": 1,
+          "operation_refs": [
+            "identity"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:2"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "exchange:2"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "task": "classical_monte_carlo",
+    "warnings": []
+  },
+  "calculation": {
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "definitions": {
+      "binder_cumulant": "1-binder_ratio/3",
+      "binder_ratio": "<|M|^4>/<|M|^2>^2",
+      "heat_capacity_per_site": "Var(H_total)/(N*T^2)",
+      "order": "M(q)=sum_i exp(2pi i q.r_i) S_i / N",
+      "temperature": "model energy units, k_B=1",
+      "uniform_susceptibility_per_component": "N*sum_a Var(m_a)/(3*T)"
+    },
+    "grid": [
+      {
+        "acceptance_rate": 0.6875,
+        "binder_cumulant": 0.5864781815510536,
+        "binder_ratio": 1.2405654553468395,
+        "binder_stderr": null,
+        "effective_sample_warning": true,
+        "energy_effective_samples": 7.727192285333935,
+        "energy_per_site": -0.5118007334547553,
+        "energy_stderr": 0.04718656178371537,
+        "energy_tau_int_samples": 1.5529573429634687,
+        "heat_capacity_per_site": 0.0672990443504891,
+        "heat_capacity_stderr": null,
+        "jackknife_block_size": 16,
+        "jackknife_blocks": 1,
+        "order_effective_samples": 7.7271922853339365,
+        "order_parameter_squared": 0.13090036672737768,
+        "order_squared_stderr": 0.02359328089185768,
+        "samples": 24,
+        "temperature": 0.7,
+        "uniform_susceptibility_per_component": 0.11794024678445424
+      }
+    ],
+    "limitations": [
+      "Classical, not quantum Monte Carlo; local updates can be slow near transitions.",
+      "Reported statistical errors do not establish equilibration or remove finite-size bias."
+    ],
+    "method": "classical-periodic-sphere-Metropolis",
+    "order_momentum": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "sampling": {
+      "burn_in_sweeps": 8,
+      "equilibration_verified": false,
+      "independent_initialization_each_temperature": true,
+      "measurement_interval": 1,
+      "measurement_sweeps": 24,
+      "seed": 45
+    },
+    "site_count": 2,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "spin_length": 0.5,
+    "status": "ok",
+    "supercell_shape": [
+      2,
+      1,
+      1
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "kind": "effective_samples",
+      "satisfied": false
+    },
+    {
+      "kind": "equilibration",
+      "note": "Statistics alone do not certify equilibration.",
+      "satisfied": false
+    }
+  ],
+  "evidence_digest": "6349ed7d18a11820e61b83245b66d7c7912c171fa49c029bb12990162273d984",
+  "execution_status": "succeeded",
+  "finished_at": 1793295950.5502734,
+  "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+  "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+  "reference_result": null,
+  "result_id": "job-7e128f052804de5641c26a89",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Classical, not quantum Monte Carlo; local updates can be slow near transitions.",
+    "Reported statistical errors do not establish equilibration or remove finite-size bias."
+  ],
+  "scientific_status": "inconclusive",
+  "settings": {
+    "burn_in": 8,
+    "max_memory_mb": 2048.0,
+    "seed": 45,
+    "spin_length": 0.5,
+    "supercell_shape": [
+      2,
+      1,
+      1
+    ],
+    "sweeps": 24,
+    "temperatures": [
+      0.7
+    ]
+  },
+  "suggested_actions": [
+    {
+      "reason": "Compare independent seeds and longer burn-in/sampling; inspect finite-size effects.",
+      "requires_agent_choice": true,
+      "task": "classical_monte_carlo",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_monte_carlo"
+}

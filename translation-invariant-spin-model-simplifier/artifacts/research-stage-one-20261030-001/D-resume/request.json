@@ -1,0 +1,1086 @@
+{
+  "budget": {
+    "max_memory_mb": 2048,
+    "max_solver_runs": 8,
+    "max_wall_time_seconds": 180
+  },
+  "model": {
+    "lattice_structure": {
+      "basis_sites": [
+        {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "site_ref": "site:0"
+        },
+        {
+          "position": [
+            0.19,
+            0.23,
+            0.31
+          ],
+          "site_ref": "site:1"
+        },
+        {
+          "position": [
+            0.43,
+            0.11,
+            0.67
+          ],
+          "site_ref": "site:2"
+        },
+        {
+          "position": [
+            0.71,
+            0.59,
+            0.37
+          ],
+          "site_ref": "site:3"
+        }
+      ],
+      "bond_orbits": [],
+      "lattice_vectors": [
+        [
+          1.1,
+          0.0,
+          0.0
+        ],
+        [
+          0.17,
+          1.23,
+          0.0
+        ],
+        [
+          0.09,
+          0.21,
+          1.37
+        ]
+      ]
+    },
+    "local_hilbert": {
+      "classical_spaces": {
+        "space": {
+          "dimension": 3,
+          "kind": "unit_vector_sphere"
+        }
+      },
+      "operator_bases": {
+        "basis": {
+          "kind": "spin_vector",
+          "labels": [
+            "Sx",
+            "Sy",
+            "Sz"
+          ]
+        }
+      }
+    },
+    "parameters": {},
+    "schema_version": "lattice-term-contract/v1",
+    "symmetry": {
+      "operations": [
+        {
+          "operation_ref": "identity",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "source": {
+        "international_symbol": "P1",
+        "number": 1
+      },
+      "unresolved": []
+    },
+    "term_attachments": {
+      "bond_terms": [
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.73,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.6643,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.8541
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:0"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.743,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.67613,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.8693099999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:1"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.756,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.68796,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.88452
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:2"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.769,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.69979,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.8997299999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:3"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.782,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.71162,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.91494
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:4"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.7949999999999999,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.7234499999999999,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.9301499999999998
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:5"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 1,
+              "translation": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.8079999999999999,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.7352799999999999,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.9453599999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:6"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 1,
+              "translation": [
+                0,
+                1,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.821,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.7471099999999999,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.9605699999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:7"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                1
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.834,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.75894,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.9757799999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:8"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 2,
+              "translation": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.847,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.77077,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.9909899999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:9"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 2,
+              "translation": [
+                0,
+                1,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.86,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.7826,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.0062
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:10"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 1,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                1
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.873,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.7944300000000001,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.02141
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:11"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.886,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.8062600000000001,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.0366199999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:12"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                0,
+                1,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.899,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.8180900000000001,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.05183
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:13"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 2,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                1
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.9119999999999999,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.82992,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.0670399999999998
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:14"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.9249999999999999,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.84175,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.08225
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:15"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                0,
+                1,
+                0
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.938,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.85358,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.0974599999999999
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:16"
+        },
+        {
+          "attach_to": {
+            "kind": "explicit_cluster",
+            "orientation": "explicit"
+          },
+          "cluster": [
+            {
+              "site": 3,
+              "translation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "site": 0,
+              "translation": [
+                0,
+                0,
+                1
+              ]
+            }
+          ],
+          "coordinate_convention": "global_crystallographic",
+          "operator_basis_ref": "basis",
+          "payload": {
+            "kind": "bilinear_exchange_matrix",
+            "matrix": {
+              "data": [
+                [
+                  -0.951,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  -0.86541,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -1.1126699999999998
+                ]
+              ],
+              "shape": [
+                3,
+                3
+              ]
+            }
+          },
+          "term_ref": "exchange:17"
+        }
+      ],
+      "higher_body_terms": [],
+      "site_terms": [],
+      "term_sets": []
+    },
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "question": "Resume an in-progress finite classical calculation.",
+  "requested_tasks": [
+    "classical_ground_state"
+  ]
+}

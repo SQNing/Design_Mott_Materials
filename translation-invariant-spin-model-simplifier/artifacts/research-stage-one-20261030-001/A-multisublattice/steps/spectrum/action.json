@@ -1,0 +1,27 @@
+{
+  "action_id": "spectrum",
+  "reason": "Check the saved candidate's stationarity and quadratic stability at three wavevectors.",
+  "reference_result": "refine",
+  "settings": {
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.21,
+        0.17,
+        0.13
+      ],
+      [
+        0.5,
+        0,
+        0
+      ]
+    ],
+    "spin": 0.5
+  },
+  "task": "harmonic_spectrum",
+  "type": "calculate"
+}

@@ -514,6 +514,9 @@ def _canonical_selected_term_refs(payload):
 
 
 def _canonical_scalar_to_float(value, parameters):
+    # Canonical bond reversal can produce native complex scalars for real tensors.
+    if isinstance(value, complex):
+        value = {"kind": "complex", "re": value.real, "im": value.imag}
     if isinstance(value, dict):
         kind = value.get("kind")
         if kind == "real":

@@ -1,0 +1,422 @@
+{
+  "action_hash": "e4a78f8ace9faa5e0c951575661117c0060c536e01f93b334c232e39234ca96b",
+  "baseline_point_id": "control",
+  "groups": [
+    {
+      "description": "Uniaxial exchange anisotropy.",
+      "group_id": "anisotropy",
+      "term_refs": [
+        "small"
+      ]
+    }
+  ],
+  "limitations": [
+    "Interventions act on the complete canonical model with the original structural symmetry.",
+    "No assumption of a unique mechanism or validity beyond the sampled couplings and observables.",
+    "A successful plan does not establish any physical hypothesis."
+  ],
+  "mechanism_id": "couplings",
+  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
+  "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "points": [
+    {
+      "factors": {
+        "anisotropy": 1.0
+      },
+      "model": {
+        "basis_sites": [
+          {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "site_ref": "site:0"
+          }
+        ],
+        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
+        "fidelity": {
+          "assessment": "not_assessed",
+          "reconstruction_error": null
+        },
+        "hamiltonian_hash": "d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405",
+        "lattice_vectors": [
+          [
+            1.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.17,
+            1.23,
+            0.0
+          ],
+          [
+            0.09,
+            0.21,
+            1.37
+          ]
+        ],
+        "local_basis_labels": [],
+        "local_spaces": {
+          "space": {
+            "dimension": 3,
+            "kind": "unit_vector_sphere"
+          }
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "questions": [],
+        "site_count": 1,
+        "source_term_count": 4,
+        "status": "ready",
+        "symmetry_validation": {
+          "failed_operations": [],
+          "forbidden_terms": [],
+          "input_hamiltonian_subgroup": {
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ],
+            "status": "verified-subgroup"
+          },
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_reports": [
+            {
+              "allowed_residual": 1.03e-08,
+              "frobenius_residual": 0.0,
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_ref": "identity",
+              "passed": true,
+              "worst_term": {
+                "absolute_residual": 0.0,
+                "canonical_key": [
+                  "bilinear_exchange_tensor",
+                  [
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        0
+                      ]
+                    ],
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        1
+                      ]
+                    ]
+                  ],
+                  "basis",
+                  "default"
+                ],
+                "relative_residual": 0.0,
+                "source_term_refs": [
+                  "exchange:2"
+                ],
+                "threshold": 1.01e-08,
+                "transformed_term_refs": [
+                  "exchange:2"
+                ]
+              }
+            }
+          ],
+          "status": "passed",
+          "target_group": {
+            "international_symbol": "P1",
+            "kind": "structural_space_group",
+            "number": 1,
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ]
+          }
+        },
+        "term_count": 4,
+        "term_families": {
+          "bilinear_exchange_tensor": 4
+        },
+        "units": {
+          "energy": "dimensionless model units",
+          "hbar": 1
+        },
+        "version": 1,
+        "warnings": []
+      },
+      "point_id": "control"
+    },
+    {
+      "factors": {
+        "anisotropy": 0.0
+      },
+      "model": {
+        "basis_sites": [
+          {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "site_ref": "site:0"
+          }
+        ],
+        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-off/models/model-0001",
+        "fidelity": {
+          "assessment": "not_assessed",
+          "reconstruction_error": null
+        },
+        "hamiltonian_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+        "lattice_vectors": [
+          [
+            1.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.17,
+            1.23,
+            0.0
+          ],
+          [
+            0.09,
+            0.21,
+            1.37
+          ]
+        ],
+        "local_basis_labels": [],
+        "local_spaces": {
+          "space": {
+            "dimension": 3,
+            "kind": "unit_vector_sphere"
+          }
+        },
+        "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+        "questions": [],
+        "site_count": 1,
+        "source_term_count": 4,
+        "status": "ready",
+        "symmetry_validation": {
+          "failed_operations": [],
+          "forbidden_terms": [],
+          "input_hamiltonian_subgroup": {
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ],
+            "status": "verified-subgroup"
+          },
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_reports": [
+            {
+              "allowed_residual": 1.01e-08,
+              "frobenius_residual": 0.0,
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_ref": "identity",
+              "passed": true,
+              "worst_term": {
+                "absolute_residual": 0.0,
+                "canonical_key": [
+                  "bilinear_exchange_tensor",
+                  [
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        0
+                      ]
+                    ],
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        1
+                      ]
+                    ]
+                  ],
+                  "basis",
+                  "default"
+                ],
+                "relative_residual": 0.0,
+                "source_term_refs": [
+                  "exchange:2"
+                ],
+                "threshold": 1.01e-08,
+                "transformed_term_refs": [
+                  "exchange:2"
+                ]
+              }
+            }
+          ],
+          "status": "passed",
+          "target_group": {
+            "international_symbol": "P1",
+            "kind": "structural_space_group",
+            "number": 1,
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ]
+          }
+        },
+        "term_count": 4,
+        "term_families": {
+          "bilinear_exchange_tensor": 4
+        },
+        "units": {
+          "energy": "dimensionless model units",
+          "hbar": 1
+        },
+        "version": 1,
+        "warnings": []
+      },
+      "point_id": "anisotropy-off"
+    },
+    {
+      "factors": {
+        "anisotropy": 0.5
+      },
+      "model": {
+        "basis_sites": [
+          {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "site_ref": "site:0"
+          }
+        ],
+        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-half/models/model-0001",
+        "fidelity": {
+          "assessment": "not_assessed",
+          "reconstruction_error": null
+        },
+        "hamiltonian_hash": "22685f411f33a403b7b81e7dca8c24ae36669d6f923daf7882cb8af248fcc275",
+        "lattice_vectors": [
+          [
+            1.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.17,
+            1.23,
+            0.0
+          ],
+          [
+            0.09,
+            0.21,
+            1.37
+          ]
+        ],
+        "local_basis_labels": [],
+        "local_spaces": {
+          "space": {
+            "dimension": 3,
+            "kind": "unit_vector_sphere"
+          }
+        },
+        "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+        "questions": [],
+        "site_count": 1,
+        "source_term_count": 4,
+        "status": "ready",
+        "symmetry_validation": {
+          "failed_operations": [],
+          "forbidden_terms": [],
+          "input_hamiltonian_subgroup": {
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ],
+            "status": "verified-subgroup"
+          },
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_reports": [
+            {
+              "allowed_residual": 1.02e-08,
+              "frobenius_residual": 0.0,
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_ref": "identity",
+              "passed": true,
+              "worst_term": {
+                "absolute_residual": 0.0,
+                "canonical_key": [
+                  "bilinear_exchange_tensor",
+                  [
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        0
+                      ]
+                    ],
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        1
+                      ]
+                    ]
+                  ],
+                  "basis",
+                  "default"
+                ],
+                "relative_residual": 0.0,
+                "source_term_refs": [
+                  "exchange:2"
+                ],
+                "threshold": 1.01e-08,
+                "transformed_term_refs": [
+                  "exchange:2"
+                ]
+              }
+            }
+          ],
+          "status": "passed",
+          "target_group": {
+            "international_symbol": "P1",
+            "kind": "structural_space_group",
+            "number": 1,
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ]
+          }
+        },
+        "term_count": 4,
+        "term_families": {
+          "bilinear_exchange_tensor": 4
+        },
+        "units": {
+          "energy": "dimensionless model units",
+          "hbar": 1
+        },
+        "version": 1,
+        "warnings": []
+      },
+      "point_id": "anisotropy-half"
+    }
+  ],
+  "question": "Which interaction controls the frequency at the selected momentum?",
+  "schema_version": "mechanism-plan/v1",
+  "status": "ready"
+}

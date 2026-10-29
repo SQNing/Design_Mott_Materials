@@ -1,0 +1,12 @@
+{
+  "parent_run": "P2",
+  "mechanism_id": "coupling-controls",
+  "point_id": "J3-off",
+  "couplings": [
+    1.0,
+    0.6,
+    0.0
+  ],
+  "reason": "The 8x8 cell undersamples a noncommensurate Fourier minimum.",
+  "initial_state": "Equal-length single-q construction from this model's finite-cell 2x2 Fourier matrix"
+}

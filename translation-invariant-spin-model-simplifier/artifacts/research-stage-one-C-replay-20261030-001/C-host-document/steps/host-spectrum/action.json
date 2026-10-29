@@ -1,0 +1,22 @@
+{
+  "action_id": "host-spectrum",
+  "reason": "Check stability about the saved stationary reference.",
+  "reference_result": "host-ground",
+  "settings": {
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.5,
+        0,
+        0
+      ]
+    ],
+    "spin": 0.5
+  },
+  "task": "harmonic_spectrum",
+  "type": "calculate"
+}

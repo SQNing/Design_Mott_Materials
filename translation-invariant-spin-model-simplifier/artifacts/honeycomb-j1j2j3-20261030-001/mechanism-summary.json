@@ -1,0 +1,378 @@
+{
+  "scientific_status": "usable_within_scope",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation.energy_per_cell",
+        "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+        "selector": {
+          "case_id": "ground",
+          "kind": "energy_per_cell",
+          "observable_id": "energy"
+        }
+      },
+      "kind": "energy_per_cell",
+      "observable_id": "energy",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": -0.6500000000000006
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.energy_per_cell",
+        "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
+        "selector": {
+          "case_id": "ground",
+          "kind": "energy_per_cell",
+          "observable_id": "energy"
+        }
+      },
+      "kind": "energy_per_cell",
+      "observable_id": "energy",
+      "point_id": "J2-off",
+      "scientific_status": "usable_within_scope",
+      "value": -1.3500000000000019
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.energy_per_cell",
+        "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
+        "selector": {
+          "case_id": "ground",
+          "kind": "energy_per_cell",
+          "observable_id": "energy"
+        }
+      },
+      "kind": "energy_per_cell",
+      "observable_id": "energy",
+      "point_id": "J2-half",
+      "scientific_status": "usable_within_scope",
+      "value": -0.9000000000000008
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.energy_per_cell",
+        "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
+        "selector": {
+          "case_id": "ground",
+          "kind": "energy_per_cell",
+          "observable_id": "energy"
+        }
+      },
+      "kind": "energy_per_cell",
+      "observable_id": "energy",
+      "point_id": "J3-off",
+      "scientific_status": "usable_within_scope",
+      "value": -0.5499999999999998
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.energy_per_cell",
+        "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
+        "selector": {
+          "case_id": "ground",
+          "kind": "energy_per_cell",
+          "observable_id": "energy"
+        }
+      },
+      "kind": "energy_per_cell",
+      "observable_id": "energy",
+      "point_id": "J3-half",
+      "scientific_status": "usable_within_scope",
+      "value": -0.44999999999999996
+    }
+  ],
+  "hypotheses": [
+    {
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 0.0,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "J2-off",
+          "scientific_status": "usable_within_scope",
+          "value": -1.3500000000000019
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 0.5,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "J2-half",
+          "scientific_status": "usable_within_scope",
+          "value": -0.9000000000000008
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 1.0,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": -0.6500000000000006
+        }
+      ],
+      "excluded_confounded_points": [
+        "J3-off",
+        "J3-half"
+      ],
+      "explanation": "Within the recorded finite model, varying group 'J2' over [0.0, 0.5, 1.0] gives observable 'energy' values [-1.35, -0.9, -0.65]. An isolated intervention exceeds the stated change bound.",
+      "group_id": "J2",
+      "hypothesis_id": "J2-negligible",
+      "kind": "insensitive_response",
+      "max_change": 0.01,
+      "numerical_tolerance": 1e-06,
+      "observable_id": "energy",
+      "reason": "An isolated intervention exceeds the stated change bound.",
+      "response": {
+        "baseline_value": -0.6500000000000006,
+        "factors": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "maximum_change_from_control": 0.7000000000000013,
+        "values": [
+          -1.3500000000000019,
+          -0.9000000000000008,
+          -0.6500000000000006
+        ]
+      },
+      "statement": "J2 scaling changes energy by at most the declared tolerance.",
+      "status": "refuted_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "J2-off",
+        "J2-half",
+        "control"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 0.0,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "J3-off",
+          "scientific_status": "usable_within_scope",
+          "value": -0.5499999999999998
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 0.5,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "J3-half",
+          "scientific_status": "usable_within_scope",
+          "value": -0.44999999999999996
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.energy_per_cell",
+            "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+            "selector": {
+              "case_id": "ground",
+              "kind": "energy_per_cell",
+              "observable_id": "energy"
+            }
+          },
+          "factor": 1.0,
+          "kind": "energy_per_cell",
+          "observable_id": "energy",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": -0.6500000000000006
+        }
+      ],
+      "excluded_confounded_points": [
+        "J2-off",
+        "J2-half"
+      ],
+      "explanation": "Within the recorded finite model, varying group 'J3' over [0.0, 0.5, 1.0] gives observable 'energy' values [-0.55, -0.45, -0.65]. An isolated intervention exceeds the stated change bound.",
+      "group_id": "J3",
+      "hypothesis_id": "J3-negligible",
+      "kind": "insensitive_response",
+      "max_change": 0.01,
+      "numerical_tolerance": 1e-06,
+      "observable_id": "energy",
+      "reason": "An isolated intervention exceeds the stated change bound.",
+      "response": {
+        "baseline_value": -0.6500000000000006,
+        "factors": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "maximum_change_from_control": 0.20000000000000062,
+        "values": [
+          -0.5499999999999998,
+          -0.44999999999999996,
+          -0.6500000000000006
+        ]
+      },
+      "statement": "J3 scaling changes energy by at most the declared tolerance.",
+      "status": "refuted_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "J3-off",
+        "J3-half",
+        "control"
+      ]
+    }
+  ],
+  "energy_responses": [
+    {
+      "case_id": "ground",
+      "direct_energy_change": 0.0,
+      "frozen_state_energy": -0.6500000000000006,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.6500000000000006,
+      "point_id": "control",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.6500000000000006,
+      "relaxed_state_in_full_model_energy": -0.6500000000000006,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        8,
+        8,
+        1
+      ],
+      "total_energy_change": 0.0
+    },
+    {
+      "case_id": "ground",
+      "direct_energy_change": 0.3000000000000006,
+      "frozen_state_energy": -0.35,
+      "full_model_penalty": 0.2000000000000004,
+      "full_reference_energy": -0.6500000000000006,
+      "point_id": "J2-off",
+      "relaxation_energy_change": -1.0000000000000018,
+      "relaxed_state_energy": -1.3500000000000019,
+      "relaxed_state_in_full_model_energy": -0.4500000000000002,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        8,
+        8,
+        1
+      ],
+      "total_energy_change": -0.7000000000000013
+    },
+    {
+      "case_id": "ground",
+      "direct_energy_change": 0.15000000000000074,
+      "frozen_state_energy": -0.49999999999999983,
+      "full_model_penalty": 0.2000000000000005,
+      "full_reference_energy": -0.6500000000000006,
+      "point_id": "J2-half",
+      "relaxation_energy_change": -0.40000000000000097,
+      "relaxed_state_energy": -0.9000000000000008,
+      "relaxed_state_in_full_model_energy": -0.45000000000000007,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        8,
+        8,
+        1
+      ],
+      "total_energy_change": -0.2500000000000002
+    },
+    {
+      "case_id": "ground",
+      "direct_energy_change": 0.6000000000000006,
+      "frozen_state_energy": -0.04999999999999994,
+      "full_model_penalty": 0.5565017952634259,
+      "full_reference_energy": -0.6500000000000006,
+      "point_id": "J3-off",
+      "relaxation_energy_change": -0.4999999999999999,
+      "relaxed_state_energy": -0.5499999999999998,
+      "relaxed_state_in_full_model_energy": -0.09349820473657466,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        8,
+        8,
+        1
+      ],
+      "total_energy_change": 0.10000000000000075
+    },
+    {
+      "case_id": "ground",
+      "direct_energy_change": 0.3000000000000005,
+      "frozen_state_energy": -0.3500000000000001,
+      "full_model_penalty": 0.2999999999999997,
+      "full_reference_energy": -0.6500000000000006,
+      "point_id": "J3-half",
+      "relaxation_energy_change": -0.09999999999999987,
+      "relaxed_state_energy": -0.44999999999999996,
+      "relaxed_state_in_full_model_energy": -0.35000000000000087,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        8,
+        8,
+        1
+      ],
+      "total_energy_change": 0.20000000000000062
+    }
+  ],
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "blocker": null
+}

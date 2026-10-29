@@ -1,0 +1,16 @@
+{
+  "action_id": "quantum",
+  "reason": "Check low-energy residuals for the full finite quantum model.",
+  "settings": {
+    "eigenvalues": 2,
+    "seed": 92,
+    "spin": 0.5,
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "task": "quantum_low_energy",
+  "type": "calculate"
+}

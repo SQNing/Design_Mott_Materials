@@ -1,0 +1,1725 @@
+{
+  "backend_result": {
+    "calculation": {
+      "boundary": "periodic",
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "energy_per_cell": -0.6750000000000006,
+      "energy_total": -10.80000000000001,
+      "finite_cell_bound_gap": -4.440892098500626e-16,
+      "finite_cell_lt_lower_bound_per_cell": -0.6750000000000002,
+      "finite_cell_lt_minimum_q": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "infinite_lattice_certified": false,
+      "limitations": [
+        "Local minimization on the requested finite periodic supercell.",
+        "An LT bound gap near zero certifies this cell, not the infinite lattice."
+      ],
+      "method": "fixed-length-real-space-L-BFGS-B",
+      "seed": 97,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "spin_length": 0.5,
+      "spins": [
+        [
+          -0.14918989076628106,
+          -0.15003971004485442,
+          0.45302368801509835
+        ],
+        [
+          0.149189890766566,
+          0.15003971004495273,
+          -0.45302368801497195
+        ],
+        [
+          -0.14918989076630126,
+          -0.15003971004514713,
+          0.4530236880149947
+        ],
+        [
+          0.14918989076612088,
+          0.15003971004532834,
+          -0.4530236880149941
+        ],
+        [
+          -0.14918989076587313,
+          -0.1500397100452602,
+          0.45302368801509824
+        ],
+        [
+          0.14918989076581243,
+          0.15003971004517747,
+          -0.4530236880151457
+        ],
+        [
+          -0.1491898907658946,
+          -0.15003971004501918,
+          0.453023688015171
+        ],
+        [
+          0.1491898907661927,
+          0.15003971004489405,
+          -0.4530236880151143
+        ],
+        [
+          -0.14918989076657585,
+          -0.15003971004507502,
+          0.4530236880149282
+        ],
+        [
+          0.1491898907662594,
+          0.15003971004537733,
+          -0.45302368801493226
+        ],
+        [
+          -0.14918989076603292,
+          -0.15003971004544933,
+          0.45302368801498294
+        ],
+        [
+          0.14918989076577713,
+          0.15003971004545158,
+          -0.4530236880150665
+        ],
+        [
+          -0.1491898907658572,
+          -0.15003971004522243,
+          0.453023688015116
+        ],
+        [
+          0.1491898907660395,
+          0.15003971004505556,
+          -0.4530236880151112
+        ],
+        [
+          -0.14918989076628608,
+          -0.15003971004493838,
+          0.45302368801506887
+        ],
+        [
+          0.14918989076637787,
+          0.1500397100450247,
+          -0.45302368801501
+        ],
+        [
+          -0.1491898907659242,
+          -0.1500397100454074,
+          0.4530236880150327
+        ],
+        [
+          0.1491898907656532,
+          0.15003971004543096,
+          -0.4530236880151141
+        ],
+        [
+          -0.14918989076568986,
+          -0.15003971004540667,
+          0.4530236880151101
+        ],
+        [
+          0.14918989076579264,
+          0.1500397100452358,
+          -0.4530236880151329
+        ],
+        [
+          -0.1491898907659829,
+          -0.1500397100451149,
+          0.4530236880151103
+        ],
+        [
+          0.14918989076607334,
+          0.15003971004509584,
+          -0.45302368801508675
+        ],
+        [
+          -0.14918989076614755,
+          -0.1500397100451273,
+          0.45302368801505194
+        ],
+        [
+          0.14918989076594671,
+          0.15003971004524602,
+          -0.45302368801507875
+        ],
+        [
+          -0.14918989076571157,
+          -0.15003971004521147,
+          0.45302368801516757
+        ],
+        [
+          0.1491898907659337,
+          0.15003971004507663,
+          -0.4530236880151391
+        ],
+        [
+          -0.14918989076594,
+          -0.15003971004514197,
+          0.45302368801511533
+        ],
+        [
+          0.1491898907660774,
+          0.15003971004513245,
+          -0.4530236880150733
+        ],
+        [
+          -0.14918989076599637,
+          -0.15003971004515274,
+          0.4530236880150933
+        ],
+        [
+          0.14918989076588757,
+          0.15003971004519984,
+          -0.45302368801511345
+        ],
+        [
+          -0.14918989076582762,
+          -0.15003971004520109,
+          0.45302368801513276
+        ],
+        [
+          0.14918989076581446,
+          0.1500397100451413,
+          -0.45302368801515697
+        ]
+      ],
+      "starts": [
+        {
+          "energy_per_cell": -0.675,
+          "iterations": 59,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 7.678602141305673e-13
+        },
+        {
+          "energy_per_cell": -0.6750000000000003,
+          "iterations": 75,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 6.693951442525347e-13
+        },
+        {
+          "energy_per_cell": -0.675,
+          "iterations": 71,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 7.921347574991369e-13
+        },
+        {
+          "energy_per_cell": -0.6750000000000006,
+          "iterations": 57,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 4.814031053047499e-13
+        },
+        {
+          "energy_per_cell": -0.6750000000000003,
+          "iterations": 52,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 5.412738447698323e-13
+        },
+        {
+          "energy_per_cell": -0.6749999999999997,
+          "iterations": 70,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "stationarity_max_norm": 8.1785849416437e-13
+        }
+      ],
+      "stationarity_max_norm": 4.814031053047499e-13,
+      "stationarity_tolerance": 1e-06,
+      "status": "ok",
+      "supercell_shape": [
+        4,
+        4,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:df807e3386d07c0ae0f5c295e9190b01db3dc3b6273f7fcb422aed6b5f425512",
+        "content_hash": "df807e3386d07c0ae0f5c295e9190b01db3dc3b6273f7fcb422aed6b5f425512"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:df807e3386d07c0ae0f5c295e9190b01db3dc3b6273f7fcb422aed6b5f425512",
+        "content_hash": "df807e3386d07c0ae0f5c295e9190b01db3dc3b6273f7fcb422aed6b5f425512"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P6/mmm",
+          "kind": "structural_space_group",
+          "number": 191,
+          "operation_count": 24,
+          "operation_refs": [
+            "space:00",
+            "space:01",
+            "space:02",
+            "space:03",
+            "space:04",
+            "space:05",
+            "space:06",
+            "space:07",
+            "space:08",
+            "space:09",
+            "space:10",
+            "space:11",
+            "space:12",
+            "space:13",
+            "space:14",
+            "space:15",
+            "space:16",
+            "space:17",
+            "space:18",
+            "space:19",
+            "space:20",
+            "space:21",
+            "space:22",
+            "space:23"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "df807e3386d07c0ae0f5c295e9190b01db3dc3b6273f7fcb422aed6b5f425512",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 24,
+        "operation_refs": [
+          "space:00",
+          "space:01",
+          "space:02",
+          "space:03",
+          "space:04",
+          "space:05",
+          "space:06",
+          "space:07",
+          "space:08",
+          "space:09",
+          "space:10",
+          "space:11",
+          "space:12",
+          "space:13",
+          "space:14",
+          "space:15",
+          "space:16",
+          "space:17",
+          "space:18",
+          "space:19",
+          "space:20",
+          "space:21",
+          "space:22",
+          "space:23"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 1.1102230246251565e-16,
+      "max_relative_residual": 1.1102230246251565e-16,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:00",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:01",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:1:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:02",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:03",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:04",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:05",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:06",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:1:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:07",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:08",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:09",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:10",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:11",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:12",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:13",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:14",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:15",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:16",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:0:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:17",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:1:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:18",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:19",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:20",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9675159943996247e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:21",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:22",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:1:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:23",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 1.1000000000000001e-09,
+            "transformed_term_refs": [
+              "J2:0:0"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P6/mmm",
+        "kind": "structural_space_group",
+        "number": 191,
+        "operation_count": 24,
+        "operation_refs": [
+          "space:00",
+          "space:01",
+          "space:02",
+          "space:03",
+          "space:04",
+          "space:05",
+          "space:06",
+          "space:07",
+          "space:08",
+          "space:09",
+          "space:10",
+          "space:11",
+          "space:12",
+          "space:13",
+          "space:14",
+          "space:15",
+          "space:16",
+          "space:17",
+          "space:18",
+          "space:19",
+          "space:20",
+          "space:21",
+          "space:22",
+          "space:23"
+        ]
+      }
+    },
+    "task": "classical_ground_state",
+    "warnings": []
+  },
+  "calculation": {
+    "boundary": "periodic",
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "energy_per_cell": -0.6750000000000006,
+    "energy_total": -10.80000000000001,
+    "finite_cell_bound_gap": -4.440892098500626e-16,
+    "finite_cell_lt_lower_bound_per_cell": -0.6750000000000002,
+    "finite_cell_lt_minimum_q": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "infinite_lattice_certified": false,
+    "limitations": [
+      "Local minimization on the requested finite periodic supercell.",
+      "An LT bound gap near zero certifies this cell, not the infinite lattice."
+    ],
+    "method": "fixed-length-real-space-L-BFGS-B",
+    "seed": 97,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "spin_length": 0.5,
+    "spins": [
+      [
+        -0.14918989076628106,
+        -0.15003971004485442,
+        0.45302368801509835
+      ],
+      [
+        0.149189890766566,
+        0.15003971004495273,
+        -0.45302368801497195
+      ],
+      [
+        -0.14918989076630126,
+        -0.15003971004514713,
+        0.4530236880149947
+      ],
+      [
+        0.14918989076612088,
+        0.15003971004532834,
+        -0.4530236880149941
+      ],
+      [
+        -0.14918989076587313,
+        -0.1500397100452602,
+        0.45302368801509824
+      ],
+      [
+        0.14918989076581243,
+        0.15003971004517747,
+        -0.4530236880151457
+      ],
+      [
+        -0.1491898907658946,
+        -0.15003971004501918,
+        0.453023688015171
+      ],
+      [
+        0.1491898907661927,
+        0.15003971004489405,
+        -0.4530236880151143
+      ],
+      [
+        -0.14918989076657585,
+        -0.15003971004507502,
+        0.4530236880149282
+      ],
+      [
+        0.1491898907662594,
+        0.15003971004537733,
+        -0.45302368801493226
+      ],
+      [
+        -0.14918989076603292,
+        -0.15003971004544933,
+        0.45302368801498294
+      ],
+      [
+        0.14918989076577713,
+        0.15003971004545158,
+        -0.4530236880150665
+      ],
+      [
+        -0.1491898907658572,
+        -0.15003971004522243,
+        0.453023688015116
+      ],
+      [
+        0.1491898907660395,
+        0.15003971004505556,
+        -0.4530236880151112
+      ],
+      [
+        -0.14918989076628608,
+        -0.15003971004493838,
+        0.45302368801506887
+      ],
+      [
+        0.14918989076637787,
+        0.1500397100450247,
+        -0.45302368801501
+      ],
+      [
+        -0.1491898907659242,
+        -0.1500397100454074,
+        0.4530236880150327
+      ],
+      [
+        0.1491898907656532,
+        0.15003971004543096,
+        -0.4530236880151141
+      ],
+      [
+        -0.14918989076568986,
+        -0.15003971004540667,
+        0.4530236880151101
+      ],
+      [
+        0.14918989076579264,
+        0.1500397100452358,
+        -0.4530236880151329
+      ],
+      [
+        -0.1491898907659829,
+        -0.1500397100451149,
+        0.4530236880151103
+      ],
+      [
+        0.14918989076607334,
+        0.15003971004509584,
+        -0.45302368801508675
+      ],
+      [
+        -0.14918989076614755,
+        -0.1500397100451273,
+        0.45302368801505194
+      ],
+      [
+        0.14918989076594671,
+        0.15003971004524602,
+        -0.45302368801507875
+      ],
+      [
+        -0.14918989076571157,
+        -0.15003971004521147,
+        0.45302368801516757
+      ],
+      [
+        0.1491898907659337,
+        0.15003971004507663,
+        -0.4530236880151391
+      ],
+      [
+        -0.14918989076594,
+        -0.15003971004514197,
+        0.45302368801511533
+      ],
+      [
+        0.1491898907660774,
+        0.15003971004513245,
+        -0.4530236880150733
+      ],
+      [
+        -0.14918989076599637,
+        -0.15003971004515274,
+        0.4530236880150933
+      ],
+      [
+        0.14918989076588757,
+        0.15003971004519984,
+        -0.45302368801511345
+      ],
+      [
+        -0.14918989076582762,
+        -0.15003971004520109,
+        0.45302368801513276
+      ],
+      [
+        0.14918989076581446,
+        0.1500397100451413,
+        -0.45302368801515697
+      ]
+    ],
+    "starts": [
+      {
+        "energy_per_cell": -0.675,
+        "iterations": 59,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 7.678602141305673e-13
+      },
+      {
+        "energy_per_cell": -0.6750000000000003,
+        "iterations": 75,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 6.693951442525347e-13
+      },
+      {
+        "energy_per_cell": -0.675,
+        "iterations": 71,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 7.921347574991369e-13
+      },
+      {
+        "energy_per_cell": -0.6750000000000006,
+        "iterations": 57,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 4.814031053047499e-13
+      },
+      {
+        "energy_per_cell": -0.6750000000000003,
+        "iterations": 52,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 5.412738447698323e-13
+      },
+      {
+        "energy_per_cell": -0.6749999999999997,
+        "iterations": 70,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "stationarity_max_norm": 8.1785849416437e-13
+      }
+    ],
+    "stationarity_max_norm": 4.814031053047499e-13,
+    "stationarity_tolerance": 1e-06,
+    "status": "ok",
+    "supercell_shape": [
+      4,
+      4,
+      1
+    ]
+  },
+  "calculation_fingerprint": "325c9772c9bee9a05ad0882f68d1f72ba3a130a4e1012eb2784ca5e9f357792d",
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "kind": "stationarity",
+      "satisfied": true,
+      "value": 4.814031053047499e-13
+    },
+    {
+      "finite_cell_bound_gap": -4.440892098500626e-16,
+      "kind": "global_ground_state",
+      "note": "Only the recorded finite search was performed.",
+      "satisfied": false
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793297693.8944864,
+  "model_id": "3c275008a68221d35093888b800e33809ef3643369f6cdcd5de863981e6b50c9",
+  "reference_result": null,
+  "result_id": "ground-L4-seed97",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Local minimization on the requested finite periodic supercell.",
+    "An LT bound gap near zero certifies this cell, not the infinite lattice.",
+    "Energy is per primitive cell in the supplied Hamiltonian's energy units."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 3072.0,
+    "maxiter": 2000,
+    "seed": 97,
+    "spin_length": 0.5,
+    "starts": 6,
+    "stationarity_tolerance": 1e-06,
+    "supercell_shape": [
+      4,
+      4,
+      1
+    ]
+  },
+  "suggested_actions": [
+    {
+      "reason": "Check robustness with more starts, an independent seed or a larger finite cell.",
+      "requires_agent_choice": true,
+      "task": "classical_ground_state",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_ground_state"
+}

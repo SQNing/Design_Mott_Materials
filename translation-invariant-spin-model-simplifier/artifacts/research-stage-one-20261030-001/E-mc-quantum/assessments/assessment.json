@@ -1,0 +1,21 @@
+{
+  "action_id": "assessment",
+  "answer_status": "partial",
+  "conclusion": "Finite-cluster quantum eigenpairs converged; short MC samples do not establish equilibration.",
+  "evidence": [
+    {
+      "path": "calculation.sampling",
+      "result_id": "mc"
+    },
+    {
+      "path": "calculation.residual_norms",
+      "result_id": "quantum"
+    }
+  ],
+  "limitations": [
+    "These small calculations do not establish an infinite-system phase diagram."
+  ],
+  "reason": "Interpret the recorded evidence within its tested scope.",
+  "scope": "Tiny finite periodic systems; temperatures in model energy units with k_B=1.",
+  "type": "assess"
+}

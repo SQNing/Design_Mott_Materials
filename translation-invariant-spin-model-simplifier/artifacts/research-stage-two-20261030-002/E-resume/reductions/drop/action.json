@@ -1,0 +1,11 @@
+{
+  "action_id": "drop",
+  "reason": "Test the small term explicitly against the complete Hamiltonian.",
+  "transformation": {
+    "kind": "drop_terms",
+    "term_refs": [
+      "small"
+    ]
+  },
+  "type": "propose_reduction"
+}

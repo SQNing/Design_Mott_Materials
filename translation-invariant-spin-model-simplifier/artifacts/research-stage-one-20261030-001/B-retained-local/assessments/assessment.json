@@ -1,0 +1,21 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "A stationary retained-space product state and two stable harmonic branches were obtained.",
+  "evidence": [
+    {
+      "path": "calculation.energy_per_cell",
+      "result_id": "local-rays"
+    },
+    {
+      "path": "calculation.stability",
+      "result_id": "gswt"
+    }
+  ],
+  "limitations": [
+    "These small calculations do not establish an infinite-system phase diagram."
+  ],
+  "reason": "Interpret the recorded evidence within its tested scope.",
+  "scope": "One-cell product state; full three-dimensional local Hilbert space; two q points.",
+  "type": "assess"
+}

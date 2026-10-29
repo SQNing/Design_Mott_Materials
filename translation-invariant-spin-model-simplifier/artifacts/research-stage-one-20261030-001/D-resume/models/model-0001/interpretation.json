@@ -1,0 +1,150 @@
+{
+  "basis_sites": [
+    {
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "site_ref": "site:0"
+    },
+    {
+      "position": [
+        0.19,
+        0.23,
+        0.31
+      ],
+      "site_ref": "site:1"
+    },
+    {
+      "position": [
+        0.43,
+        0.11,
+        0.67
+      ],
+      "site_ref": "site:2"
+    },
+    {
+      "position": [
+        0.71,
+        0.59,
+        0.37
+      ],
+      "site_ref": "site:3"
+    }
+  ],
+  "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/D-resume/models/model-0001",
+  "fidelity": {
+    "assessment": "not_assessed",
+    "reconstruction_error": null
+  },
+  "hamiltonian_hash": "b96fdf9c3734a5803643917d6a31b3d0e1c8672fbc39acd6faad055536617472",
+  "lattice_vectors": [
+    [
+      1.1,
+      0.0,
+      0.0
+    ],
+    [
+      0.17,
+      1.23,
+      0.0
+    ],
+    [
+      0.09,
+      0.21,
+      1.37
+    ]
+  ],
+  "local_basis_labels": [],
+  "local_spaces": {
+    "space": {
+      "dimension": 3,
+      "kind": "unit_vector_sphere"
+    }
+  },
+  "model_id": "10b544492b6eb3bc5d92f8063e2aacf6a852bab00455cff4956b78a872e01e78",
+  "questions": [],
+  "site_count": 4,
+  "source_term_count": 18,
+  "status": "ready",
+  "symmetry_validation": {
+    "failed_operations": [],
+    "forbidden_terms": [],
+    "input_hamiltonian_subgroup": {
+      "operation_count": 1,
+      "operation_refs": [
+        "identity"
+      ],
+      "status": "verified-subgroup"
+    },
+    "max_absolute_residual": 0.0,
+    "max_relative_residual": 0.0,
+    "missing_symmetry_partners": [],
+    "operation_reports": [
+      {
+        "allowed_residual": 1.1226699999999997e-08,
+        "frobenius_residual": 0.0,
+        "max_absolute_residual": 0.0,
+        "max_relative_residual": 0.0,
+        "missing_symmetry_partners": [],
+        "operation_ref": "identity",
+        "passed": true,
+        "worst_term": {
+          "absolute_residual": 0.0,
+          "canonical_key": [
+            "bilinear_exchange_tensor",
+            [
+              [
+                0,
+                [
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1,
+                [
+                  0,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "basis",
+            "default"
+          ],
+          "relative_residual": 0.0,
+          "source_term_refs": [
+            "exchange:0"
+          ],
+          "threshold": 8.641e-09,
+          "transformed_term_refs": [
+            "exchange:0"
+          ]
+        }
+      }
+    ],
+    "status": "passed",
+    "target_group": {
+      "international_symbol": "P1",
+      "kind": "structural_space_group",
+      "number": 1,
+      "operation_count": 1,
+      "operation_refs": [
+        "identity"
+      ]
+    }
+  },
+  "term_count": 18,
+  "term_families": {
+    "bilinear_exchange_tensor": 18
+  },
+  "units": {
+    "energy": "dimensionless model units",
+    "hbar": 1
+  },
+  "version": 1,
+  "warnings": []
+}

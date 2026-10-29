@@ -1,0 +1,1130 @@
+{
+  "calculation": {
+    "energy_responses": [
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.0,
+        "frozen_state_energy": -0.755,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.755,
+        "point_id": "control",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.755,
+        "relaxed_state_in_full_model_energy": -0.755,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.0
+      },
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.0050000000000000044,
+        "frozen_state_energy": -0.75,
+        "full_model_penalty": 0.000744743129729053,
+        "full_reference_energy": -0.755,
+        "point_id": "anisotropy-off",
+        "relaxation_energy_change": -2.220446049250313e-16,
+        "relaxed_state_energy": -0.7500000000000002,
+        "relaxed_state_in_full_model_energy": -0.754255256870271,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.004999999999999782
+      },
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.0024999999999999467,
+        "frozen_state_energy": -0.7525000000000001,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.755,
+        "point_id": "anisotropy-half",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.7525000000000001,
+        "relaxed_state_in_full_model_energy": -0.755,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.0024999999999999467
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 0.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-off",
+            "scientific_status": "usable_within_scope",
+            "value": -3.3292515621207596e-16
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 0.5,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-half",
+            "scientific_status": "usable_within_scope",
+            "value": 0.009999999999999787
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [],
+        "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0] gives observable 'frequency' values [-3.329251562e-16, 0.01, 0.02]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "directed_span": 0.019999999999999907,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": 0.009999999999999787,
+          "values": [
+            -3.3292515621207596e-16,
+            0.009999999999999787,
+            0.019999999999999574
+          ]
+        },
+        "statement": "Anisotropy raises the sampled frequency.",
+        "status": "supported_within_scope",
+        "unused_isolated_points": [],
+        "used_points": [
+          "anisotropy-off",
+          "anisotropy-half",
+          "control"
+        ]
+      },
+      {
+        "absent_below": 0.0001,
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 0.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-off",
+            "scientific_status": "usable_within_scope",
+            "value": -3.3292515621207596e-16
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [],
+        "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 1.0] gives observable 'frequency' values [-3.329251562e-16, 0.02]. The phenomenon is present in the full-model control and disappears under the isolated removal.",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-necessary",
+        "kind": "necessary_in_context",
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "present_above": 0.01,
+        "reason": "The phenomenon is present in the full-model control and disappears under the isolated removal.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "factors": [
+            0.0,
+            1.0
+          ],
+          "values": [
+            -3.3292515621207596e-16,
+            0.019999999999999574
+          ],
+          "zero_factor_value": -3.3292515621207596e-16
+        },
+        "statement": "Anisotropy is necessary for this finite frequency.",
+        "status": "supported_within_scope",
+        "unused_isolated_points": [
+          "anisotropy-half"
+        ],
+        "used_points": [
+          "anisotropy-off",
+          "control"
+        ]
+      }
+    ],
+    "observations": [
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.019999999999999574
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "usable_within_scope",
+        "value": -3.3292515621207596e-16
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.009999999999999787
+      }
+    ],
+    "validated_scope": {
+      "baseline_point_id": "control",
+      "experiments": [
+        {
+          "case_id": "reference",
+          "settings": {
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        {
+          "case_id": "modes",
+          "reference_case": "reference",
+          "settings": {
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        }
+      ],
+      "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+      "groups": [
+        {
+          "description": "Uniaxial exchange anisotropy.",
+          "group_id": "anisotropy",
+          "term_refs": [
+            "small"
+          ]
+        }
+      ],
+      "local_basis_labels": [],
+      "mechanism_id": "couplings",
+      "observables": [
+        {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "points": [
+        {
+          "factors": {
+            "anisotropy": 1.0
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.0
+          },
+          "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+          "point_id": "anisotropy-off"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.5
+          },
+          "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+          "point_id": "anisotropy-half"
+        }
+      ],
+      "realized_cases": [
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "anisotropy-off",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "anisotropy-half",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "anisotropy-off",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "anisotropy-half",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "reference_tolerance": 1e-07,
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    }
+  },
+  "calculation_fingerprint": "f7f13ab67ab082738e9f0d8994b55faac679d19740208a889a569cbb623a08b2",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "energy_responses": [
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.0,
+      "frozen_state_energy": -0.755,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.755,
+      "point_id": "control",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.755,
+      "relaxed_state_in_full_model_energy": -0.755,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.0
+    },
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.0050000000000000044,
+      "frozen_state_energy": -0.75,
+      "full_model_penalty": 0.000744743129729053,
+      "full_reference_energy": -0.755,
+      "point_id": "anisotropy-off",
+      "relaxation_energy_change": -2.220446049250313e-16,
+      "relaxed_state_energy": -0.7500000000000002,
+      "relaxed_state_in_full_model_energy": -0.754255256870271,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.004999999999999782
+    },
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.0024999999999999467,
+      "frozen_state_energy": -0.7525000000000001,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.755,
+      "point_id": "anisotropy-half",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.7525000000000001,
+      "relaxed_state_in_full_model_energy": -0.755,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.0024999999999999467
+    }
+  ],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793295949.8830833,
+  "hypotheses": [
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-off",
+          "scientific_status": "usable_within_scope",
+          "value": -3.3292515621207596e-16
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.5,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-half",
+          "scientific_status": "usable_within_scope",
+          "value": 0.009999999999999787
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [],
+      "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0] gives observable 'frequency' values [-3.329251562e-16, 0.01, 0.02]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "response": {
+        "baseline_value": 0.019999999999999574,
+        "directed_span": 0.019999999999999907,
+        "factors": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "minimum_directed_increment": 0.009999999999999787,
+        "values": [
+          -3.3292515621207596e-16,
+          0.009999999999999787,
+          0.019999999999999574
+        ]
+      },
+      "statement": "Anisotropy raises the sampled frequency.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "anisotropy-off",
+        "anisotropy-half",
+        "control"
+      ]
+    },
+    {
+      "absent_below": 0.0001,
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-off",
+          "scientific_status": "usable_within_scope",
+          "value": -3.3292515621207596e-16
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [],
+      "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 1.0] gives observable 'frequency' values [-3.329251562e-16, 0.02]. The phenomenon is present in the full-model control and disappears under the isolated removal.",
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-necessary",
+      "kind": "necessary_in_context",
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "present_above": 0.01,
+      "reason": "The phenomenon is present in the full-model control and disappears under the isolated removal.",
+      "response": {
+        "baseline_value": 0.019999999999999574,
+        "factors": [
+          0.0,
+          1.0
+        ],
+        "values": [
+          -3.3292515621207596e-16,
+          0.019999999999999574
+        ],
+        "zero_factor_value": -3.3292515621207596e-16
+      },
+      "statement": "Anisotropy is necessary for this finite frequency.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [
+        "anisotropy-half"
+      ],
+      "used_points": [
+        "anisotropy-off",
+        "control"
+      ]
+    }
+  ],
+  "mechanism_id": "couplings",
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": 0.019999999999999574
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-off",
+      "scientific_status": "usable_within_scope",
+      "value": -3.3292515621207596e-16
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-half",
+      "scientific_status": "usable_within_scope",
+      "value": 0.009999999999999787
+    }
+  ],
+  "result_id": "persistent",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "scientific_status": "usable_within_scope",
+  "solver_runs": 6,
+  "suggested_actions": [
+    {
+      "reason": "Resolve inadequate controls or test additional finite sizes, momenta and isolated coupling points.",
+      "requires_agent_choice": true,
+      "task": "mechanism_test",
+      "type": "calculate"
+    }
+  ],
+  "task": "mechanism_test",
+  "validated_scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "groups": [
+      {
+        "description": "Uniaxial exchange anisotropy.",
+        "group_id": "anisotropy",
+        "term_refs": [
+          "small"
+        ]
+      }
+    ],
+    "local_basis_labels": [],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "anisotropy": 1.0
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.0
+        },
+        "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+        "point_id": "anisotropy-off"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.5
+        },
+        "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+        "point_id": "anisotropy-half"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "anisotropy-off",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "anisotropy-half",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "anisotropy-off",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "anisotropy-half",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  }
+}

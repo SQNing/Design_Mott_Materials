@@ -1,0 +1,368 @@
+{
+  "backend_result": {
+    "calculation": {
+      "backend": {
+        "implementation": "local-frame-quadratic-expansion",
+        "name": "python-glswt"
+      },
+      "classical_reference": {
+        "frame_construction": "first-column-is-reference-ray",
+        "manifold": "CP^(N-1)",
+        "schema_version": 1,
+        "state_kind": "local_rays"
+      },
+      "diagnostics": {
+        "bogoliubov": {
+          "max_A_antihermitian_norm": 0.0,
+          "max_B_asymmetry_norm": 8.989360150134747e-23,
+          "max_complex_eigenvalue_count": 0,
+          "mode_count": 2
+        },
+        "dispersion": {
+          "omega_max": 3.102000000000001,
+          "omega_min": 1.8800000000000003,
+          "omega_min_q_vector": [
+            0.25,
+            0.0,
+            0.0
+          ],
+          "soft_mode_count": 0,
+          "soft_mode_q_points": [],
+          "soft_mode_threshold": -1e-08
+        },
+        "quadratic_phase_dressing_consistency": {
+          "reason": "no-supercell-site-phases",
+          "status": "unsupported"
+        },
+        "rotating_frame_metadata_phase_sample_cross_check": {
+          "conflict_sources": [],
+          "likely_conflicting_path": "unknown",
+          "max_site_phase_offset_difference": null,
+          "max_wavevector_difference": null,
+          "metadata_status": "unavailable",
+          "phase_sample_status": "unavailable",
+          "status": "unavailable"
+        },
+        "stationarity": {
+          "is_stationary": true,
+          "linear_term_max_norm": 4.6172420065907996e-10,
+          "linear_term_mean_norm": 4.6172420065907996e-10,
+          "scope": "full-local-tangent",
+          "sites": [
+            {
+              "annihilation_linear_norm": 4.6172420065907996e-10,
+              "cell": [
+                0,
+                0,
+                0
+              ],
+              "creation_linear_norm": 4.6172420065907996e-10,
+              "linear_term_norm": 4.6172420065907996e-10,
+              "mode_site_index": 0,
+              "site": 0
+            }
+          ],
+          "tolerance": 1e-07
+        }
+      },
+      "dispersion": [
+        {
+          "bands": [
+            1.9199999999999995,
+            3.102000000000001
+          ],
+          "omega": 1.9199999999999995,
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            1.8800000000000003,
+            3.020000000000002
+          ],
+          "omega": 1.8800000000000003,
+          "q": [
+            0.25,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "limitations": [
+        "Harmonic expansion about saved periodic local rays.",
+        "All N-1 retained local excitations included; only requested q points checked.",
+        "No global-ground-state or thermodynamic-limit certification."
+      ],
+      "local_dimension": 3,
+      "momentum_coordinates": "primitive-reciprocal-lattice-units",
+      "onsite_term_count": 1,
+      "ordering": {
+        "kind": "uniform",
+        "q_vector": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      "pair_term_count": 1,
+      "path": {
+        "labels": [
+          "Q0",
+          "Q1"
+        ],
+        "node_indices": [
+          0,
+          1
+        ]
+      },
+      "payload_kind": "python_glswt_local_rays",
+      "stability": {
+        "is_stationary": true,
+        "minimum_bdg_hessian_eigenvalue": 1.7599999999999993,
+        "scope": "requested q points only"
+      },
+      "status": "ok",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "term_mapping": [
+        {
+          "destination": "onsite_terms",
+          "term_ref": "onsite:levels"
+        },
+        {
+          "destination": "bond_tensors",
+          "term_ref": "pair:general"
+        }
+      ]
+    },
+    "status": "ok"
+  },
+  "calculation": {
+    "backend": {
+      "implementation": "local-frame-quadratic-expansion",
+      "name": "python-glswt"
+    },
+    "classical_reference": {
+      "frame_construction": "first-column-is-reference-ray",
+      "manifold": "CP^(N-1)",
+      "schema_version": 1,
+      "state_kind": "local_rays"
+    },
+    "diagnostics": {
+      "bogoliubov": {
+        "max_A_antihermitian_norm": 0.0,
+        "max_B_asymmetry_norm": 8.989360150134747e-23,
+        "max_complex_eigenvalue_count": 0,
+        "mode_count": 2
+      },
+      "dispersion": {
+        "omega_max": 3.102000000000001,
+        "omega_min": 1.8800000000000003,
+        "omega_min_q_vector": [
+          0.25,
+          0.0,
+          0.0
+        ],
+        "soft_mode_count": 0,
+        "soft_mode_q_points": [],
+        "soft_mode_threshold": -1e-08
+      },
+      "quadratic_phase_dressing_consistency": {
+        "reason": "no-supercell-site-phases",
+        "status": "unsupported"
+      },
+      "rotating_frame_metadata_phase_sample_cross_check": {
+        "conflict_sources": [],
+        "likely_conflicting_path": "unknown",
+        "max_site_phase_offset_difference": null,
+        "max_wavevector_difference": null,
+        "metadata_status": "unavailable",
+        "phase_sample_status": "unavailable",
+        "status": "unavailable"
+      },
+      "stationarity": {
+        "is_stationary": true,
+        "linear_term_max_norm": 4.6172420065907996e-10,
+        "linear_term_mean_norm": 4.6172420065907996e-10,
+        "scope": "full-local-tangent",
+        "sites": [
+          {
+            "annihilation_linear_norm": 4.6172420065907996e-10,
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "creation_linear_norm": 4.6172420065907996e-10,
+            "linear_term_norm": 4.6172420065907996e-10,
+            "mode_site_index": 0,
+            "site": 0
+          }
+        ],
+        "tolerance": 1e-07
+      }
+    },
+    "dispersion": [
+      {
+        "bands": [
+          1.9199999999999995,
+          3.102000000000001
+        ],
+        "omega": 1.9199999999999995,
+        "q": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          1.8800000000000003,
+          3.020000000000002
+        ],
+        "omega": 1.8800000000000003,
+        "q": [
+          0.25,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "limitations": [
+      "Harmonic expansion about saved periodic local rays.",
+      "All N-1 retained local excitations included; only requested q points checked.",
+      "No global-ground-state or thermodynamic-limit certification."
+    ],
+    "local_dimension": 3,
+    "momentum_coordinates": "primitive-reciprocal-lattice-units",
+    "onsite_term_count": 1,
+    "ordering": {
+      "kind": "uniform",
+      "q_vector": null,
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ]
+    },
+    "pair_term_count": 1,
+    "path": {
+      "labels": [
+        "Q0",
+        "Q1"
+      ],
+      "node_indices": [
+        0,
+        1
+      ]
+    },
+    "payload_kind": "python_glswt_local_rays",
+    "stability": {
+      "is_stationary": true,
+      "minimum_bdg_hessian_eigenvalue": 1.7599999999999993,
+      "scope": "requested q points only"
+    },
+    "status": "ok",
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ],
+    "term_mapping": [
+      {
+        "destination": "onsite_terms",
+        "term_ref": "onsite:levels"
+      },
+      {
+        "destination": "bond_tensors",
+        "term_ref": "pair:general"
+      }
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "complex_projective_space"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "local_rays",
+    "solver_id": "retained-local-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum"
+    ],
+    "term_families": [
+      "pair_matrix",
+      "local_operator_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "details": {
+        "is_stationary": true,
+        "minimum_bdg_hessian_eigenvalue": 1.7599999999999993,
+        "scope": "requested q points only"
+      },
+      "kind": "harmonic_stability",
+      "satisfied": true
+    }
+  ],
+  "evidence_digest": "5b06b55f426249263a003f1be6d04f90ab06e9cb6188c471ecc3d3a86aad36a3",
+  "execution_status": "succeeded",
+  "finished_at": 1793295947.3433847,
+  "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52",
+  "model_id": "4a4a73ad06f3fdc865fe7eca417e13818c60ae970641fb17fffc67842f13a3db",
+  "reference_result": "job-aa51e92c2ae81e41a75f0099",
+  "result_id": "job-f893c84c1035f234373977c6",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Harmonic expansion about saved periodic local rays.",
+    "All N-1 retained local excitations included; only requested q points checked.",
+    "No global-ground-state or thermodynamic-limit certification."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 2048.0,
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.25,
+        0,
+        0
+      ]
+    ]
+  },
+  "suggested_actions": [
+    {
+      "reason": "Refine the reference if unstable; otherwise increase q sampling for broader claims.",
+      "requires_agent_choice": true,
+      "task": "spin_wave_spectrum",
+      "type": "calculate"
+    }
+  ],
+  "task": "spin_wave_spectrum"
+}

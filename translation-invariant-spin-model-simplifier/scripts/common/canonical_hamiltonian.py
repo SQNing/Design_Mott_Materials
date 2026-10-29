@@ -197,13 +197,46 @@ def _transpose_conjugate(matrix):
     ]
 
 
-def _compile_term(source, parameters, arity_hint=None):
+def swap_pair_matrix(matrix):
+    """Exchange the two Hilbert factors of a full pair operator, P H P^T."""
+    from math import isqrt
+    rows = [list(row) for row in matrix]
+    dimension = isqrt(len(rows))
+    if dimension * dimension != len(rows) or not dimension or any(len(row) != len(rows) for row in rows):
+        raise CanonicalHamiltonianError("pair-matrix-shape-mismatch")
+    permutation = [(i % dimension) * dimension + i // dimension for i in range(len(rows))]
+    return [[rows[i][j] for j in permutation] for i in permutation]
+
+
+def pair_coefficient_representation(term, context=None):
+    """Disambiguate legacy operator-coefficient tensors from full pair operators."""
+    payload = term.get("payload") or {}
+    declared = term.get("coefficient_representation", payload.get("coefficient_representation"))
+    if declared is not None:
+        if declared not in {"full_pair_operator", "operator_coefficient_tensor"}:
+            raise CanonicalHamiltonianError("unsupported-coefficient-representation", declared)
+        return declared
+    bases = (context or {}).get("local_hilbert", {}).get("operator_bases", {})
+    basis = bases.get(term.get("operator_basis_ref"), {})
+    matrix = term.get("coefficient", payload.get("matrix", []))
+    if isinstance(matrix, Mapping):
+        matrix = matrix.get("data", matrix.get("entries", []))
+    dimension = int(basis.get("dimension", 0) or 0)
+    if (basis.get("kind") == "dense_local_matrix_units" and dimension > 0
+            and isinstance(matrix, (list, tuple)) and len(matrix) == dimension ** 2
+            and all(len(row) == dimension ** 2 for row in matrix)):
+        return "full_pair_operator"
+    return "operator_coefficient_tensor"
+
+
+def _compile_term(source, parameters, arity_hint=None, context=None):
     term = deepcopy(dict(source))
     family = _family_for_term(term)
     canonical = canonicalize_cluster(_cluster_for_term(term, arity_hint=arity_hint), family)
     coefficient = _coefficient_for_term(term, parameters)
+    representation = pair_coefficient_representation(term, context) if family == "pair_matrix" else None
     if canonical["orientation_reversed"] and isinstance(coefficient, list):
-        coefficient = _transpose_conjugate(coefficient)
+        coefficient = swap_pair_matrix(coefficient) if representation == "full_pair_operator" else _transpose_conjugate(coefficient)
     orientation_sector = str(term.get("orientation_sector") or "default")
     compiled = {
         "term_ref": str(term.get("term_ref") or "term:unlabeled"),
@@ -219,6 +252,8 @@ def _compile_term(source, parameters, arity_hint=None):
         "attach_to": deepcopy(term.get("attach_to") or {}),
         "provenance": deepcopy(term.get("provenance") or {}),
     }
+    if representation is not None:
+        compiled["coefficient_representation"] = representation
     if compiled["arity"] > 2:
         from common.operator_family_symmetry import canonicalize_family_term
 
@@ -275,7 +310,7 @@ def _compile_representative_bond_term(source, payload, parameters):
 
     seed_source = deepcopy(dict(source))
     seed_source["cluster"] = _bond_cluster(representative)
-    seed = _compile_term(seed_source, parameters, arity_hint=2)
+    seed = _compile_term(seed_source, parameters, arity_hint=2, context=payload)
     if not _representative_operator_action_is_available(payload, seed):
         raise CanonicalHamiltonianError(
             "symmetry-representation-unavailable", seed.get("operator_basis_ref")
@@ -333,7 +368,7 @@ def compile_canonical_hamiltonian(payload):
             ):
                 terms.extend(_compile_representative_bond_term(source, payload, parameters))
             else:
-                terms.append(_compile_term(source, parameters, arity_hint=arity_hint))
+                terms.append(_compile_term(source, parameters, arity_hint=arity_hint, context=payload))
     terms.sort(key=lambda term: (str(term["term_ref"]), canonical_term_key(term)))
     return {
         "schema_version": "canonical-hamiltonian/v1",
@@ -401,6 +436,8 @@ def canonical_model_hash(model):
                 "coordinate_convention": term.get("coordinate_convention"),
                 "orientation_sector": term.get("orientation_sector"),
                 "operator_basis_ref": term.get("operator_basis_ref"),
+                **({"coefficient_representation": pair_coefficient_representation(term, model)}
+                   if term.get("operator_family") == "pair_matrix" else {}),
             }
         )
     physical_terms.sort(key=lambda term: json.dumps(_jsonable(term), sort_keys=True, separators=(",", ":")))

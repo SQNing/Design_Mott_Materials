@@ -1,0 +1,421 @@
+{
+  "backend_result": {
+    "calculation": {
+      "backend": {
+        "implementation": "local-frame-quadratic-expansion",
+        "name": "python-glswt"
+      },
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "classical_reference": {},
+      "diagnostics": {
+        "bogoliubov": {
+          "max_A_antihermitian_norm": 0.0,
+          "max_B_asymmetry_norm": 0.0,
+          "max_complex_eigenvalue_count": 0,
+          "mode_count": 1
+        },
+        "dispersion": {
+          "omega_max": 0.9999999999999999,
+          "omega_min": -3.3292515621207596e-16,
+          "omega_min_q_vector": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "soft_mode_count": 0,
+          "soft_mode_q_points": [],
+          "soft_mode_threshold": -1e-08
+        },
+        "quadratic_phase_dressing_consistency": {
+          "reason": "no-supercell-site-phases",
+          "status": "unsupported"
+        },
+        "rotating_frame_metadata_phase_sample_cross_check": {
+          "conflict_sources": [],
+          "likely_conflicting_path": "unknown",
+          "max_site_phase_offset_difference": null,
+          "max_wavevector_difference": null,
+          "metadata_status": "unavailable",
+          "phase_sample_status": "unavailable",
+          "status": "unavailable"
+        },
+        "stationarity": {
+          "is_stationary": true,
+          "linear_term_max_norm": 3.8066847625667614e-16,
+          "linear_term_mean_norm": 3.8066847625667614e-16,
+          "scope": "full-local-tangent",
+          "sites": [
+            {
+              "annihilation_linear_norm": 3.441399901220017e-16,
+              "cell": [
+                0,
+                0,
+                0
+              ],
+              "creation_linear_norm": 3.8066847625667614e-16,
+              "linear_term_norm": 3.8066847625667614e-16,
+              "mode_site_index": 0,
+              "site": 0
+            }
+          ],
+          "tolerance": 1e-07
+        }
+      },
+      "dispersion": [
+        {
+          "bands": [
+            -3.3292515621207596e-16
+          ],
+          "omega": -3.3292515621207596e-16,
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            0.9999999999999999
+          ],
+          "omega": 0.9999999999999999,
+          "q": [
+            0.25,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "limitations": [
+        "Harmonic approximation about the supplied or numerically optimized reference.",
+        "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+        "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+      ],
+      "method": "spin-coherent-reference-generalized-linear-spin-wave",
+      "momentum_coordinates": "primitive-reciprocal-lattice-units",
+      "ordering": {},
+      "path": {},
+      "payload_kind": "python_glswt_local_rays",
+      "spin": 0.5,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "stability": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.8066847625667614e-16,
+        "maximum_imaginary_frequency": 1.1102230246251565e-16,
+        "minimum_bdg_hessian_eigenvalue": -3.4278313905778374e-16,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "status": "ok",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+        "content_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+        "content_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P1",
+          "kind": "structural_space_group",
+          "number": 1,
+          "operation_count": 1,
+          "operation_refs": [
+            "identity"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:2"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "exchange:2"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "task": "spin_wave_spectrum",
+    "warnings": []
+  },
+  "calculation": {
+    "backend": {
+      "implementation": "local-frame-quadratic-expansion",
+      "name": "python-glswt"
+    },
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "classical_reference": {},
+    "diagnostics": {
+      "bogoliubov": {
+        "max_A_antihermitian_norm": 0.0,
+        "max_B_asymmetry_norm": 0.0,
+        "max_complex_eigenvalue_count": 0,
+        "mode_count": 1
+      },
+      "dispersion": {
+        "omega_max": 0.9999999999999999,
+        "omega_min": -3.3292515621207596e-16,
+        "omega_min_q_vector": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "soft_mode_count": 0,
+        "soft_mode_q_points": [],
+        "soft_mode_threshold": -1e-08
+      },
+      "quadratic_phase_dressing_consistency": {
+        "reason": "no-supercell-site-phases",
+        "status": "unsupported"
+      },
+      "rotating_frame_metadata_phase_sample_cross_check": {
+        "conflict_sources": [],
+        "likely_conflicting_path": "unknown",
+        "max_site_phase_offset_difference": null,
+        "max_wavevector_difference": null,
+        "metadata_status": "unavailable",
+        "phase_sample_status": "unavailable",
+        "status": "unavailable"
+      },
+      "stationarity": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.8066847625667614e-16,
+        "linear_term_mean_norm": 3.8066847625667614e-16,
+        "scope": "full-local-tangent",
+        "sites": [
+          {
+            "annihilation_linear_norm": 3.441399901220017e-16,
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "creation_linear_norm": 3.8066847625667614e-16,
+            "linear_term_norm": 3.8066847625667614e-16,
+            "mode_site_index": 0,
+            "site": 0
+          }
+        ],
+        "tolerance": 1e-07
+      }
+    },
+    "dispersion": [
+      {
+        "bands": [
+          -3.3292515621207596e-16
+        ],
+        "omega": -3.3292515621207596e-16,
+        "q": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          0.9999999999999999
+        ],
+        "omega": 0.9999999999999999,
+        "q": [
+          0.25,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "limitations": [
+      "Harmonic approximation about the supplied or numerically optimized reference.",
+      "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+      "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+    ],
+    "method": "spin-coherent-reference-generalized-linear-spin-wave",
+    "momentum_coordinates": "primitive-reciprocal-lattice-units",
+    "ordering": {},
+    "path": {},
+    "payload_kind": "python_glswt_local_rays",
+    "spin": 0.5,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "stability": {
+      "is_stationary": true,
+      "linear_term_max_norm": 3.8066847625667614e-16,
+      "maximum_imaginary_frequency": 1.1102230246251565e-16,
+      "minimum_bdg_hessian_eigenvalue": -3.4278313905778374e-16,
+      "scope": "requested q points and zero-point quadrature only"
+    },
+    "status": "ok",
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "details": {
+        "is_stationary": true,
+        "linear_term_max_norm": 3.8066847625667614e-16,
+        "maximum_imaginary_frequency": 1.1102230246251565e-16,
+        "minimum_bdg_hessian_eigenvalue": -3.4278313905778374e-16,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "kind": "harmonic_stability",
+      "satisfied": true
+    }
+  ],
+  "evidence_digest": "d91a7be4772dd2dd24f64b506033546cdcd87fafc22c650657f01f598d40c134",
+  "execution_status": "succeeded",
+  "finished_at": 1793295945.7858067,
+  "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+  "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+  "reference_result": "job-c0dc131b37f17a3e4ff29784",
+  "result_id": "job-deb8fef24ad34445c5b51381",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Harmonic approximation about the supplied or numerically optimized reference.",
+    "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+    "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 2048.0,
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.25,
+        0,
+        0
+      ]
+    ],
+    "spin": 0.5
+  },
+  "suggested_actions": [
+    {
+      "reason": "Refine the reference if unstable; otherwise increase q sampling for broader claims.",
+      "requires_agent_choice": true,
+      "task": "spin_wave_spectrum",
+      "type": "calculate"
+    }
+  ],
+  "task": "spin_wave_spectrum"
+}

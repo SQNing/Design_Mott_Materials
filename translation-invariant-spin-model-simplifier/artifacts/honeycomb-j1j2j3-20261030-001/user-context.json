@@ -1,0 +1,34 @@
+{
+  "user_model": "J1-J2-J3的honeycomb lattice",
+  "confirmed_version": "经典自旋：先做基态与竞争机制（推荐）",
+  "confirmed_scope": "先选代表点，验证 Néel／zigzag／stripy／螺旋竞争（推荐）",
+  "agent_selected_conventions": [
+    "isotropic Heisenberg",
+    "positive J antiferromagnetic",
+    "J1=1",
+    "classical length S=0.5; report energies divided by S^2",
+    "two-dimensional, no field or anisotropy"
+  ],
+  "agent_selected_couplings": {
+    "P1": [
+      1.0,
+      0.1,
+      0.1
+    ],
+    "P2": [
+      1.0,
+      0.6,
+      0.8
+    ],
+    "P3": [
+      1.0,
+      0.4,
+      -0.5
+    ],
+    "P4": [
+      1.0,
+      0.3,
+      0.05
+    ]
+  }
+}

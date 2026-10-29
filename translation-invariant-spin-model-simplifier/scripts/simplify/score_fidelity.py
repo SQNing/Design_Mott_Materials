@@ -28,7 +28,9 @@ def score_fidelity(effective_model):
             )
 
     return {
-        "reconstruction_error": 0.0,
+        # Coefficient weights do not measure reconstruction or physical error.
+        "reconstruction_error": None,
+        "assessment": "not_assessed",
         "main_fraction": 0.0 if total_weight == 0 else main_weight / total_weight,
         "low_weight_fraction": 0.0 if total_weight == 0 else low_weight / total_weight,
         "residual_fraction": 0.0 if total_weight == 0 else residual_weight / total_weight,

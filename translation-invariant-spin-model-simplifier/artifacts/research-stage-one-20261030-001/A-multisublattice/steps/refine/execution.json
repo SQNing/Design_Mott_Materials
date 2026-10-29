@@ -1,0 +1,12 @@
+{
+  "counted": true,
+  "max_memory_mb": 2048.0,
+  "started_at": 1793289669.1012561,
+  "status": "running",
+  "timeout_seconds": 179.51127314567566,
+  "worker": {
+    "host": "login001",
+    "pid": 13958,
+    "start_ticks": "217182701"
+  }
+}

@@ -1,0 +1,251 @@
+{
+  "backend_result": {
+    "calculation": {
+      "boundary": "periodic",
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "converged": true,
+      "degeneracy_handling": "sequential-independent-start-positive-projector-deflation",
+      "dense_hamiltonian_allocated": false,
+      "eigenvalues": [
+        -6.040000000000001,
+        -6.040000000000001,
+        -6.02
+      ],
+      "eigenvector_orthogonality_error": 1.7849884655831547e-29,
+      "energy_per_site": -0.7550000000000001,
+      "estimated_workspace_bytes": 159744,
+      "hilbert_dimension": 256,
+      "limitations": [
+        "Exact finite-cluster Hamiltonian; iterative eigenpairs have the reported residuals.",
+        "No thermodynamic-limit claim, no QMC, and no symmetry-sector compression.",
+        "Hilbert-space vectors still grow exponentially with site count."
+      ],
+      "matrix_vector_products": 196,
+      "method": "matrix-free-ARPACK-Lanczos",
+      "residual_norms": [
+        1.5757875218920778e-11,
+        7.970847357608952e-13,
+        1.021337788728632e-11
+      ],
+      "seed": 31,
+      "site_count": 8,
+      "spin": 0.5,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "status": "ok",
+      "supercell_shape": [
+        2,
+        2,
+        2
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405",
+        "content_hash": "d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405",
+        "content_hash": "d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P1",
+          "kind": "structural_space_group",
+          "number": 1,
+          "operation_count": 1,
+          "operation_refs": [
+            "identity"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.03e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:2"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "exchange:2"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "task": "quantum_low_energy",
+    "warnings": []
+  },
+  "calculation": {
+    "boundary": "periodic",
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "converged": true,
+    "degeneracy_handling": "sequential-independent-start-positive-projector-deflation",
+    "dense_hamiltonian_allocated": false,
+    "eigenvalues": [
+      -6.040000000000001,
+      -6.040000000000001,
+      -6.02
+    ],
+    "eigenvector_orthogonality_error": 1.7849884655831547e-29,
+    "energy_per_site": -0.7550000000000001,
+    "estimated_workspace_bytes": 159744,
+    "hilbert_dimension": 256,
+    "limitations": [
+      "Exact finite-cluster Hamiltonian; iterative eigenpairs have the reported residuals.",
+      "No thermodynamic-limit claim, no QMC, and no symmetry-sector compression.",
+      "Hilbert-space vectors still grow exponentially with site count."
+    ],
+    "matrix_vector_products": 196,
+    "method": "matrix-free-ARPACK-Lanczos",
+    "residual_norms": [
+      1.5757875218920778e-11,
+      7.970847357608952e-13,
+      1.021337788728632e-11
+    ],
+    "seed": 31,
+    "site_count": 8,
+    "spin": 0.5,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "status": "ok",
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [],
+  "evidence_digest": "cb4f7fcf49619bfa704f056cb0c2f31e58d4687e21e324a5013e6653f8898598",
+  "execution_status": "succeeded",
+  "finished_at": 1793295947.9998786,
+  "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "reference_result": null,
+  "result_id": "job-c9b72911abfe8ff92789f7b7",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Exact finite-cluster Hamiltonian; iterative eigenpairs have the reported residuals.",
+    "No thermodynamic-limit claim, no QMC, and no symmetry-sector compression.",
+    "Hilbert-space vectors still grow exponentially with site count."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "eigenvalues": 3,
+    "max_memory_mb": 2048.0,
+    "seed": 31,
+    "spin": 0.5,
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "suggested_actions": [],
+  "task": "quantum_low_energy"
+}

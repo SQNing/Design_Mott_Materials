@@ -1,0 +1,79 @@
+{
+  "q": [
+    7.561069326200709e-09,
+    1.4139645565195478e-09
+  ],
+  "energy_per_site_unit_spin": -1.35,
+  "mesh": [
+    151,
+    151
+  ],
+  "local_refinements": 24,
+  "optimizer_success": true,
+  "finite_cells": {
+    "2": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "4": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "6": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "8": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "10": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "12": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "18": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "24": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    },
+    "36": {
+      "energy_per_site_unit_spin": -1.3499999999999999,
+      "q": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "limitation": "Numerical continuum minimum; no certified global interval bound or uniqueness claim."
+}

@@ -1,0 +1,4752 @@
+{
+  "dropped_terms": [],
+  "fidelity": {
+    "assessment": "not_assessed",
+    "reconstruction_error": null
+  },
+  "low_weight": [],
+  "main": [
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.73
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.6643
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.8541
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.8541
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.6971499999999999
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03284999999999999
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.854, Jpm = -0.697, Jpmpm = -0.033, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.7494666666666666,
+        "matrix": [
+          [
+            -0.73,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.6643,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8541
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.8541
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.6971499999999999
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03284999999999999
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.73,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.73,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008547,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.6643,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.6643,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.8541,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.8541,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.73,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.6643,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8541
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.019466666666666632,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.08516666666666661,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.10463333333333336
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:0"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.743
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.67613
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.8693099999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.8693099999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.709565
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03343499999999999
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.869, Jpm = -0.710, Jpmpm = -0.033, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.7628133333333333,
+        "matrix": [
+          [
+            -0.743,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.67613,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8693099999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.8693099999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.709565
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03343499999999999
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.743,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.743,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.67613,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.67613,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.8693099999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.8693099999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.743,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.67613,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8693099999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.01981333333333335,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.08668333333333333,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.10649666666666657
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:1"
+    },
+    {
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.86
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.7826
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.0062
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.0062
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.8212999999999999
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03870000000000001
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.006, Jpm = -0.821, Jpmpm = -0.039, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8829333333333332,
+        "matrix": [
+          [
+            -0.86,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7826,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0062
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.0062
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.8212999999999999
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03870000000000001
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.86,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.86,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008547,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.7826,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.7826,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.0062,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.0062,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.86,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7826,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0062
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02293333333333325,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10033333333333327,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.12326666666666675
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:10"
+    },
+    {
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.873
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.7944300000000001
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.02141
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.02141
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.833715
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03928499999999996
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.021, Jpm = -0.834, Jpmpm = -0.039, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.89628,
+        "matrix": [
+          [
+            -0.873,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7944300000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.02141
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.02141
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.833715
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03928499999999996
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.873,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.873,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.7944300000000001,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.7944300000000001,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.02141,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.02141,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.873,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7944300000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.02141
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.023279999999999967,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10184999999999989,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.12512999999999996
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:11"
+    },
+    {
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.886
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.8062600000000001
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.0366199999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.0366199999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.84613
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03986999999999996
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.037, Jpm = -0.846, Jpmpm = -0.040, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.9096266666666667,
+        "matrix": [
+          [
+            -0.886,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.8062600000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0366199999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.0366199999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.84613
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03986999999999996
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.886,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.886,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.8062600000000001,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.8062600000000001,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.0366199999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.0366199999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.886,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.8062600000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0366199999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.023626666666666685,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.1033666666666666,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.12699333333333318
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:12"
+    },
+    {
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.899
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.8180900000000001
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.05183
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.05183
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.8585450000000001
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.04045499999999996
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.052, Jpm = -0.859, Jpmpm = -0.040, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.9229733333333335,
+        "matrix": [
+          [
+            -0.899,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.8180900000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.05183
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.05183
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.8585450000000001
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.04045499999999996
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.899,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.899,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008547,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.8180900000000001,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.8180900000000001,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.05183,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.05183,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.899,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.8180900000000001,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.05183
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.023973333333333513,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10488333333333344,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.1288566666666665
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:13"
+    },
+    {
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.9119999999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.82992
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.0670399999999998
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.0670399999999998
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.87096
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.041039999999999965
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.067, Jpm = -0.871, Jpmpm = -0.041, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.9363199999999999,
+        "matrix": [
+          [
+            -0.9119999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.82992,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0670399999999998
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.0670399999999998
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.87096
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.041039999999999965
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.9119999999999999,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.9119999999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.82992,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.82992,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.0670399999999998,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.0670399999999998,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.9119999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.82992,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0670399999999998
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02432000000000001,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10639999999999994,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.13071999999999984
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:14"
+    },
+    {
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.9249999999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.84175
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.08225
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.08225
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.883375
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.04162499999999997
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.082, Jpm = -0.883, Jpmpm = -0.042, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.9496666666666668,
+        "matrix": [
+          [
+            -0.9249999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.84175,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.08225
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.08225
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.883375
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.04162499999999997
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.9249999999999999,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.9249999999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008547,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.84175,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.84175,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.08225,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.08225,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.9249999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.84175,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.08225
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.024666666666666837,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10791666666666677,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.13258333333333316
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:15"
+    },
+    {
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.938
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.85358
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.0974599999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.0974599999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.89579
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.04220999999999997
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.097, Jpm = -0.896, Jpmpm = -0.042, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.9630133333333332,
+        "matrix": [
+          [
+            -0.938,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.85358,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0974599999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.0974599999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.89579
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.04220999999999997
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.938,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.938,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.85358,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.85358,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.0974599999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.0974599999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.938,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.85358,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0974599999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02501333333333322,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.10943333333333316,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.13444666666666671
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:16"
+    },
+    {
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.951
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.86541
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -1.1126699999999998
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -1.1126699999999998
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.9082049999999999
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.04279499999999997
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -1.113, Jpm = -0.908, Jpmpm = -0.043, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.97636,
+        "matrix": [
+          [
+            -0.951,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.86541,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.1126699999999998
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -1.1126699999999998
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.9082049999999999
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.04279499999999997
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.951,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.951,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.86541,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.86541,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 1.1126699999999998,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -1.1126699999999998,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.951,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.86541,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.1126699999999998
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02536000000000005,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.11095,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.13630999999999982
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:17"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.756
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.68796
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.88452
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.88452
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.7219800000000001
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.034019999999999995
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.885, Jpm = -0.722, Jpmpm = -0.034, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.77616,
+        "matrix": [
+          [
+            -0.756,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.68796,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.88452
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.88452
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.7219800000000001
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.034019999999999995
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.756,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.756,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.68796,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.68796,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.88452,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.88452,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.756,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.68796,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.88452
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.020159999999999956,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.08819999999999995,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.10836000000000001
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:2"
+    },
+    {
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.769
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.69979
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.8997299999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.8997299999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.734395
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.034605
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.900, Jpm = -0.734, Jpmpm = -0.035, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.7895066666666667,
+        "matrix": [
+          [
+            -0.769,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.69979,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8997299999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.8997299999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.734395
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.034605
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.769,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.769,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.69979,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.69979,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.8997299999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.8997299999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.769,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.69979,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.8997299999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.020506666666666673,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.08971666666666667,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11022333333333323
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:3"
+    },
+    {
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.782
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.71162
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.91494
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.91494
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.74681
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03519
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.915, Jpm = -0.747, Jpmpm = -0.035, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8028533333333333,
+        "matrix": [
+          [
+            -0.782,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.71162,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.91494
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.91494
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.74681
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03519
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.782,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.782,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.71162,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.71162,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.91494,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.91494,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.782,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.71162,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.91494
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02085333333333328,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09123333333333328,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11208666666666667
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:4"
+    },
+    {
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.7949999999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.7234499999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.9301499999999998
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.9301499999999998
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.7592249999999999
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.035775
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.930, Jpm = -0.759, Jpmpm = -0.036, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8161999999999999,
+        "matrix": [
+          [
+            -0.7949999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7234499999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9301499999999998
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.9301499999999998
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.7592249999999999
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.035775
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.7949999999999999,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.7949999999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.7234499999999999,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.7234499999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777779,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.9301499999999998,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.9301499999999998,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.7949999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7234499999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9301499999999998
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.021199999999999997,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09275,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11394999999999988
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:5"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.8079999999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.7352799999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.9453599999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.9453599999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.7716399999999999
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03636
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.945, Jpm = -0.772, Jpmpm = -0.036, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8295466666666665,
+        "matrix": [
+          [
+            -0.8079999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7352799999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9453599999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.9453599999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.7716399999999999
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03636
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.8079999999999999,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.8079999999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.7352799999999999,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.7352799999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.9453599999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.9453599999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.8079999999999999,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7352799999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9453599999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.021546666666666603,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09426666666666661,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11581333333333332
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:6"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.821
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.7471099999999999
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.9605699999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.9605699999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.784055
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.036945000000000006
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.961, Jpm = -0.784, Jpmpm = -0.037, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8428933333333332,
+        "matrix": [
+          [
+            -0.821,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7471099999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9605699999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.9605699999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.784055
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.036945000000000006
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.821,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.821,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.7471099999999999,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.7471099999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.9605699999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.9605699999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.821,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.7471099999999999,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9605699999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.02189333333333321,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09578333333333322,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11767666666666676
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:7"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.834
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.75894
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.9757799999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.9757799999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.79647
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03753000000000001
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.976, Jpm = -0.796, Jpmpm = -0.038, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.85624,
+        "matrix": [
+          [
+            -0.834,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.75894,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9757799999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.9757799999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.79647
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03753000000000001
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.834,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.834,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.75894,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.75894,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.9757799999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.9757799999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.834,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.75894,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9757799999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.022240000000000038,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09730000000000005,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.11953999999999987
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:8"
+    },
+    {
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "bilinear_exchange_tensor",
+      "readable_block": {
+        "additional_physical_parameter_views": [
+          {
+            "parameters": [
+              {
+                "kind": "dipole_component",
+                "name": "T1_x:T1_x",
+                "value": -0.847
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_y:T1_y",
+                "value": -0.77077
+              },
+              {
+                "kind": "dipole_component",
+                "name": "T1_z:T1_z",
+                "value": -0.9909899999999999
+              }
+            ],
+            "physical_label": "dipole multipole components",
+            "view_kind": "dipole_multipole_components"
+          }
+        ],
+        "human_parameters": [
+          {
+            "kind": "longitudinal",
+            "name": "Jzz",
+            "value": -0.9909899999999999
+          },
+          {
+            "kind": "planar_average",
+            "name": "Jpm",
+            "value": -0.808885
+          },
+          {
+            "kind": "planar_anisotropy",
+            "name": "Jpmpm",
+            "value": -0.03811500000000001
+          },
+          {
+            "kind": "offdiagonal_mixing",
+            "name": "Jzpm",
+            "value": 0.0
+          }
+        ],
+        "human_summary": "Anisotropic spin exchange on axes (x, y, z) with Jzz = -0.991, Jpm = -0.809, Jpmpm = -0.038, and Jzpm = 0.000. Longitudinal channel along z is dominant over the planar average.",
+        "isotropic_exchange": -0.8695866666666666,
+        "matrix": [
+          [
+            -0.847,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.77077,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9909899999999999
+          ]
+        ],
+        "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+        "physical_parameter_view": {
+          "parameters": [
+            {
+              "kind": "longitudinal",
+              "name": "Jzz",
+              "value": -0.9909899999999999
+            },
+            {
+              "kind": "planar_average",
+              "name": "Jpm",
+              "value": -0.808885
+            },
+            {
+              "kind": "planar_anisotropy",
+              "name": "Jpmpm",
+              "value": -0.03811500000000001
+            },
+            {
+              "kind": "offdiagonal_mixing",
+              "name": "Jzpm",
+              "value": 0.0
+            }
+          ],
+          "physical_label": "anisotropic spin exchange (Jzz/Jpm/Jpmpm/Jzpm)",
+          "view_kind": "anisotropic_spin_exchange_jzz_jpm_jpmpm_jzpm"
+        },
+        "source_terms": [
+          {
+            "absolute_weight": 0.847,
+            "body_order": 2,
+            "canonical_label": "Sx@0 Sx@1",
+            "coefficient": -0.847,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.8547008547008548,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.77077,
+            "body_order": 2,
+            "canonical_label": "Sy@0 Sy@1",
+            "coefficient": -0.77077,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 0.7777777777777778,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          },
+          {
+            "absolute_weight": 0.9909899999999999,
+            "body_order": 2,
+            "canonical_label": "Sz@0 Sz@1",
+            "coefficient": -0.9909899999999999,
+            "multipole_kind": "dipole",
+            "multipole_kinds": [
+              "dipole"
+            ],
+            "multipole_rank": 1,
+            "multipole_ranks": [
+              1
+            ],
+            "relative_weight": 1.0,
+            "support": [
+              0,
+              1
+            ],
+            "symmetry_annotations": []
+          }
+        ],
+        "symmetric_matrix": [
+          [
+            -0.847,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.77077,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.9909899999999999
+          ]
+        ],
+        "symmetric_traceless_matrix": [
+          [
+            0.022586666666666644,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.09881666666666666,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.12140333333333331
+          ]
+        ],
+        "type": "symmetric_exchange_matrix"
+      },
+      "term_ref": "exchange:9"
+    }
+  ],
+  "notes": [
+    "Readable blocks are descriptions, not physical reductions.",
+    "Matrix-unit indices refer to the supplied local basis; no spin mapping is inferred."
+  ],
+  "residual": [],
+  "terms": [
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.73,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.6643,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.8541
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.743,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.67613,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.8693099999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.86,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.7826,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.0062
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:10"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.873,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.7944300000000001,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.02141
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:11"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.886,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.8062600000000001,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.0366199999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:12"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.899,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.8180900000000001,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.05183
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:13"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.9119999999999999,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.82992,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.0670399999999998
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:14"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.9249999999999999,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.84175,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.08225
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:15"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.938,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.85358,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.0974599999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:16"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.951,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.86541,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -1.1126699999999998
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:17"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.756,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.68796,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.88452
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:2"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.769,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.69979,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.8997299999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:3"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.782,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.71162,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.91494
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:4"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 2,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 3,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.7949999999999999,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.7234499999999999,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9301499999999998
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:5"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.8079999999999999,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.7352799999999999,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9453599999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:6"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.821,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.7471099999999999,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9605699999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:7"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            1
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.834,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.75894,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9757799999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:8"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 2,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          -0.847,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.77077,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9909899999999999
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "exchange:9"
+    }
+  ],
+  "view": "faithful-readable"
+}

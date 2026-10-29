@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from common.canonical_hamiltonian import CanonicalHamiltonianError, canonicalize_cluster
+from common.canonical_hamiltonian import CanonicalHamiltonianError, canonicalize_cluster, swap_pair_matrix
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,8 @@ _FAMILIES = {
     "quadratic_spin_tensor": OperatorFamilyAction("quadratic_spin_tensor", "onsite_rank_two", "site"),
     "bilinear_exchange_tensor": OperatorFamilyAction("bilinear_exchange_tensor", "tensor_product", "bond_reverse"),
     "bilinear_exchange_matrix": OperatorFamilyAction("bilinear_exchange_matrix", "tensor_product", "bond_reverse"),
-    "pair_matrix": OperatorFamilyAction("pair_matrix", "tensor_product", "bond_reverse"),
+    "pair_matrix": OperatorFamilyAction("pair_matrix", "dense_pair_operator", "bond_reverse"),
+    "local_operator_matrix": OperatorFamilyAction("local_operator_matrix", "dense_local_operator", "site"),
     "biquadratic_exchange": OperatorFamilyAction("biquadratic_exchange", "orthogonal_scalar", "bond_reverse"),
     "scalar_chirality": OperatorFamilyAction("scalar_chirality", "oriented_scalar", "cyclic_oriented"),
     "cyclic_ring_exchange": OperatorFamilyAction("cyclic_ring_exchange", "cycle_pair", "dihedral"),
@@ -120,6 +121,26 @@ def transform_operator_coefficient(term, leg_actions, permutation):
         raise CanonicalHamiltonianError("invalid-cluster-permutation", permutation)
     coefficient = term.get("coefficient")
 
+    if family.coefficient_kind == "dense_local_operator":
+        matrix = np.asarray(coefficient, dtype=complex)
+        if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1] or len(leg_actions) != 1:
+            raise CanonicalHamiltonianError("operator-tensor-rank-mismatch")
+        transformed = _apply_tensor_legs(matrix.reshape(-1), leg_actions)
+        return _clean_numeric(transformed.reshape(matrix.shape))
+    if family.coefficient_kind == "dense_pair_operator":
+        if term.get("coefficient_representation") != "full_pair_operator":
+            return _clean_numeric(_apply_tensor_legs(coefficient, leg_actions).transpose(permutation))
+        matrix = np.asarray(coefficient, dtype=complex)
+        from math import isqrt
+        dimension = isqrt(matrix.shape[0]) if matrix.ndim == 2 else 0
+        if not dimension or matrix.shape != (dimension ** 2, dimension ** 2) or len(leg_actions) != 2:
+            raise CanonicalHamiltonianError("pair-matrix-shape-mismatch")
+        # Declared matrix-unit actions act on (bra,ket) at each site, whereas
+        # the pair matrix is stored as (left_bra,right_bra;left_ket,right_ket).
+        tensor = matrix.reshape([dimension] * 4).transpose(0, 2, 1, 3).reshape(matrix.shape)
+        tensor = _apply_tensor_legs(tensor, leg_actions).transpose(permutation)
+        transformed = tensor.reshape([dimension] * 4).transpose(0, 2, 1, 3).reshape(matrix.shape)
+        return _clean_numeric(transformed)
     if family.coefficient_kind == "tensor_product":
         transformed = _apply_tensor_legs(coefficient, leg_actions)
         transformed = np.transpose(transformed, axes=permutation)
@@ -198,7 +219,9 @@ def canonicalize_family_term(term):
         result["cluster"] = canonical["cluster"]
         if canonical["orientation_reversed"] and isinstance(result.get("coefficient"), list):
             matrix = np.asarray(result["coefficient"], dtype=complex)
-            result["coefficient"] = _clean_numeric(matrix.conjugate().T)
+            result["coefficient"] = _clean_numeric(
+                swap_pair_matrix(matrix) if family.name == "pair_matrix" and
+                result.get("coefficient_representation") == "full_pair_operator" else matrix.conjugate().T)
         result["canonicalization"] = {
             "permutation": list(canonical["permutation"]),
             "translated_by": list(canonical["translated_by"]),

@@ -12,6 +12,19 @@ object of the normalized model.
 
 ## Input Classes
 
+For end-to-end research and continuation, start with
+[research-workflow.md](research-workflow.md). Its prepare/status/step/report entry
+points preserve the request, source, full canonical model, decisions, worker
+identity and evidence. Existing input parsers and scientific kernels remain the
+backbone. The host agent supplies constrained model extraction for broad text;
+the deterministic layer does not invent a model or a physical answer.
+
+The research capability registry is
+common.solver_capability_registry.registered_research_solver_capabilities().
+It is intentionally separate from the narrower legacy pipeline registry:
+the new retained-local adapter passes both onsite matrices and full pair
+operators, whereas the old canonical-to-pipeline bridge remains pair-only.
+
 The current repository supports these input classes:
 
 - operator expressions

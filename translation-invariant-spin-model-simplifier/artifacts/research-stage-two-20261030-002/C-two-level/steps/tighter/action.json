@@ -1,0 +1,49 @@
+{
+  "action_id": "tighter",
+  "reason": "Compare the proposed physical approximation with the full model.",
+  "settings": {
+    "candidate_id": "candidate",
+    "energy_window_max": 2.0,
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.01,
+          "full_energy_penalty": 0.01,
+          "projector_distance": 0.05
+        },
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.01
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "harmonic_spectrum"
+      }
+    ]
+  },
+  "task": "reduction_validation",
+  "type": "calculate"
+}

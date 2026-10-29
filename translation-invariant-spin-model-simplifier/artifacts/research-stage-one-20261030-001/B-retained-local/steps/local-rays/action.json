@@ -1,0 +1,12 @@
+{
+  "action_id": "local-rays",
+  "reason": "Search the full CP local space, retaining onsite and complex pair matrix.",
+  "settings": {
+    "max_linear_size": 1,
+    "max_sweeps": 120,
+    "seed": 2,
+    "starts": 2
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

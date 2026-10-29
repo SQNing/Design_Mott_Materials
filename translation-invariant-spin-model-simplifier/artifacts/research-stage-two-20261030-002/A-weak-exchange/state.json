@@ -1,0 +1,584 @@
+{
+  "answer_status": "answered_within_scope",
+  "assessments": [
+    {
+      "action_id": "assessment",
+      "answer_status": "answered_within_scope",
+      "conclusion": "The candidate meets the specified tolerances for the recorded finite observables.",
+      "evidence": [
+        {
+          "path": "calculation.metrics",
+          "result_id": "validate"
+        }
+      ],
+      "limitations": [
+        "Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.",
+        "Stationary variational states are not proofs of global or infinite-lattice ground states.",
+        "State distances can distinguish symmetry-related representatives; rejection concerns the stated metric.",
+        "Agreement does not certify phase equivalence, parameter robustness or virtual-excitation corrections."
+      ],
+      "reason": "Interpret the saved comparison in its recorded scope.",
+      "scope": {
+        "candidate_model_id": "7eab83330e09dd4aa9cdd0d986f3434aa0ac315f9432130637d0f18bde96d831",
+        "energy_offset_per_cell": 0.0,
+        "energy_window_max": null,
+        "experiments": [
+          {
+            "case_id": "reference",
+            "metrics": {
+              "energy_per_cell": 0.01,
+              "full_energy_penalty": 0.01,
+              "spin_correlations": 0.01
+            },
+            "settings": {
+              "seed": 18,
+              "spin_length": 0.5,
+              "starts": 3,
+              "supercell_shape": [
+                1,
+                1,
+                1
+              ]
+            },
+            "task": "classical_ground_state"
+          },
+          {
+            "case_id": "modes",
+            "metrics": {
+              "spectrum": 0.005
+            },
+            "reference_case": "reference",
+            "settings": {
+              "reduced_momenta": [
+                [
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0.25,
+                  0,
+                  0
+                ]
+              ],
+              "spin": 0.5
+            },
+            "task": "spin_wave_spectrum"
+          }
+        ],
+        "full_model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+        "full_reference_tolerance": 1e-07,
+        "realized_cases": [
+          {
+            "case_id": "reference",
+            "local_dimension": null,
+            "role": "full",
+            "spin": null,
+            "spin_length": 0.5,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "case_id": "reference",
+            "local_dimension": null,
+            "role": "candidate",
+            "spin": null,
+            "spin_length": 0.5,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "case_id": "modes",
+            "local_dimension": null,
+            "role": "full",
+            "spin": 0.5,
+            "spin_length": null,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "case_id": "modes",
+            "local_dimension": null,
+            "role": "candidate",
+            "spin": 0.5,
+            "spin_length": null,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "type": "assess"
+    }
+  ],
+  "created_at": 1793293298.4189117,
+  "initial_request_hash": "d7b8bb90a8ced24992ecd577e7795984de5e5bd4f21d2035e1ea6cb04e92bbd4",
+  "input_actions": {},
+  "model": {
+    "basis_sites": [
+      {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "site_ref": "site:0"
+      }
+    ],
+    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/A-weak-exchange/models/model-0001",
+    "fidelity": {
+      "assessment": "not_assessed",
+      "reconstruction_error": null
+    },
+    "hamiltonian_hash": "609bd4af1b1f7c2cec3e27709437d6d0dad8e5670769ad73ee51dae9bee52112",
+    "lattice_vectors": [
+      [
+        1.1,
+        0.0,
+        0.0
+      ],
+      [
+        0.17,
+        1.23,
+        0.0
+      ],
+      [
+        0.09,
+        0.21,
+        1.37
+      ]
+    ],
+    "local_basis_labels": [],
+    "local_spaces": {
+      "space": {
+        "dimension": 3,
+        "kind": "unit_vector_sphere"
+      }
+    },
+    "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+    "questions": [],
+    "site_count": 1,
+    "source_term_count": 4,
+    "status": "ready",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.0109999999999998e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:2"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "exchange:2"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "term_count": 4,
+    "term_families": {
+      "bilinear_exchange_tensor": 4
+    },
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    },
+    "version": 1,
+    "warnings": []
+  },
+  "reductions": {
+    "drop": {
+      "record": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/A-weak-exchange/reductions/drop/record.json"
+    }
+  },
+  "request": {
+    "budget": {
+      "max_memory_mb": 2048,
+      "max_solver_runs": 8,
+      "max_wall_time_seconds": 180
+    },
+    "model": {
+      "lattice_structure": {
+        "basis_sites": [
+          {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "site_ref": "site:0"
+          }
+        ],
+        "bond_orbits": [],
+        "lattice_vectors": [
+          [
+            1.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.17,
+            1.23,
+            0.0
+          ],
+          [
+            0.09,
+            0.21,
+            1.37
+          ]
+        ]
+      },
+      "local_hilbert": {
+        "classical_spaces": {
+          "space": {
+            "dimension": 3,
+            "kind": "unit_vector_sphere"
+          }
+        },
+        "operator_bases": {
+          "basis": {
+            "kind": "spin_vector",
+            "labels": [
+              "Sx",
+              "Sy",
+              "Sz"
+            ]
+          }
+        }
+      },
+      "parameters": {},
+      "schema_version": "lattice-term-contract/v1",
+      "symmetry": {
+        "operations": [
+          {
+            "operation_ref": "identity",
+            "rotation": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "source": {
+          "international_symbol": "P1",
+          "number": 1
+        },
+        "unresolved": []
+      },
+      "term_attachments": {
+        "bond_terms": [
+          {
+            "attach_to": {
+              "kind": "explicit_cluster",
+              "orientation": "explicit"
+            },
+            "cluster": [
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  0,
+                  0
+                ]
+              },
+              {
+                "site": 0,
+                "translation": [
+                  1,
+                  0,
+                  0
+                ]
+              }
+            ],
+            "coordinate_convention": "global_crystallographic",
+            "operator_basis_ref": "basis",
+            "payload": {
+              "kind": "bilinear_exchange_matrix",
+              "matrix": {
+                "data": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "shape": [
+                  3,
+                  3
+                ]
+              }
+            },
+            "term_ref": "exchange:0"
+          },
+          {
+            "attach_to": {
+              "kind": "explicit_cluster",
+              "orientation": "explicit"
+            },
+            "cluster": [
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  0,
+                  0
+                ]
+              },
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  1,
+                  0
+                ]
+              }
+            ],
+            "coordinate_convention": "global_crystallographic",
+            "operator_basis_ref": "basis",
+            "payload": {
+              "kind": "bilinear_exchange_matrix",
+              "matrix": {
+                "data": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "shape": [
+                  3,
+                  3
+                ]
+              }
+            },
+            "term_ref": "exchange:1"
+          },
+          {
+            "attach_to": {
+              "kind": "explicit_cluster",
+              "orientation": "explicit"
+            },
+            "cluster": [
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  0,
+                  0
+                ]
+              },
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  0,
+                  1
+                ]
+              }
+            ],
+            "coordinate_convention": "global_crystallographic",
+            "operator_basis_ref": "basis",
+            "payload": {
+              "kind": "bilinear_exchange_matrix",
+              "matrix": {
+                "data": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "shape": [
+                  3,
+                  3
+                ]
+              }
+            },
+            "term_ref": "exchange:2"
+          },
+          {
+            "attach_to": {
+              "kind": "explicit_cluster",
+              "orientation": "explicit"
+            },
+            "cluster": [
+              {
+                "site": 0,
+                "translation": [
+                  0,
+                  0,
+                  0
+                ]
+              },
+              {
+                "site": 0,
+                "translation": [
+                  1,
+                  0,
+                  0
+                ]
+              }
+            ],
+            "coordinate_convention": "global_crystallographic",
+            "operator_basis_ref": "basis",
+            "payload": {
+              "kind": "bilinear_exchange_matrix",
+              "matrix": {
+                "data": [
+                  [
+                    -0.001,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.001,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.001
+                  ]
+                ],
+                "shape": [
+                  3,
+                  3
+                ]
+              }
+            },
+            "term_ref": "small"
+          }
+        ],
+        "higher_body_terms": [],
+        "site_terms": [],
+        "term_sets": []
+      },
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    },
+    "question": "Can the explicitly selected interaction be neglected for these observables?",
+    "requested_tasks": [
+      "reduction_validation"
+    ]
+  },
+  "schema_version": "research-state/v1",
+  "steps": [
+    "validate"
+  ],
+  "version": 1
+}

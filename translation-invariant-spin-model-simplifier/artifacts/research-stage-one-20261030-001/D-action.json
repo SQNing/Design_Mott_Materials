@@ -1,0 +1,16 @@
+{
+  "action_id": "persistent",
+  "reason": "Exercise continuation while the worker remains active.",
+  "settings": {
+    "seed": 19,
+    "spin_length": 0.5,
+    "starts": 3,
+    "supercell_shape": [
+      2,
+      2,
+      1
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

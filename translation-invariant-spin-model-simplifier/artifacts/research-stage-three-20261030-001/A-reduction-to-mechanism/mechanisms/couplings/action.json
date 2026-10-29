@@ -1,0 +1,61 @@
+{
+  "action_id": "couplings",
+  "groups": [
+    {
+      "description": "Uniaxial exchange anisotropy.",
+      "group_id": "anisotropy",
+      "term_refs": [
+        "small"
+      ]
+    },
+    {
+      "description": "The isotropic exchange background.",
+      "group_id": "exchange",
+      "term_refs": [
+        "exchange:0",
+        "exchange:1",
+        "exchange:2"
+      ]
+    }
+  ],
+  "points": [
+    {
+      "factors": {
+        "anisotropy": 1.0,
+        "exchange": 1.0
+      },
+      "point_id": "control"
+    },
+    {
+      "factors": {
+        "anisotropy": 0.0,
+        "exchange": 1.0
+      },
+      "point_id": "anisotropy-off"
+    },
+    {
+      "factors": {
+        "anisotropy": 0.5,
+        "exchange": 1.0
+      },
+      "point_id": "anisotropy-half"
+    },
+    {
+      "factors": {
+        "anisotropy": 1.0,
+        "exchange": 0.0
+      },
+      "point_id": "exchange-off"
+    },
+    {
+      "factors": {
+        "anisotropy": 1.0,
+        "exchange": 0.5
+      },
+      "point_id": "exchange-half"
+    }
+  ],
+  "question": "Which interaction controls the frequency at the selected momentum?",
+  "reason": "Distinguish the roles of anisotropy and isotropic exchange in sampled excitations.",
+  "type": "propose_mechanism"
+}

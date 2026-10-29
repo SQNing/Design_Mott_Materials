@@ -1,0 +1,6199 @@
+{
+  "calculation_fingerprint": "94dd271f05dd2e82b54c172453e34abc3d72b41a7b493ed2fea47a4981e05702",
+  "capability": {
+    "solver_id": "mechanism-response",
+    "status": "supported"
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "comparison": {
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Anisotropy raises the sampled frequency."
+      },
+      {
+        "absent_below": 0.0001,
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-necessary",
+        "kind": "necessary_in_context",
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "present_above": 0.01,
+        "statement": "Anisotropy is necessary for this finite frequency."
+      },
+      {
+        "direction": "increasing",
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Exchange raises the sampled frequency."
+      },
+      {
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-insensitive",
+        "kind": "insensitive_response",
+        "max_change": 1e-05,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "This frequency is insensitive to exchange."
+      }
+    ],
+    "jobs": [
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4.json",
+        "case_id": "reference",
+        "fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "result_id": "job-836043a70e66e80aeed237ec",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "control"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a.json",
+        "case_id": "reference",
+        "fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+          "result_id": "job-c0dc131b37f17a3e4ff29784",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "anisotropy-off"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d.json",
+        "case_id": "reference",
+        "fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.01
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+          "result_id": "job-99237db5788ea70fcb0c2b79",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "anisotropy-half"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/6f03dead1dd3603c5df96f5ac0bc5a88454082d815743f532385054bb0be090a.json",
+        "case_id": "reference",
+        "fingerprint": "6f03dead1dd3603c5df96f5ac0bc5a88454082d815743f532385054bb0be090a",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "04f89d665504698c73a6acce3f698a9dab1efa0661dc3bad655847d5d7557056",
+          "result_id": "job-6f03dead1dd3603c5df96f5a",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "exchange-off"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/0b10cd526cdcba284b8f2b6b83c453d912ae3d2783c8faa914a98c464c654ade.json",
+        "case_id": "reference",
+        "fingerprint": "0b10cd526cdcba284b8f2b6b83c453d912ae3d2783c8faa914a98c464c654ade",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "90b8050f05c9fb5c06f3a2a019c9a23876293f05ab1db7a56ecba530931a8a9a",
+          "result_id": "job-0b10cd526cdcba284b8f2b6b",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "exchange-half"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45.json",
+        "case_id": "modes",
+        "fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "result_id": "job-a7eeba6262f86d2b94850df0",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+        "role": "control"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee.json",
+        "case_id": "modes",
+        "fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+          "result_id": "job-deb8fef24ad34445c5b51381",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
+        "role": "anisotropy-off"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260.json",
+        "case_id": "modes",
+        "fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -1.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.01
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+          "result_id": "job-c2605d0d78cb74adb1ad93ff",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
+        "role": "anisotropy-half"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09.json",
+        "case_id": "modes",
+        "fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "04f89d665504698c73a6acce3f698a9dab1efa0661dc3bad655847d5d7557056",
+          "result_id": "job-6dc5c48c6854dcfc197be890",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "6f03dead1dd3603c5df96f5ac0bc5a88454082d815743f532385054bb0be090a",
+        "role": "exchange-off"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/validation-cache/3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0.json",
+        "case_id": "modes",
+        "fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "unit_vector_sphere"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "spin_frame",
+            "solver_id": "periodic-spin-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum",
+              "classical_monte_carlo",
+              "classical_finite_size",
+              "quantum_low_energy",
+              "fourier_exchange_spectrum"
+            ],
+            "term_families": [
+              "bilinear_exchange_tensor",
+              "bilinear_exchange_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "unit_vector_sphere"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "kind": "spin_vector",
+                  "labels": [
+                    "Sx",
+                    "Sy",
+                    "Sz"
+                  ]
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:0"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      1,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:1"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      1
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.5,
+                    -0.0,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.5,
+                    -0.0
+                  ],
+                  [
+                    -0.0,
+                    -0.0,
+                    -0.5
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "exchange:2"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    -0.02
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "bilinear_exchange_tensor",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "small"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "90b8050f05c9fb5c06f3a2a019c9a23876293f05ab1db7a56ecba530931a8a9a",
+          "result_id": "job-3750e83bc517d777aeaf02bc",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "0b10cd526cdcba284b8f2b6b83c453d912ae3d2783c8faa914a98c464c654ade",
+        "role": "exchange-half"
+      }
+    ],
+    "models": {
+      "anisotropy-half": {
+        "model": {
+          "lattice_structure": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "bond_orbits": [],
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ]
+          },
+          "local_hilbert": {
+            "classical_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "operator_bases": {
+              "basis": {
+                "kind": "spin_vector",
+                "labels": [
+                  "Sx",
+                  "Sy",
+                  "Sz"
+                ]
+              }
+            }
+          },
+          "schema_version": "canonical-hamiltonian/v1",
+          "source_schema_version": "lattice-term-contract/v1",
+          "symmetry": {
+            "operations": [
+              {
+                "operation_ref": "identity",
+                "rotation": [
+                  [
+                    1,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ],
+                "translation": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "source": {
+              "international_symbol": "P1",
+              "number": 1
+            },
+            "unresolved": []
+          },
+          "terms": [
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:0"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    1,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:1"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:2"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.01
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "small"
+            }
+          ],
+          "units": {
+            "energy": "dimensionless model units",
+            "hbar": 1
+          }
+        },
+        "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c"
+      },
+      "anisotropy-off": {
+        "model": {
+          "lattice_structure": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "bond_orbits": [],
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ]
+          },
+          "local_hilbert": {
+            "classical_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "operator_bases": {
+              "basis": {
+                "kind": "spin_vector",
+                "labels": [
+                  "Sx",
+                  "Sy",
+                  "Sz"
+                ]
+              }
+            }
+          },
+          "schema_version": "canonical-hamiltonian/v1",
+          "source_schema_version": "lattice-term-contract/v1",
+          "symmetry": {
+            "operations": [
+              {
+                "operation_ref": "identity",
+                "rotation": [
+                  [
+                    1,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ],
+                "translation": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "source": {
+              "international_symbol": "P1",
+              "number": 1
+            },
+            "unresolved": []
+          },
+          "terms": [
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:0"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    1,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:1"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:2"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "small"
+            }
+          ],
+          "units": {
+            "energy": "dimensionless model units",
+            "hbar": 1
+          }
+        },
+        "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6"
+      },
+      "control": {
+        "model": {
+          "lattice_structure": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "bond_orbits": [],
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ]
+          },
+          "local_hilbert": {
+            "classical_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "operator_bases": {
+              "basis": {
+                "kind": "spin_vector",
+                "labels": [
+                  "Sx",
+                  "Sy",
+                  "Sz"
+                ]
+              }
+            }
+          },
+          "schema_version": "canonical-hamiltonian/v1",
+          "source_schema_version": "lattice-term-contract/v1",
+          "symmetry": {
+            "operations": [
+              {
+                "operation_ref": "identity",
+                "rotation": [
+                  [
+                    1,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ],
+                "translation": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "source": {
+              "international_symbol": "P1",
+              "number": 1
+            },
+            "unresolved": []
+          },
+          "terms": [
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:0"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    1,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:1"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -1.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -1.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -1.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:2"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.02
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "small"
+            }
+          ],
+          "units": {
+            "energy": "dimensionless model units",
+            "hbar": 1
+          }
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf"
+      },
+      "exchange-half": {
+        "model": {
+          "lattice_structure": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "bond_orbits": [],
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ]
+          },
+          "local_hilbert": {
+            "classical_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "operator_bases": {
+              "basis": {
+                "kind": "spin_vector",
+                "labels": [
+                  "Sx",
+                  "Sy",
+                  "Sz"
+                ]
+              }
+            }
+          },
+          "schema_version": "canonical-hamiltonian/v1",
+          "source_schema_version": "lattice-term-contract/v1",
+          "symmetry": {
+            "operations": [
+              {
+                "operation_ref": "identity",
+                "rotation": [
+                  [
+                    1,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ],
+                "translation": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "source": {
+              "international_symbol": "P1",
+              "number": 1
+            },
+            "unresolved": []
+          },
+          "terms": [
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.5,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.5,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.5
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:0"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    1,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.5,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.5,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.5
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:1"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.5,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.5,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.5
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:2"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.02
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "small"
+            }
+          ],
+          "units": {
+            "energy": "dimensionless model units",
+            "hbar": 1
+          }
+        },
+        "model_id": "90b8050f05c9fb5c06f3a2a019c9a23876293f05ab1db7a56ecba530931a8a9a"
+      },
+      "exchange-off": {
+        "model": {
+          "lattice_structure": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "bond_orbits": [],
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ]
+          },
+          "local_hilbert": {
+            "classical_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "operator_bases": {
+              "basis": {
+                "kind": "spin_vector",
+                "labels": [
+                  "Sx",
+                  "Sy",
+                  "Sz"
+                ]
+              }
+            }
+          },
+          "schema_version": "canonical-hamiltonian/v1",
+          "source_schema_version": "lattice-term-contract/v1",
+          "symmetry": {
+            "operations": [
+              {
+                "operation_ref": "identity",
+                "rotation": [
+                  [
+                    1,
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    1,
+                    0
+                  ],
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ],
+                "translation": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "source": {
+              "international_symbol": "P1",
+              "number": 1
+            },
+            "unresolved": []
+          },
+          "terms": [
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:0"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    1,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:1"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ],
+                [
+                  -0.0,
+                  -0.0,
+                  -0.0
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "exchange:2"
+            },
+            {
+              "adjoint_action": {},
+              "arity": 2,
+              "attach_to": {
+                "kind": "explicit_cluster",
+                "orientation": "explicit"
+              },
+              "cluster": [
+                {
+                  "site": 0,
+                  "translation": [
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "site": 0,
+                  "translation": [
+                    1,
+                    0,
+                    0
+                  ]
+                }
+              ],
+              "coefficient": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  -0.02
+                ]
+              ],
+              "coordinate_convention": "global_crystallographic",
+              "operator_basis_ref": "basis",
+              "operator_family": "bilinear_exchange_tensor",
+              "orientation_sector": "default",
+              "permutation_action": {},
+              "provenance": {},
+              "term_ref": "small"
+            }
+          ],
+          "units": {
+            "energy": "dimensionless model units",
+            "hbar": 1
+          }
+        },
+        "model_id": "04f89d665504698c73a6acce3f698a9dab1efa0661dc3bad655847d5d7557056"
+      }
+    },
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "plan": {
+      "action_hash": "199b0b9f97999186631a5d395a0fc94f98afb9ad20735258cdb8927043de132a",
+      "baseline_point_id": "control",
+      "groups": [
+        {
+          "description": "Uniaxial exchange anisotropy.",
+          "group_id": "anisotropy",
+          "term_refs": [
+            "small"
+          ]
+        },
+        {
+          "description": "The isotropic exchange background.",
+          "group_id": "exchange",
+          "term_refs": [
+            "exchange:0",
+            "exchange:1",
+            "exchange:2"
+          ]
+        }
+      ],
+      "limitations": [
+        "Interventions act on the complete canonical model with the original structural symmetry.",
+        "No assumption of a unique mechanism or validity beyond the sampled couplings and observables.",
+        "A successful plan does not establish any physical hypothesis."
+      ],
+      "mechanism_id": "couplings",
+      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/models/model-0001",
+      "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+      "points": [
+        {
+          "factors": {
+            "anisotropy": 1.0,
+            "exchange": 1.0
+          },
+          "model": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/models/model-0001",
+            "fidelity": {
+              "assessment": "not_assessed",
+              "reconstruction_error": null
+            },
+            "hamiltonian_hash": "d237863db2dedfd0c114fd8cdff51ef81cb3d7c8d62c743940febf6b19f98405",
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ],
+            "local_basis_labels": [],
+            "local_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+            "questions": [],
+            "site_count": 1,
+            "source_term_count": 4,
+            "status": "ready",
+            "symmetry_validation": {
+              "failed_operations": [],
+              "forbidden_terms": [],
+              "input_hamiltonian_subgroup": {
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ],
+                "status": "verified-subgroup"
+              },
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_reports": [
+                {
+                  "allowed_residual": 1.03e-08,
+                  "frobenius_residual": 0.0,
+                  "max_absolute_residual": 0.0,
+                  "max_relative_residual": 0.0,
+                  "missing_symmetry_partners": [],
+                  "operation_ref": "identity",
+                  "passed": true,
+                  "worst_term": {
+                    "absolute_residual": 0.0,
+                    "canonical_key": [
+                      "bilinear_exchange_tensor",
+                      [
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            0
+                          ]
+                        ],
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            1
+                          ]
+                        ]
+                      ],
+                      "basis",
+                      "default"
+                    ],
+                    "relative_residual": 0.0,
+                    "source_term_refs": [
+                      "exchange:2"
+                    ],
+                    "threshold": 1.01e-08,
+                    "transformed_term_refs": [
+                      "exchange:2"
+                    ]
+                  }
+                }
+              ],
+              "status": "passed",
+              "target_group": {
+                "international_symbol": "P1",
+                "kind": "structural_space_group",
+                "number": 1,
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ]
+              }
+            },
+            "term_count": 4,
+            "term_families": {
+              "bilinear_exchange_tensor": 4
+            },
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            },
+            "version": 1,
+            "warnings": []
+          },
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.0,
+            "exchange": 1.0
+          },
+          "model": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/mechanisms/couplings/points/anisotropy-off/models/model-0001",
+            "fidelity": {
+              "assessment": "not_assessed",
+              "reconstruction_error": null
+            },
+            "hamiltonian_hash": "e8c95b39a8e12ba36e59398080ace6934b45613ba18db02d5849efb1f043ca1a",
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ],
+            "local_basis_labels": [],
+            "local_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+            "questions": [],
+            "site_count": 1,
+            "source_term_count": 4,
+            "status": "ready",
+            "symmetry_validation": {
+              "failed_operations": [],
+              "forbidden_terms": [],
+              "input_hamiltonian_subgroup": {
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ],
+                "status": "verified-subgroup"
+              },
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_reports": [
+                {
+                  "allowed_residual": 1.01e-08,
+                  "frobenius_residual": 0.0,
+                  "max_absolute_residual": 0.0,
+                  "max_relative_residual": 0.0,
+                  "missing_symmetry_partners": [],
+                  "operation_ref": "identity",
+                  "passed": true,
+                  "worst_term": {
+                    "absolute_residual": 0.0,
+                    "canonical_key": [
+                      "bilinear_exchange_tensor",
+                      [
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            0
+                          ]
+                        ],
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            1
+                          ]
+                        ]
+                      ],
+                      "basis",
+                      "default"
+                    ],
+                    "relative_residual": 0.0,
+                    "source_term_refs": [
+                      "exchange:2"
+                    ],
+                    "threshold": 1.01e-08,
+                    "transformed_term_refs": [
+                      "exchange:2"
+                    ]
+                  }
+                }
+              ],
+              "status": "passed",
+              "target_group": {
+                "international_symbol": "P1",
+                "kind": "structural_space_group",
+                "number": 1,
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ]
+              }
+            },
+            "term_count": 4,
+            "term_families": {
+              "bilinear_exchange_tensor": 4
+            },
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            },
+            "version": 1,
+            "warnings": []
+          },
+          "point_id": "anisotropy-off"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.5,
+            "exchange": 1.0
+          },
+          "model": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/mechanisms/couplings/points/anisotropy-half/models/model-0001",
+            "fidelity": {
+              "assessment": "not_assessed",
+              "reconstruction_error": null
+            },
+            "hamiltonian_hash": "22685f411f33a403b7b81e7dca8c24ae36669d6f923daf7882cb8af248fcc275",
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ],
+            "local_basis_labels": [],
+            "local_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+            "questions": [],
+            "site_count": 1,
+            "source_term_count": 4,
+            "status": "ready",
+            "symmetry_validation": {
+              "failed_operations": [],
+              "forbidden_terms": [],
+              "input_hamiltonian_subgroup": {
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ],
+                "status": "verified-subgroup"
+              },
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_reports": [
+                {
+                  "allowed_residual": 1.02e-08,
+                  "frobenius_residual": 0.0,
+                  "max_absolute_residual": 0.0,
+                  "max_relative_residual": 0.0,
+                  "missing_symmetry_partners": [],
+                  "operation_ref": "identity",
+                  "passed": true,
+                  "worst_term": {
+                    "absolute_residual": 0.0,
+                    "canonical_key": [
+                      "bilinear_exchange_tensor",
+                      [
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            0
+                          ]
+                        ],
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            1
+                          ]
+                        ]
+                      ],
+                      "basis",
+                      "default"
+                    ],
+                    "relative_residual": 0.0,
+                    "source_term_refs": [
+                      "exchange:2"
+                    ],
+                    "threshold": 1.01e-08,
+                    "transformed_term_refs": [
+                      "exchange:2"
+                    ]
+                  }
+                }
+              ],
+              "status": "passed",
+              "target_group": {
+                "international_symbol": "P1",
+                "kind": "structural_space_group",
+                "number": 1,
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ]
+              }
+            },
+            "term_count": 4,
+            "term_families": {
+              "bilinear_exchange_tensor": 4
+            },
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            },
+            "version": 1,
+            "warnings": []
+          },
+          "point_id": "anisotropy-half"
+        },
+        {
+          "factors": {
+            "anisotropy": 1.0,
+            "exchange": 0.0
+          },
+          "model": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/mechanisms/couplings/points/exchange-off/models/model-0001",
+            "fidelity": {
+              "assessment": "not_assessed",
+              "reconstruction_error": null
+            },
+            "hamiltonian_hash": "1ba06599b8232f9fb50d80d430138c471dc71f8dd1afafa0ad99210c6d638654",
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ],
+            "local_basis_labels": [],
+            "local_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "model_id": "04f89d665504698c73a6acce3f698a9dab1efa0661dc3bad655847d5d7557056",
+            "questions": [],
+            "site_count": 1,
+            "source_term_count": 4,
+            "status": "ready",
+            "symmetry_validation": {
+              "failed_operations": [],
+              "forbidden_terms": [],
+              "input_hamiltonian_subgroup": {
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ],
+                "status": "verified-subgroup"
+              },
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_reports": [
+                {
+                  "allowed_residual": 3e-10,
+                  "frobenius_residual": 0.0,
+                  "max_absolute_residual": 0.0,
+                  "max_relative_residual": 0.0,
+                  "missing_symmetry_partners": [],
+                  "operation_ref": "identity",
+                  "passed": true,
+                  "worst_term": {
+                    "absolute_residual": 0.0,
+                    "canonical_key": [
+                      "bilinear_exchange_tensor",
+                      [
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            0
+                          ]
+                        ],
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            1
+                          ]
+                        ]
+                      ],
+                      "basis",
+                      "default"
+                    ],
+                    "relative_residual": 0.0,
+                    "source_term_refs": [
+                      "exchange:2"
+                    ],
+                    "threshold": 1e-10,
+                    "transformed_term_refs": [
+                      "exchange:2"
+                    ]
+                  }
+                }
+              ],
+              "status": "passed",
+              "target_group": {
+                "international_symbol": "P1",
+                "kind": "structural_space_group",
+                "number": 1,
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ]
+              }
+            },
+            "term_count": 4,
+            "term_families": {
+              "bilinear_exchange_tensor": 4
+            },
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            },
+            "version": 1,
+            "warnings": []
+          },
+          "point_id": "exchange-off"
+        },
+        {
+          "factors": {
+            "anisotropy": 1.0,
+            "exchange": 0.5
+          },
+          "model": {
+            "basis_sites": [
+              {
+                "position": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "site_ref": "site:0"
+              }
+            ],
+            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/mechanisms/couplings/points/exchange-half/models/model-0001",
+            "fidelity": {
+              "assessment": "not_assessed",
+              "reconstruction_error": null
+            },
+            "hamiltonian_hash": "47109b8a54d9d3fcff28511d1306833830f4dffce4ebdcf63f3b44ae7d20c7ff",
+            "lattice_vectors": [
+              [
+                1.1,
+                0.0,
+                0.0
+              ],
+              [
+                0.17,
+                1.23,
+                0.0
+              ],
+              [
+                0.09,
+                0.21,
+                1.37
+              ]
+            ],
+            "local_basis_labels": [],
+            "local_spaces": {
+              "space": {
+                "dimension": 3,
+                "kind": "unit_vector_sphere"
+              }
+            },
+            "model_id": "90b8050f05c9fb5c06f3a2a019c9a23876293f05ab1db7a56ecba530931a8a9a",
+            "questions": [],
+            "site_count": 1,
+            "source_term_count": 4,
+            "status": "ready",
+            "symmetry_validation": {
+              "failed_operations": [],
+              "forbidden_terms": [],
+              "input_hamiltonian_subgroup": {
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ],
+                "status": "verified-subgroup"
+              },
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_reports": [
+                {
+                  "allowed_residual": 5.3e-09,
+                  "frobenius_residual": 0.0,
+                  "max_absolute_residual": 0.0,
+                  "max_relative_residual": 0.0,
+                  "missing_symmetry_partners": [],
+                  "operation_ref": "identity",
+                  "passed": true,
+                  "worst_term": {
+                    "absolute_residual": 0.0,
+                    "canonical_key": [
+                      "bilinear_exchange_tensor",
+                      [
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            0
+                          ]
+                        ],
+                        [
+                          0,
+                          [
+                            0,
+                            0,
+                            1
+                          ]
+                        ]
+                      ],
+                      "basis",
+                      "default"
+                    ],
+                    "relative_residual": 0.0,
+                    "source_term_refs": [
+                      "exchange:2"
+                    ],
+                    "threshold": 5.1e-09,
+                    "transformed_term_refs": [
+                      "exchange:2"
+                    ]
+                  }
+                }
+              ],
+              "status": "passed",
+              "target_group": {
+                "international_symbol": "P1",
+                "kind": "structural_space_group",
+                "number": 1,
+                "operation_count": 1,
+                "operation_refs": [
+                  "identity"
+                ]
+              }
+            },
+            "term_count": 4,
+            "term_families": {
+              "bilinear_exchange_tensor": 4
+            },
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            },
+            "version": 1,
+            "warnings": []
+          },
+          "point_id": "exchange-half"
+        }
+      ],
+      "question": "Which interaction controls the frequency at the selected momentum?",
+      "schema_version": "mechanism-plan/v1",
+      "status": "ready"
+    },
+    "planned_solver_runs": 8
+  },
+  "max_memory_mb": 2048.0,
+  "model": {
+    "lattice_structure": {
+      "basis_sites": [
+        {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "site_ref": "site:0"
+        }
+      ],
+      "bond_orbits": [],
+      "lattice_vectors": [
+        [
+          1.1,
+          0.0,
+          0.0
+        ],
+        [
+          0.17,
+          1.23,
+          0.0
+        ],
+        [
+          0.09,
+          0.21,
+          1.37
+        ]
+      ]
+    },
+    "local_hilbert": {
+      "classical_spaces": {
+        "space": {
+          "dimension": 3,
+          "kind": "unit_vector_sphere"
+        }
+      },
+      "operator_bases": {
+        "basis": {
+          "kind": "spin_vector",
+          "labels": [
+            "Sx",
+            "Sy",
+            "Sz"
+          ]
+        }
+      }
+    },
+    "schema_version": "canonical-hamiltonian/v1",
+    "source_schema_version": "lattice-term-contract/v1",
+    "symmetry": {
+      "operations": [
+        {
+          "operation_ref": "identity",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "source": {
+        "international_symbol": "P1",
+        "number": 1
+      },
+      "unresolved": []
+    },
+    "terms": [
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "bilinear_exchange_tensor",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "exchange:0"
+      },
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              0,
+              1,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "bilinear_exchange_tensor",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "exchange:1"
+      },
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              1
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -1.0,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -1.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -1.0
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "bilinear_exchange_tensor",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "exchange:2"
+      },
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            -0.02
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "bilinear_exchange_tensor",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "small"
+      }
+    ],
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "reference": null,
+  "result_id": "response",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "harmonic_spectrum"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Anisotropy raises the sampled frequency."
+      },
+      {
+        "absent_below": 0.0001,
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-necessary",
+        "kind": "necessary_in_context",
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "present_above": 0.01,
+        "statement": "Anisotropy is necessary for this finite frequency."
+      },
+      {
+        "direction": "increasing",
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "Exchange raises the sampled frequency."
+      },
+      {
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-insensitive",
+        "kind": "insensitive_response",
+        "max_change": 1e-05,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "statement": "This frequency is insensitive to exchange."
+      }
+    ],
+    "max_memory_mb": 2048.0,
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "timeout": 179.51921319961548,
+  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/response"
+}

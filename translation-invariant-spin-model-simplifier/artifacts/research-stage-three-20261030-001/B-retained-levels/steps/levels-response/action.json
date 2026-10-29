@@ -1,0 +1,80 @@
+{
+  "action_id": "levels-response",
+  "reason": "Compare full three-level references and harmonic modes.",
+  "settings": {
+    "experiments": [
+      {
+        "case_id": "rays",
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "rays",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "harmonic_spectrum"
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "group_id": "onsite",
+        "hypothesis_id": "levels-raise-mode",
+        "kind": "monotonic_response",
+        "min_effect": 0.7,
+        "numerical_tolerance": 1e-06,
+        "observable_id": "frequency",
+        "statement": "Stronger onsite splitting raises the selected mode."
+      },
+      {
+        "group_id": "onsite",
+        "hypothesis_id": "population-preserved",
+        "kind": "insensitive_response",
+        "max_change": 1e-05,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "population",
+        "statement": "The selected local ground-level population remains unchanged."
+      }
+    ],
+    "mechanism_id": "levels",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "basis_index": 0,
+        "case_id": "rays",
+        "kind": "local_population",
+        "observable_id": "population"
+      }
+    ]
+  },
+  "task": "mechanism_test",
+  "type": "calculate"
+}

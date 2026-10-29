@@ -1,0 +1,529 @@
+{
+  "backend_result": {
+    "calculation": {
+      "classical_state": {
+        "basis_order": "retained_state_index",
+        "local_rays": [
+          {
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "vector": [
+              {
+                "imag": 0.0,
+                "real": 1.0
+              },
+              {
+                "imag": 4.806630435926849e-13,
+                "real": 6.338472526980988e-13
+              },
+              {
+                "imag": 5.173748600649525e-23,
+                "real": -1.3881639125965148e-22
+              }
+            ]
+          }
+        ],
+        "manifold": "CP^(N-1)",
+        "ordering": {
+          "kind": "uniform",
+          "q_vector": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "pair_basis_order": "site_i_major_site_j_minor",
+        "schema_version": 1,
+        "state_kind": "local_rays",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      "convergence": {
+        "energy_converged": false,
+        "energy_tolerance": 1e-06,
+        "history": [
+          {
+            "best_start_source": "random",
+            "energy": -0.51,
+            "max_local_change": 1.2091399859233905e-11,
+            "shape": [
+              1,
+              1,
+              1
+            ]
+          }
+        ],
+        "max_linear_size": 1,
+        "repeats_required": 1,
+        "search_mode": "bounded",
+        "stopped_reason": "max_linear_size_reached",
+        "structural_dimension": 3
+      },
+      "energy": -0.51,
+      "energy_per_cell": -0.51,
+      "limitations": [
+        "Finite periodic product-state variational search in the full retained local space.",
+        "Local stationarity does not prove the global or infinite-lattice ground state.",
+        "Size convergence remains separate from stationarity."
+      ],
+      "local_dimension": 3,
+      "local_rays": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "vector": [
+            {
+              "imag": 0.0,
+              "real": 1.0
+            },
+            {
+              "imag": 4.806630435926849e-13,
+              "real": 6.338472526980988e-13
+            },
+            {
+              "imag": 5.173748600649525e-23,
+              "real": -1.3881639125965148e-22
+            }
+          ]
+        }
+      ],
+      "manifold": "CP^(N-1)",
+      "method": "cpn-local-ray-minimize",
+      "onsite_term_count": 1,
+      "pair_term_count": 1,
+      "projector_diagnostics": {
+        "components": [
+          {
+            "is_zero_q": true,
+            "projectors_by_site": [
+              {
+                "matrix": [
+                  [
+                    {
+                      "imag": 0.0,
+                      "real": 1.0
+                    },
+                    {
+                      "imag": -4.806630435926849e-13,
+                      "real": 6.338472526980988e-13
+                    },
+                    {
+                      "imag": -5.173748600649525e-23,
+                      "real": -1.3881639125965148e-22
+                    }
+                  ],
+                  [
+                    {
+                      "imag": 4.806630435926849e-13,
+                      "real": 6.338472526980988e-13
+                    },
+                    {
+                      "imag": 0.0,
+                      "real": 6.327993012287108e-25
+                    },
+                    {
+                      "imag": -9.95175724901404e-35,
+                      "real": -6.312009073767852e-35
+                    }
+                  ],
+                  [
+                    {
+                      "imag": 5.173748600649525e-23,
+                      "real": -1.3881639125965148e-22
+                    },
+                    {
+                      "imag": 9.95175724901404e-35,
+                      "real": -6.312009073767852e-35
+                    },
+                    {
+                      "imag": 0.0,
+                      "real": 2.1946757940624936e-44
+                    }
+                  ]
+                ],
+                "site": 0
+              }
+            ],
+            "q": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "weight": 1.0
+          }
+        ],
+        "dominant_ordering_q": null,
+        "dominant_ordering_weight": 0.0,
+        "grid_shape": [
+          1,
+          1,
+          1
+        ],
+        "ordering_kind": "uniform",
+        "uniform_q_weight": 1.0
+      },
+      "seed": 6,
+      "starts": 2,
+      "stationarity": {
+        "max_residual_norm": 1.209139985923389e-12,
+        "mean_residual_norm": 1.209139985923389e-12,
+        "residual_definition": "r_i = H_i^eff z_i - (z_i^dagger H_i^eff z_i) z_i, measured in Euclidean norm",
+        "sites": [
+          {
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "lagrange_multiplier": {
+              "imag": 0.0,
+              "real": -0.8200000000000001
+            },
+            "residual_norm": 1.209139985923389e-12,
+            "residual_vector": [
+              {
+                "imag": 3.5764677657145553e-42,
+                "real": 0.0
+              },
+              {
+                "imag": 7.30607826260881e-13,
+                "real": 9.634478241011102e-13
+              },
+              {
+                "imag": 5.640420724428113e-22,
+                "real": -1.5133762975127205e-21
+              }
+            ],
+            "site": 0
+          }
+        ]
+      },
+      "status": "ok",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "term_mapping": [
+        {
+          "destination": "onsite_terms",
+          "term_ref": "onsite:levels"
+        },
+        {
+          "destination": "bond_tensors",
+          "term_ref": "pair:general"
+        }
+      ]
+    },
+    "status": "ok"
+  },
+  "calculation": {
+    "classical_state": {
+      "basis_order": "retained_state_index",
+      "local_rays": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "vector": [
+            {
+              "imag": 0.0,
+              "real": 1.0
+            },
+            {
+              "imag": 4.806630435926849e-13,
+              "real": 6.338472526980988e-13
+            },
+            {
+              "imag": 5.173748600649525e-23,
+              "real": -1.3881639125965148e-22
+            }
+          ]
+        }
+      ],
+      "manifold": "CP^(N-1)",
+      "ordering": {
+        "kind": "uniform",
+        "q_vector": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      "pair_basis_order": "site_i_major_site_j_minor",
+      "schema_version": 1,
+      "state_kind": "local_rays",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ]
+    },
+    "convergence": {
+      "energy_converged": false,
+      "energy_tolerance": 1e-06,
+      "history": [
+        {
+          "best_start_source": "random",
+          "energy": -0.51,
+          "max_local_change": 1.2091399859233905e-11,
+          "shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "max_linear_size": 1,
+      "repeats_required": 1,
+      "search_mode": "bounded",
+      "stopped_reason": "max_linear_size_reached",
+      "structural_dimension": 3
+    },
+    "energy": -0.51,
+    "energy_per_cell": -0.51,
+    "limitations": [
+      "Finite periodic product-state variational search in the full retained local space.",
+      "Local stationarity does not prove the global or infinite-lattice ground state.",
+      "Size convergence remains separate from stationarity."
+    ],
+    "local_dimension": 3,
+    "local_rays": [
+      {
+        "cell": [
+          0,
+          0,
+          0
+        ],
+        "vector": [
+          {
+            "imag": 0.0,
+            "real": 1.0
+          },
+          {
+            "imag": 4.806630435926849e-13,
+            "real": 6.338472526980988e-13
+          },
+          {
+            "imag": 5.173748600649525e-23,
+            "real": -1.3881639125965148e-22
+          }
+        ]
+      }
+    ],
+    "manifold": "CP^(N-1)",
+    "method": "cpn-local-ray-minimize",
+    "onsite_term_count": 1,
+    "pair_term_count": 1,
+    "projector_diagnostics": {
+      "components": [
+        {
+          "is_zero_q": true,
+          "projectors_by_site": [
+            {
+              "matrix": [
+                [
+                  {
+                    "imag": 0.0,
+                    "real": 1.0
+                  },
+                  {
+                    "imag": -4.806630435926849e-13,
+                    "real": 6.338472526980988e-13
+                  },
+                  {
+                    "imag": -5.173748600649525e-23,
+                    "real": -1.3881639125965148e-22
+                  }
+                ],
+                [
+                  {
+                    "imag": 4.806630435926849e-13,
+                    "real": 6.338472526980988e-13
+                  },
+                  {
+                    "imag": 0.0,
+                    "real": 6.327993012287108e-25
+                  },
+                  {
+                    "imag": -9.95175724901404e-35,
+                    "real": -6.312009073767852e-35
+                  }
+                ],
+                [
+                  {
+                    "imag": 5.173748600649525e-23,
+                    "real": -1.3881639125965148e-22
+                  },
+                  {
+                    "imag": 9.95175724901404e-35,
+                    "real": -6.312009073767852e-35
+                  },
+                  {
+                    "imag": 0.0,
+                    "real": 2.1946757940624936e-44
+                  }
+                ]
+              ],
+              "site": 0
+            }
+          ],
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        }
+      ],
+      "dominant_ordering_q": null,
+      "dominant_ordering_weight": 0.0,
+      "grid_shape": [
+        1,
+        1,
+        1
+      ],
+      "ordering_kind": "uniform",
+      "uniform_q_weight": 1.0
+    },
+    "seed": 6,
+    "starts": 2,
+    "stationarity": {
+      "max_residual_norm": 1.209139985923389e-12,
+      "mean_residual_norm": 1.209139985923389e-12,
+      "residual_definition": "r_i = H_i^eff z_i - (z_i^dagger H_i^eff z_i) z_i, measured in Euclidean norm",
+      "sites": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "lagrange_multiplier": {
+            "imag": 0.0,
+            "real": -0.8200000000000001
+          },
+          "residual_norm": 1.209139985923389e-12,
+          "residual_vector": [
+            {
+              "imag": 3.5764677657145553e-42,
+              "real": 0.0
+            },
+            {
+              "imag": 7.30607826260881e-13,
+              "real": 9.634478241011102e-13
+            },
+            {
+              "imag": 5.640420724428113e-22,
+              "real": -1.5133762975127205e-21
+            }
+          ],
+          "site": 0
+        }
+      ]
+    },
+    "status": "ok",
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ],
+    "term_mapping": [
+      {
+        "destination": "onsite_terms",
+        "term_ref": "onsite:levels"
+      },
+      {
+        "destination": "bond_tensors",
+        "term_ref": "pair:general"
+      }
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "complex_projective_space"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "local_rays",
+    "solver_id": "retained-local-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum"
+    ],
+    "term_families": [
+      "pair_matrix",
+      "local_operator_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+  },
+  "diagnostics": [
+    {
+      "kind": "stationarity",
+      "satisfied": true,
+      "value": 1.209139985923389e-12
+    },
+    {
+      "finite_cell_bound_gap": null,
+      "kind": "global_ground_state",
+      "note": "Only the recorded finite search was performed.",
+      "satisfied": false
+    }
+  ],
+  "evidence_digest": "c117443735d0a5222395dec8ed6722f23cb449a89275c82b0a32d1c5b296cb90",
+  "execution_status": "succeeded",
+  "finished_at": 1793293024.324228,
+  "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802",
+  "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+  "reference_result": null,
+  "result_id": "job-b2094e50a523afea0c8f5d3d",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Finite periodic product-state variational search in the full retained local space.",
+    "Local stationarity does not prove the global or infinite-lattice ground state.",
+    "Size convergence remains separate from stationarity.",
+    "Energy is per primitive cell in the supplied Hamiltonian's energy units."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_linear_size": 1,
+    "max_memory_mb": 2048.0,
+    "max_sweeps": 100,
+    "seed": 6,
+    "starts": 2
+  },
+  "suggested_actions": [
+    {
+      "reason": "Check robustness with more starts, an independent seed or a larger finite cell.",
+      "requires_agent_choice": true,
+      "task": "classical_ground_state",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_ground_state"
+}

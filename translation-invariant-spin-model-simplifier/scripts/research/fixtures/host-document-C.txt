@@ -1,0 +1,16 @@
+Research task C: a new cubic exchange model
+
+Use a simple cubic lattice with primitive vectors (1,0,0), (0,1,0), (0,0,1)
+and one magnetic site at fractional position (0,0,0). The structural target is
+the full cubic point group, all 48 signed permutation matrices, with no
+fractional translation.
+
+There is only isotropic nearest-neighbour exchange. Its coefficient is -0.93
+in dimensionless model energy units. Count each unoriented bond once: use the
+positive x, y and z translations. No onsite or higher-body terms are present.
+
+I want a classical reference in a 2 by 2 by 2 periodic cell, then the harmonic
+spectrum at q=(0,0,0) and q=(0.5,0,0) in primitive reciprocal coordinates.
+
+The physical operator normalization still needs clarification: should the
+operators be ordinary spin-1/2 operators or unit-length Pauli operators?

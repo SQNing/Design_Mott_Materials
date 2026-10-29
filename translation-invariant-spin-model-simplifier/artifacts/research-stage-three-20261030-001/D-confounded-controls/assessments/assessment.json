@@ -1,0 +1,200 @@
+{
+  "action_id": "assessment",
+  "answer_status": "inconclusive",
+  "conclusion": "The jointly varied points do not identify either one-group mechanism; isolated controls are needed.",
+  "evidence": [
+    {
+      "path": "calculation.hypotheses",
+      "result_id": "response"
+    }
+  ],
+  "limitations": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "reason": "Interpret the measured responses and explicit controls.",
+  "scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "groups": [
+      {
+        "description": "Uniaxial exchange anisotropy.",
+        "group_id": "anisotropy",
+        "term_refs": [
+          "small"
+        ]
+      },
+      {
+        "description": "The isotropic exchange background.",
+        "group_id": "exchange",
+        "term_refs": [
+          "exchange:0",
+          "exchange:1",
+          "exchange:2"
+        ]
+      }
+    ],
+    "local_basis_labels": [],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "anisotropy": 1.0,
+          "exchange": 1.0
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.5,
+          "exchange": 0.5
+        },
+        "model_id": "ce00702ea0bf69227e27b9cf0b53be316ba5bc132dbb2588664510db9965ac04",
+        "point_id": "joint-half"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.25,
+          "exchange": 0.25
+        },
+        "model_id": "76ba24b01ec84b62da3caa53513e39f01381a9610a695e03a339a70d67ea0f15",
+        "point_id": "joint-quarter"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "joint-half",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "joint-quarter",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "joint-half",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "joint-quarter",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "type": "assess"
+}

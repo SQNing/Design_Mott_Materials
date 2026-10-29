@@ -1,0 +1,17 @@
+{
+  "action_id": "assessment",
+  "answer_status": "inconclusive",
+  "conclusion": "The planned comparison requires more numerical jobs than the declared budget allows.",
+  "evidence": [
+    {
+      "path": "blocker",
+      "result_id": "response"
+    }
+  ],
+  "limitations": [
+    "The declared resource budget is insufficient."
+  ],
+  "reason": "Interpret the measured responses and explicit controls.",
+  "scope": "No numerical experiment launched.",
+  "type": "assess"
+}

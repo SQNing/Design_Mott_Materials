@@ -1,0 +1,13 @@
+{
+  "counted": true,
+  "max_memory_mb": 3072.0,
+  "solver_runs": 1,
+  "started_at": 1793297754.6164083,
+  "status": "running",
+  "timeout_seconds": 464.72235465049744,
+  "worker": {
+    "host": "login001",
+    "pid": 4400,
+    "start_ticks": "217991253"
+  }
+}

@@ -1,0 +1,404 @@
+{
+  "dropped_terms": [],
+  "fidelity": {
+    "assessment": "not_assessed",
+    "reconstruction_error": null
+  },
+  "low_weight": [],
+  "main": [
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "local_operator_matrix",
+      "readable_block": {
+        "basis_order": "retained_state_index",
+        "full_matrix": [
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": -0.2
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.6
+            }
+          ]
+        ],
+        "matrix_elements": [
+          {
+            "bra": 0,
+            "coefficient": {
+              "im": 0.0,
+              "kind": "complex",
+              "re": -0.2
+            },
+            "ket": 0
+          },
+          {
+            "bra": 1,
+            "coefficient": {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.6
+            },
+            "ket": 1
+          }
+        ],
+        "type": "retained_onsite_operator"
+      },
+      "term_ref": "onsite:levels"
+    },
+    {
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_family": "pair_matrix",
+      "readable_block": {
+        "basis_order": "site_i_major_site_j_minor",
+        "full_matrix": [
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": -0.31
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": -0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ]
+        ],
+        "matrix_elements": [
+          {
+            "bra": 0,
+            "coefficient": {
+              "im": 0.0,
+              "kind": "complex",
+              "re": -0.31
+            },
+            "ket": 0
+          },
+          {
+            "bra": 1,
+            "coefficient": {
+              "im": 0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            "ket": 2
+          },
+          {
+            "bra": 2,
+            "coefficient": {
+              "im": -0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            "ket": 1
+          }
+        ],
+        "type": "retained_pair_operator"
+      },
+      "term_ref": "pair:general"
+    }
+  ],
+  "notes": [
+    "Readable blocks are descriptions, not physical reductions.",
+    "Matrix-unit indices refer to the supplied local basis; no spin mapping is inferred."
+  ],
+  "residual": [],
+  "terms": [
+    {
+      "adjoint_action": {},
+      "arity": 1,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": -0.2
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.6
+          }
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "local_operator_matrix",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "onsite:levels"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": -0.31
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.03,
+            "kind": "complex",
+            "re": 0.05
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.03,
+            "kind": "complex",
+            "re": 0.05
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": 0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ]
+      ],
+      "coefficient_representation": "full_pair_operator",
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "basis",
+      "operator_family": "pair_matrix",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "pair:general"
+    }
+  ],
+  "view": "faithful-readable"
+}

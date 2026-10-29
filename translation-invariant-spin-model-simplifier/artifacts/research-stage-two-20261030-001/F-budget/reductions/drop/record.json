@@ -1,0 +1,210 @@
+{
+  "action_hash": "dc710f8bd5e05a7eb487e3e0dde73012eac34ba48919ec7ea093d0b313f9b393",
+  "candidate": {
+    "basis_sites": [
+      {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "site_ref": "site:0"
+      }
+    ],
+    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/F-budget/reductions/drop/models/model-0001",
+    "fidelity": {
+      "assessment": "not_assessed",
+      "reconstruction_error": null
+    },
+    "hamiltonian_hash": "14bf3a86f90f9aa7b457f42dd604a4c40176f07c1c80b6dd010d42db67ada21d",
+    "lattice_vectors": [
+      [
+        1.1,
+        0.0,
+        0.0
+      ],
+      [
+        0.17,
+        1.23,
+        0.0
+      ],
+      [
+        0.09,
+        0.21,
+        1.37
+      ]
+    ],
+    "local_basis_labels": [],
+    "local_spaces": {
+      "space": {
+        "dimension": 3,
+        "kind": "unit_vector_sphere"
+      }
+    },
+    "model_id": "7eab83330e09dd4aa9cdd0d986f3434aa0ac315f9432130637d0f18bde96d831",
+    "questions": [],
+    "site_count": 1,
+    "source_term_count": 3,
+    "status": "ready",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    1
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "exchange:2"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "exchange:2"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "term_count": 3,
+    "term_families": {
+      "bilinear_exchange_tensor": 3
+    },
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    },
+    "version": 1,
+    "warnings": []
+  },
+  "candidate_id": "drop",
+  "complexity": {
+    "candidate_dimension": null,
+    "candidate_terms": 3,
+    "full_dimension": null,
+    "full_terms": 4
+  },
+  "limitations": [
+    "Coefficient norms alone do not bound the requested observables."
+  ],
+  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/F-budget/models/model-0001",
+  "parent_model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
+  "schema_version": "reduction-candidate/v1",
+  "status": "ready",
+  "transformation": {
+    "assessment": "requires_physical_validation",
+    "coefficient_distances": [
+      {
+        "coefficient_frobenius_norm": 0.0017320508075688774,
+        "term_ref": "small"
+      }
+    ],
+    "kind": "drop_terms",
+    "limitations": [
+      "Coefficient norms alone do not bound the requested observables."
+    ],
+    "physical_error": null,
+    "removed_terms": [
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -0.001,
+            -0.0,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.001,
+            -0.0
+          ],
+          [
+            -0.0,
+            -0.0,
+            -0.001
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "bilinear_exchange_tensor",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "small"
+      }
+    ]
+  },
+  "validation_status": "not_assessed"
+}

@@ -1,0 +1,618 @@
+{
+  "calculation": {
+    "energy_responses": [],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.eigenvalues",
+              "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+              "selector": {
+                "case_id": "levels",
+                "kind": "quantum_gap",
+                "level": 2,
+                "observable_id": "frequency"
+              }
+            },
+            "factor": 0.0,
+            "kind": "quantum_gap",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-off",
+            "scientific_status": "usable_within_scope",
+            "value": 8.881784197001252e-16
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.eigenvalues",
+              "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+              "selector": {
+                "case_id": "levels",
+                "kind": "quantum_gap",
+                "level": 2,
+                "observable_id": "frequency"
+              }
+            },
+            "factor": 0.5,
+            "kind": "quantum_gap",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-half",
+            "scientific_status": "usable_within_scope",
+            "value": 0.009999999999999787
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation.eigenvalues",
+              "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+              "selector": {
+                "case_id": "levels",
+                "kind": "quantum_gap",
+                "level": 2,
+                "observable_id": "frequency"
+              }
+            },
+            "factor": 1.0,
+            "kind": "quantum_gap",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.02000000000000135
+          }
+        ],
+        "excluded_confounded_points": [],
+        "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0] gives observable 'frequency' values [8.881784197e-16, 0.01, 0.02]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 0.02000000000000135,
+          "directed_span": 0.020000000000000462,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": 0.009999999999998899,
+          "values": [
+            8.881784197001252e-16,
+            0.009999999999999787,
+            0.02000000000000135
+          ]
+        },
+        "statement": "Anisotropy raises the sampled frequency.",
+        "status": "supported_within_scope",
+        "unused_isolated_points": [],
+        "used_points": [
+          "anisotropy-off",
+          "anisotropy-half",
+          "control"
+        ]
+      }
+    ],
+    "observations": [
+      {
+        "evidence": {
+          "calculation_path": "calculation.eigenvalues",
+          "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+          "selector": {
+            "case_id": "levels",
+            "kind": "quantum_gap",
+            "level": 2,
+            "observable_id": "frequency"
+          }
+        },
+        "kind": "quantum_gap",
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.02000000000000135
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.eigenvalues",
+          "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+          "selector": {
+            "case_id": "levels",
+            "kind": "quantum_gap",
+            "level": 2,
+            "observable_id": "frequency"
+          }
+        },
+        "kind": "quantum_gap",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "usable_within_scope",
+        "value": 8.881784197001252e-16
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.eigenvalues",
+          "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+          "selector": {
+            "case_id": "levels",
+            "kind": "quantum_gap",
+            "level": 2,
+            "observable_id": "frequency"
+          }
+        },
+        "kind": "quantum_gap",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.009999999999999787
+      }
+    ],
+    "validated_scope": {
+      "baseline_point_id": "control",
+      "experiments": [
+        {
+          "case_id": "levels",
+          "settings": {
+            "eigenvalues": 3,
+            "seed": 31,
+            "spin": 0.5,
+            "supercell_shape": [
+              2,
+              2,
+              2
+            ]
+          },
+          "task": "quantum_low_energy"
+        }
+      ],
+      "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+      "groups": [
+        {
+          "description": "Uniaxial exchange anisotropy.",
+          "group_id": "anisotropy",
+          "term_refs": [
+            "small"
+          ]
+        }
+      ],
+      "local_basis_labels": [],
+      "mechanism_id": "couplings",
+      "observables": [
+        {
+          "case_id": "levels",
+          "kind": "quantum_gap",
+          "level": 2,
+          "observable_id": "frequency"
+        }
+      ],
+      "points": [
+        {
+          "factors": {
+            "anisotropy": 1.0
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.0
+          },
+          "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+          "point_id": "anisotropy-off"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.5
+          },
+          "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+          "point_id": "anisotropy-half"
+        }
+      ],
+      "realized_cases": [
+        {
+          "case_id": "levels",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "case_id": "levels",
+          "local_dimension": null,
+          "point_id": "anisotropy-off",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "case_id": "levels",
+          "local_dimension": null,
+          "point_id": "anisotropy-half",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            2,
+            2,
+            2
+          ]
+        }
+      ],
+      "reference_tolerance": 1e-07,
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    }
+  },
+  "calculation_fingerprint": "0b6e279447e2af95ba3958ef6fe45408e6df636158e278948ddc8e5669632a2a",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "energy_responses": [],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "levels",
+      "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793295948.1420853,
+  "hypotheses": [
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.eigenvalues",
+            "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+            "selector": {
+              "case_id": "levels",
+              "kind": "quantum_gap",
+              "level": 2,
+              "observable_id": "frequency"
+            }
+          },
+          "factor": 0.0,
+          "kind": "quantum_gap",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-off",
+          "scientific_status": "usable_within_scope",
+          "value": 8.881784197001252e-16
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.eigenvalues",
+            "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+            "selector": {
+              "case_id": "levels",
+              "kind": "quantum_gap",
+              "level": 2,
+              "observable_id": "frequency"
+            }
+          },
+          "factor": 0.5,
+          "kind": "quantum_gap",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-half",
+          "scientific_status": "usable_within_scope",
+          "value": 0.009999999999999787
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.eigenvalues",
+            "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+            "selector": {
+              "case_id": "levels",
+              "kind": "quantum_gap",
+              "level": 2,
+              "observable_id": "frequency"
+            }
+          },
+          "factor": 1.0,
+          "kind": "quantum_gap",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.02000000000000135
+        }
+      ],
+      "excluded_confounded_points": [],
+      "explanation": "Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0] gives observable 'frequency' values [8.881784197e-16, 0.01, 0.02]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "response": {
+        "baseline_value": 0.02000000000000135,
+        "directed_span": 0.020000000000000462,
+        "factors": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "minimum_directed_increment": 0.009999999999998899,
+        "values": [
+          8.881784197001252e-16,
+          0.009999999999999787,
+          0.02000000000000135
+        ]
+      },
+      "statement": "Anisotropy raises the sampled frequency.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "anisotropy-off",
+        "anisotropy-half",
+        "control"
+      ]
+    }
+  ],
+  "mechanism_id": "couplings",
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation.eigenvalues",
+        "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+        "selector": {
+          "case_id": "levels",
+          "kind": "quantum_gap",
+          "level": 2,
+          "observable_id": "frequency"
+        }
+      },
+      "kind": "quantum_gap",
+      "observable_id": "frequency",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": 0.02000000000000135
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.eigenvalues",
+        "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+        "selector": {
+          "case_id": "levels",
+          "kind": "quantum_gap",
+          "level": 2,
+          "observable_id": "frequency"
+        }
+      },
+      "kind": "quantum_gap",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-off",
+      "scientific_status": "usable_within_scope",
+      "value": 8.881784197001252e-16
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.eigenvalues",
+        "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+        "selector": {
+          "case_id": "levels",
+          "kind": "quantum_gap",
+          "level": 2,
+          "observable_id": "frequency"
+        }
+      },
+      "kind": "quantum_gap",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-half",
+      "scientific_status": "usable_within_scope",
+      "value": 0.009999999999999787
+    }
+  ],
+  "result_id": "response",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "scientific_status": "usable_within_scope",
+  "solver_runs": 3,
+  "suggested_actions": [
+    {
+      "reason": "Resolve inadequate controls or test additional finite sizes, momenta and isolated coupling points.",
+      "requires_agent_choice": true,
+      "task": "mechanism_test",
+      "type": "calculate"
+    }
+  ],
+  "task": "mechanism_test",
+  "validated_scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "levels",
+        "settings": {
+          "eigenvalues": 3,
+          "seed": 31,
+          "spin": 0.5,
+          "supercell_shape": [
+            2,
+            2,
+            2
+          ]
+        },
+        "task": "quantum_low_energy"
+      }
+    ],
+    "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "groups": [
+      {
+        "description": "Uniaxial exchange anisotropy.",
+        "group_id": "anisotropy",
+        "term_refs": [
+          "small"
+        ]
+      }
+    ],
+    "local_basis_labels": [],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "case_id": "levels",
+        "kind": "quantum_gap",
+        "level": 2,
+        "observable_id": "frequency"
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "anisotropy": 1.0
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.0
+        },
+        "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+        "point_id": "anisotropy-off"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.5
+        },
+        "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+        "point_id": "anisotropy-half"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "levels",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          2,
+          2,
+          2
+        ]
+      },
+      {
+        "case_id": "levels",
+        "local_dimension": null,
+        "point_id": "anisotropy-off",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          2,
+          2,
+          2
+        ]
+      },
+      {
+        "case_id": "levels",
+        "local_dimension": null,
+        "point_id": "anisotropy-half",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          2,
+          2,
+          2
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  }
+}

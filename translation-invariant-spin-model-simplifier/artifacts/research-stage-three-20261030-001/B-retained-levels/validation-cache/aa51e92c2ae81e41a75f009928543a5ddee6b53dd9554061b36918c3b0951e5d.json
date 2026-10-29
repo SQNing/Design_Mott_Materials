@@ -1,0 +1,529 @@
+{
+  "backend_result": {
+    "calculation": {
+      "classical_state": {
+        "basis_order": "retained_state_index",
+        "local_rays": [
+          {
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "vector": [
+              {
+                "imag": 0.0,
+                "real": 1.0
+              },
+              {
+                "imag": -6.377421031933299e-13,
+                "real": -8.409863945802874e-13
+              },
+              {
+                "imag": -7.751748211366114e-16,
+                "real": 2.079864708772693e-15
+              }
+            ]
+          }
+        ],
+        "manifold": "CP^(N-1)",
+        "ordering": {
+          "kind": "uniform",
+          "q_vector": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "pair_basis_order": "site_i_major_site_j_minor",
+        "schema_version": 1,
+        "state_kind": "local_rays",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      "convergence": {
+        "energy_converged": false,
+        "energy_tolerance": 1e-06,
+        "history": [
+          {
+            "best_start_source": "random",
+            "energy": -0.6100000000000001,
+            "max_local_change": 2.026479943732401e-11,
+            "shape": [
+              1,
+              1,
+              1
+            ]
+          }
+        ],
+        "max_linear_size": 1,
+        "repeats_required": 1,
+        "search_mode": "bounded",
+        "stopped_reason": "max_linear_size_reached",
+        "structural_dimension": 3
+      },
+      "energy": -0.6100000000000001,
+      "energy_per_cell": -0.6100000000000001,
+      "limitations": [
+        "Finite periodic product-state variational search in the full retained local space.",
+        "Local stationarity does not prove the global or infinite-lattice ground state.",
+        "Size convergence remains separate from stationarity."
+      ],
+      "local_dimension": 3,
+      "local_rays": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "vector": [
+            {
+              "imag": 0.0,
+              "real": 1.0
+            },
+            {
+              "imag": -6.377421031933299e-13,
+              "real": -8.409863945802874e-13
+            },
+            {
+              "imag": -7.751748211366114e-16,
+              "real": 2.079864708772693e-15
+            }
+          ]
+        }
+      ],
+      "manifold": "CP^(N-1)",
+      "method": "cpn-local-ray-minimize",
+      "onsite_term_count": 1,
+      "pair_term_count": 1,
+      "projector_diagnostics": {
+        "components": [
+          {
+            "is_zero_q": true,
+            "projectors_by_site": [
+              {
+                "matrix": [
+                  [
+                    {
+                      "imag": 0.0,
+                      "real": 1.0
+                    },
+                    {
+                      "imag": 6.377421031933299e-13,
+                      "real": -8.409863945802874e-13
+                    },
+                    {
+                      "imag": 7.751748211366114e-16,
+                      "real": 2.079864708772693e-15
+                    }
+                  ],
+                  [
+                    {
+                      "imag": -6.377421031933299e-13,
+                      "real": -8.409863945802874e-13
+                    },
+                    {
+                      "imag": 0.0,
+                      "real": 1.1139731060546025e-24
+                    },
+                    {
+                      "imag": -1.9783287717273777e-27,
+                      "real": -1.2547763018713507e-27
+                    }
+                  ],
+                  [
+                    {
+                      "imag": -7.751748211366114e-16,
+                      "real": 2.079864708772693e-15
+                    },
+                    {
+                      "imag": 1.9783287717273777e-27,
+                      "real": -1.2547763018713507e-27
+                    },
+                    {
+                      "imag": 0.0,
+                      "real": 4.926733210122297e-30
+                    }
+                  ]
+                ],
+                "site": 0
+              }
+            ],
+            "q": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "weight": 1.0
+          }
+        ],
+        "dominant_ordering_q": null,
+        "dominant_ordering_weight": 0.0,
+        "grid_shape": [
+          1,
+          1,
+          1
+        ],
+        "ordering_kind": "uniform",
+        "uniform_q_weight": 1.0
+      },
+      "seed": 6,
+      "starts": 2,
+      "stationarity": {
+        "max_residual_norm": 2.026474244883718e-12,
+        "mean_residual_norm": 2.026474244883718e-12,
+        "residual_definition": "r_i = H_i^eff z_i - (z_i^dagger H_i^eff z_i) z_i, measured in Euclidean norm",
+        "sites": [
+          {
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "lagrange_multiplier": {
+              "imag": 0.0,
+              "real": -0.92
+            },
+            "residual_norm": 2.026474244883718e-12,
+            "residual_vector": [
+              {
+                "imag": 4.03594221906926e-42,
+                "real": 0.0
+              },
+              {
+                "imag": -1.2244648381311933e-12,
+                "real": -1.6146938775941516e-12
+              },
+              {
+                "imag": -2.4045922951657683e-15,
+                "real": 6.451740326612894e-15
+              }
+            ],
+            "site": 0
+          }
+        ]
+      },
+      "status": "ok",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "term_mapping": [
+        {
+          "destination": "onsite_terms",
+          "term_ref": "onsite:levels"
+        },
+        {
+          "destination": "bond_tensors",
+          "term_ref": "pair:general"
+        }
+      ]
+    },
+    "status": "ok"
+  },
+  "calculation": {
+    "classical_state": {
+      "basis_order": "retained_state_index",
+      "local_rays": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "vector": [
+            {
+              "imag": 0.0,
+              "real": 1.0
+            },
+            {
+              "imag": -6.377421031933299e-13,
+              "real": -8.409863945802874e-13
+            },
+            {
+              "imag": -7.751748211366114e-16,
+              "real": 2.079864708772693e-15
+            }
+          ]
+        }
+      ],
+      "manifold": "CP^(N-1)",
+      "ordering": {
+        "kind": "uniform",
+        "q_vector": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      "pair_basis_order": "site_i_major_site_j_minor",
+      "schema_version": 1,
+      "state_kind": "local_rays",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ]
+    },
+    "convergence": {
+      "energy_converged": false,
+      "energy_tolerance": 1e-06,
+      "history": [
+        {
+          "best_start_source": "random",
+          "energy": -0.6100000000000001,
+          "max_local_change": 2.026479943732401e-11,
+          "shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "max_linear_size": 1,
+      "repeats_required": 1,
+      "search_mode": "bounded",
+      "stopped_reason": "max_linear_size_reached",
+      "structural_dimension": 3
+    },
+    "energy": -0.6100000000000001,
+    "energy_per_cell": -0.6100000000000001,
+    "limitations": [
+      "Finite periodic product-state variational search in the full retained local space.",
+      "Local stationarity does not prove the global or infinite-lattice ground state.",
+      "Size convergence remains separate from stationarity."
+    ],
+    "local_dimension": 3,
+    "local_rays": [
+      {
+        "cell": [
+          0,
+          0,
+          0
+        ],
+        "vector": [
+          {
+            "imag": 0.0,
+            "real": 1.0
+          },
+          {
+            "imag": -6.377421031933299e-13,
+            "real": -8.409863945802874e-13
+          },
+          {
+            "imag": -7.751748211366114e-16,
+            "real": 2.079864708772693e-15
+          }
+        ]
+      }
+    ],
+    "manifold": "CP^(N-1)",
+    "method": "cpn-local-ray-minimize",
+    "onsite_term_count": 1,
+    "pair_term_count": 1,
+    "projector_diagnostics": {
+      "components": [
+        {
+          "is_zero_q": true,
+          "projectors_by_site": [
+            {
+              "matrix": [
+                [
+                  {
+                    "imag": 0.0,
+                    "real": 1.0
+                  },
+                  {
+                    "imag": 6.377421031933299e-13,
+                    "real": -8.409863945802874e-13
+                  },
+                  {
+                    "imag": 7.751748211366114e-16,
+                    "real": 2.079864708772693e-15
+                  }
+                ],
+                [
+                  {
+                    "imag": -6.377421031933299e-13,
+                    "real": -8.409863945802874e-13
+                  },
+                  {
+                    "imag": 0.0,
+                    "real": 1.1139731060546025e-24
+                  },
+                  {
+                    "imag": -1.9783287717273777e-27,
+                    "real": -1.2547763018713507e-27
+                  }
+                ],
+                [
+                  {
+                    "imag": -7.751748211366114e-16,
+                    "real": 2.079864708772693e-15
+                  },
+                  {
+                    "imag": 1.9783287717273777e-27,
+                    "real": -1.2547763018713507e-27
+                  },
+                  {
+                    "imag": 0.0,
+                    "real": 4.926733210122297e-30
+                  }
+                ]
+              ],
+              "site": 0
+            }
+          ],
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        }
+      ],
+      "dominant_ordering_q": null,
+      "dominant_ordering_weight": 0.0,
+      "grid_shape": [
+        1,
+        1,
+        1
+      ],
+      "ordering_kind": "uniform",
+      "uniform_q_weight": 1.0
+    },
+    "seed": 6,
+    "starts": 2,
+    "stationarity": {
+      "max_residual_norm": 2.026474244883718e-12,
+      "mean_residual_norm": 2.026474244883718e-12,
+      "residual_definition": "r_i = H_i^eff z_i - (z_i^dagger H_i^eff z_i) z_i, measured in Euclidean norm",
+      "sites": [
+        {
+          "cell": [
+            0,
+            0,
+            0
+          ],
+          "lagrange_multiplier": {
+            "imag": 0.0,
+            "real": -0.92
+          },
+          "residual_norm": 2.026474244883718e-12,
+          "residual_vector": [
+            {
+              "imag": 4.03594221906926e-42,
+              "real": 0.0
+            },
+            {
+              "imag": -1.2244648381311933e-12,
+              "real": -1.6146938775941516e-12
+            },
+            {
+              "imag": -2.4045922951657683e-15,
+              "real": 6.451740326612894e-15
+            }
+          ],
+          "site": 0
+        }
+      ]
+    },
+    "status": "ok",
+    "supercell_shape": [
+      1,
+      1,
+      1
+    ],
+    "term_mapping": [
+      {
+        "destination": "onsite_terms",
+        "term_ref": "onsite:levels"
+      },
+      {
+        "destination": "bond_tensors",
+        "term_ref": "pair:general"
+      }
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "complex_projective_space"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "local_rays",
+    "solver_id": "retained-local-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum"
+    ],
+    "term_families": [
+      "pair_matrix",
+      "local_operator_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "kind": "stationarity",
+      "satisfied": true,
+      "value": 2.026474244883718e-12
+    },
+    {
+      "finite_cell_bound_gap": null,
+      "kind": "global_ground_state",
+      "note": "Only the recorded finite search was performed.",
+      "satisfied": false
+    }
+  ],
+  "evidence_digest": "46c6ff3046e46679b243d976f8f6ceb6b152138f6037a5f86dc63ea1159b8793",
+  "execution_status": "succeeded",
+  "finished_at": 1793295947.1562073,
+  "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d",
+  "model_id": "4a4a73ad06f3fdc865fe7eca417e13818c60ae970641fb17fffc67842f13a3db",
+  "reference_result": null,
+  "result_id": "job-aa51e92c2ae81e41a75f0099",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Finite periodic product-state variational search in the full retained local space.",
+    "Local stationarity does not prove the global or infinite-lattice ground state.",
+    "Size convergence remains separate from stationarity.",
+    "Energy is per primitive cell in the supplied Hamiltonian's energy units."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_linear_size": 1,
+    "max_memory_mb": 2048.0,
+    "max_sweeps": 100,
+    "seed": 6,
+    "starts": 2
+  },
+  "suggested_actions": [
+    {
+      "reason": "Check robustness with more starts, an independent seed or a larger finite cell.",
+      "requires_agent_choice": true,
+      "task": "classical_ground_state",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_ground_state"
+}

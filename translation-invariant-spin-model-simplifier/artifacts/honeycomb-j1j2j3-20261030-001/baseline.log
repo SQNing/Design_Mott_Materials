@@ -1,0 +1,19 @@
+{"run": "P1", "action": "ground-L4-seed31", "seconds": 2.78, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P1", "action": "ground-L4-seed97", "seconds": 1.93, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P1", "action": "ground-L6-seed53", "seconds": 5.75, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"baseline_complete": "P1", "solver_runs": 3}
+{"run": "P2", "action": "ground-L4-seed31", "seconds": 3.17, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P2", "action": "ground-L4-seed97", "seconds": 3.78, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P2", "action": "ground-L6-seed53", "seconds": 5.55, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"baseline_complete": "P2", "solver_runs": 3}
+{"run": "P3", "action": "ground-L4-seed31", "seconds": 1.58, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P3", "action": "ground-L4-seed97", "seconds": 1.51, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P3", "action": "ground-L6-seed53", "seconds": 3.15, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"baseline_complete": "P3", "solver_runs": 3}
+{"run": "P4", "action": "ground-L4-seed31", "seconds": 4.83, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "ground-L4-seed97", "seconds": 4.79, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "ground-L6-seed53", "seconds": 9.7, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "ground-L8-seed71", "seconds": 16.61, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "ground-L12-seed83", "seconds": 38.58, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"baseline_complete": "P4", "solver_runs": 5}
+STUDY_PHASE_COMPLETE baseline

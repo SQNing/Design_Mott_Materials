@@ -1,0 +1,5 @@
+{"run": "P1", "action": "fourier-seeded-L2", "seconds": 0.81, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P2", "action": "fourier-seeded-L2", "seconds": 0.8, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P3", "action": "fourier-seeded-L2", "seconds": 0.9, "status": "usable_within_scope", "blocker": null, "validation": null}
+{"run": "P4", "action": "fourier-seeded-L36", "seconds": 1.82, "status": "usable_within_scope", "blocker": null, "validation": null}
+STUDY_PHASE_COMPLETE representatives

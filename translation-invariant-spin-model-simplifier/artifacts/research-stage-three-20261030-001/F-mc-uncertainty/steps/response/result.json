@@ -1,0 +1,606 @@
+{
+  "calculation": {
+    "energy_responses": [],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation",
+              "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+              "selector": {
+                "case_id": "thermal",
+                "kind": "mc_energy_per_site",
+                "observable_id": "frequency",
+                "temperature": 0.7
+              }
+            },
+            "factor": 0.0,
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-off",
+            "reason": "numerical result is not scientifically usable",
+            "scientific_status": "inconclusive",
+            "value": null
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation",
+              "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+              "selector": {
+                "case_id": "thermal",
+                "kind": "mc_energy_per_site",
+                "observable_id": "frequency",
+                "temperature": 0.7
+              }
+            },
+            "factor": 0.5,
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "point_id": "anisotropy-half",
+            "reason": "numerical result is not scientifically usable",
+            "scientific_status": "inconclusive",
+            "value": null
+          },
+          {
+            "evidence": {
+              "calculation_path": "calculation",
+              "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+              "selector": {
+                "case_id": "thermal",
+                "kind": "mc_energy_per_site",
+                "observable_id": "frequency",
+                "temperature": 0.7
+              }
+            },
+            "factor": 1.0,
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "reason": "numerical result is not scientifically usable",
+            "scientific_status": "inconclusive",
+            "value": null
+          }
+        ],
+        "excluded_confounded_points": [],
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "A required control or response is scientifically inconclusive.",
+        "statement": "Anisotropy raises the sampled frequency.",
+        "status": "inconclusive",
+        "unused_isolated_points": [],
+        "used_points": [
+          "anisotropy-off",
+          "anisotropy-half",
+          "control"
+        ]
+      }
+    ],
+    "observations": [
+      {
+        "evidence": {
+          "calculation_path": "calculation",
+          "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+          "selector": {
+            "case_id": "thermal",
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "temperature": 0.7
+          }
+        },
+        "kind": "mc_energy_per_site",
+        "observable_id": "frequency",
+        "point_id": "control",
+        "reason": "numerical result is not scientifically usable",
+        "scientific_status": "inconclusive",
+        "value": null
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation",
+          "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+          "selector": {
+            "case_id": "thermal",
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "temperature": 0.7
+          }
+        },
+        "kind": "mc_energy_per_site",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "reason": "numerical result is not scientifically usable",
+        "scientific_status": "inconclusive",
+        "value": null
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation",
+          "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+          "selector": {
+            "case_id": "thermal",
+            "kind": "mc_energy_per_site",
+            "observable_id": "frequency",
+            "temperature": 0.7
+          }
+        },
+        "kind": "mc_energy_per_site",
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "reason": "numerical result is not scientifically usable",
+        "scientific_status": "inconclusive",
+        "value": null
+      }
+    ],
+    "validated_scope": {
+      "baseline_point_id": "control",
+      "experiments": [
+        {
+          "case_id": "thermal",
+          "settings": {
+            "burn_in": 8,
+            "seed": 45,
+            "spin_length": 0.5,
+            "supercell_shape": [
+              2,
+              1,
+              1
+            ],
+            "sweeps": 24,
+            "temperatures": [
+              0.7
+            ]
+          },
+          "task": "classical_monte_carlo"
+        }
+      ],
+      "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+      "groups": [
+        {
+          "description": "Uniaxial exchange anisotropy.",
+          "group_id": "anisotropy",
+          "term_refs": [
+            "small"
+          ]
+        }
+      ],
+      "local_basis_labels": [],
+      "mechanism_id": "couplings",
+      "observables": [
+        {
+          "case_id": "thermal",
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "temperature": 0.7
+        }
+      ],
+      "points": [
+        {
+          "factors": {
+            "anisotropy": 1.0
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.0
+          },
+          "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+          "point_id": "anisotropy-off"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.5
+          },
+          "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+          "point_id": "anisotropy-half"
+        }
+      ],
+      "realized_cases": [
+        {
+          "case_id": "thermal",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            2,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "thermal",
+          "local_dimension": null,
+          "point_id": "anisotropy-off",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            2,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "thermal",
+          "local_dimension": null,
+          "point_id": "anisotropy-half",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            2,
+            1,
+            1
+          ]
+        }
+      ],
+      "reference_tolerance": 1e-07,
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    }
+  },
+  "calculation_fingerprint": "e8775229139a8f13b0d3a903adc94ac2bd66da54186d08ac0c40b8084819a6fd",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "inconclusive"
+    },
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "inconclusive"
+    },
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "inconclusive"
+    }
+  ],
+  "energy_responses": [],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "inconclusive"
+    },
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+      "reused": false,
+      "role": "anisotropy-off",
+      "scientific_status": "inconclusive"
+    },
+    {
+      "blocker": null,
+      "case_id": "thermal",
+      "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+      "reused": false,
+      "role": "anisotropy-half",
+      "scientific_status": "inconclusive"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793295950.599451,
+  "hypotheses": [
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation",
+            "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+            "selector": {
+              "case_id": "thermal",
+              "kind": "mc_energy_per_site",
+              "observable_id": "frequency",
+              "temperature": 0.7
+            }
+          },
+          "factor": 0.0,
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-off",
+          "reason": "numerical result is not scientifically usable",
+          "scientific_status": "inconclusive",
+          "value": null
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation",
+            "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+            "selector": {
+              "case_id": "thermal",
+              "kind": "mc_energy_per_site",
+              "observable_id": "frequency",
+              "temperature": 0.7
+            }
+          },
+          "factor": 0.5,
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "point_id": "anisotropy-half",
+          "reason": "numerical result is not scientifically usable",
+          "scientific_status": "inconclusive",
+          "value": null
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation",
+            "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+            "selector": {
+              "case_id": "thermal",
+              "kind": "mc_energy_per_site",
+              "observable_id": "frequency",
+              "temperature": 0.7
+            }
+          },
+          "factor": 1.0,
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "reason": "numerical result is not scientifically usable",
+          "scientific_status": "inconclusive",
+          "value": null
+        }
+      ],
+      "excluded_confounded_points": [],
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "A required control or response is scientifically inconclusive.",
+      "statement": "Anisotropy raises the sampled frequency.",
+      "status": "inconclusive",
+      "unused_isolated_points": [],
+      "used_points": [
+        "anisotropy-off",
+        "anisotropy-half",
+        "control"
+      ]
+    }
+  ],
+  "mechanism_id": "couplings",
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation",
+        "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json",
+        "selector": {
+          "case_id": "thermal",
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "temperature": 0.7
+        }
+      },
+      "kind": "mc_energy_per_site",
+      "observable_id": "frequency",
+      "point_id": "control",
+      "reason": "numerical result is not scientifically usable",
+      "scientific_status": "inconclusive",
+      "value": null
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation",
+        "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json",
+        "selector": {
+          "case_id": "thermal",
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "temperature": 0.7
+        }
+      },
+      "kind": "mc_energy_per_site",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-off",
+      "reason": "numerical result is not scientifically usable",
+      "scientific_status": "inconclusive",
+      "value": null
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation",
+        "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json",
+        "selector": {
+          "case_id": "thermal",
+          "kind": "mc_energy_per_site",
+          "observable_id": "frequency",
+          "temperature": 0.7
+        }
+      },
+      "kind": "mc_energy_per_site",
+      "observable_id": "frequency",
+      "point_id": "anisotropy-half",
+      "reason": "numerical result is not scientifically usable",
+      "scientific_status": "inconclusive",
+      "value": null
+    }
+  ],
+  "result_id": "response",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "scientific_status": "inconclusive",
+  "solver_runs": 3,
+  "suggested_actions": [
+    {
+      "reason": "Resolve inadequate controls or test additional finite sizes, momenta and isolated coupling points.",
+      "requires_agent_choice": true,
+      "task": "mechanism_test",
+      "type": "calculate"
+    }
+  ],
+  "task": "mechanism_test",
+  "validated_scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "thermal",
+        "settings": {
+          "burn_in": 8,
+          "seed": 45,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            2,
+            1,
+            1
+          ],
+          "sweeps": 24,
+          "temperatures": [
+            0.7
+          ]
+        },
+        "task": "classical_monte_carlo"
+      }
+    ],
+    "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "groups": [
+      {
+        "description": "Uniaxial exchange anisotropy.",
+        "group_id": "anisotropy",
+        "term_refs": [
+          "small"
+        ]
+      }
+    ],
+    "local_basis_labels": [],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "case_id": "thermal",
+        "kind": "mc_energy_per_site",
+        "observable_id": "frequency",
+        "temperature": 0.7
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "anisotropy": 1.0
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.0
+        },
+        "model_id": "08c1cd796bba2162a93a820f4d1db2961d746bffbdda9c5d5ed3113139cccaa6",
+        "point_id": "anisotropy-off"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.5
+        },
+        "model_id": "40346f66bf4795e61e5e3a7f4b0fecb14c8d5e260be21f7bf4414e9c4b55104c",
+        "point_id": "anisotropy-half"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "thermal",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          2,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "thermal",
+        "local_dimension": null,
+        "point_id": "anisotropy-off",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          2,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "thermal",
+        "local_dimension": null,
+        "point_id": "anisotropy-half",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          2,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  }
+}

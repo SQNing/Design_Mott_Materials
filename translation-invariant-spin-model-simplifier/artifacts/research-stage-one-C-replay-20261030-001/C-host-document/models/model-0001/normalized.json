@@ -1,0 +1,307 @@
+{
+  "allowed_breaking": [],
+  "coordinate_convention": {
+    "axis_labels": [],
+    "axis_mapping": {},
+    "bond_overrides": {},
+    "frame": "unspecified",
+    "label_to_bond_orbit_overrides": {},
+    "quantization_axis": null,
+    "raw_description": "",
+    "resolved_axis_labels": [],
+    "resolved_frame": null,
+    "rotation_matrix": null,
+    "status": "unspecified"
+  },
+  "hamiltonian_description": {
+    "representation": {
+      "kind": "natural_language",
+      "value": "Research task C: a new cubic exchange model\n\nUse a simple cubic lattice with primitive vectors (1,0,0), (0,1,0), (0,0,1)\nand one magnetic site at fractional position (0,0,0). The structural target is\nthe full cubic point group, all 48 signed permutation matrices, with no\nfractional translation.\n\nThere is only isotropic nearest-neighbour exchange. Its coefficient is -0.93\nin dimensionless model energy units. Count each unoriented bond once: use the\npositive x, y and z translations. No onsite or higher-body terms are present.\n\nI want a classical reference in a 2 by 2 by 2 periodic cell, then the harmonic\nspectrum at q=(0,0,0) and q=(0.5,0,0) in primitive reciprocal coordinates.\n\nThe physical operator normalization still needs clarification: should the\noperators be ordinary spin-1/2 operators or unit-length Pauli operators?"
+    },
+    "support": []
+  },
+  "interaction": {
+    "id": "classical_bond_label_selection",
+    "options": [
+      "spin-only",
+      "cpn"
+    ],
+    "question": "This input can be interpreted either as a spin-only model or as a CP^(N-1) multiplet model. Which classical bond_label should the workflow use?",
+    "status": "needs_input"
+  },
+  "lattice": {
+    "dimension": null,
+    "kind": "unspecified",
+    "unit_cell": []
+  },
+  "lattice_description": {
+    "kind": "natural_language",
+    "value": "Research task C: a new cubic exchange model\n\nUse a simple cubic lattice with primitive vectors (1,0,0), (0,1,0), (0,0,1)\nand one magnetic site at fractional position (0,0,0). The structural target is\nthe full cubic point group, all 48 signed permutation matrices, with no\nfractional translation.\n\nThere is only isotropic nearest-neighbour exchange. Its coefficient is -0.93\nin dimensionless model energy units. Count each unoriented bond once: use the\npositive x, y and z translations. No onsite or higher-body terms are present.\n\nI want a classical reference in a 2 by 2 by 2 periodic cell, then the harmonic\nspectrum at q=(0,0,0) and q=(0.5,0,0) in primitive reciprocal coordinates.\n\nThe physical operator normalization still needs clarification: should the\noperators be ordinary spin-1/2 operators or unit-length Pauli operators?"
+  },
+  "lattice_structure": {
+    "basis_sites": [],
+    "bond_orbits": [
+      {
+        "directed": true,
+        "kind": "pair",
+        "members": [
+          {
+            "generated_by_operation_ref": "symmetry-operation:identity",
+            "source": 0,
+            "target": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "orbit_ref": "bond-orbit:unlabeled",
+        "orientation_convention": "source_to_target",
+        "representative": {
+          "source": 0,
+          "target": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        "reverse_orientation": {
+          "kind": "transpose_and_swap",
+          "source_target_swap": true,
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "transpose": true
+        },
+        "selection_aliases": [
+          "unlabeled"
+        ],
+        "shell": 1,
+        "source_labels": [
+          "unlabeled"
+        ]
+      }
+    ],
+    "higher_body_orbits": [],
+    "lattice_vectors": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "local_frames": [],
+    "site_orbits": [],
+    "source_labels": []
+  },
+  "local_hilbert": {
+    "basis_registry": {
+      "basis:spin_s_half": {
+        "basis_order": [
+          "up",
+          "down"
+        ],
+        "dimension": 2,
+        "kind": "spin_multiplet"
+      }
+    },
+    "classical_spaces": {
+      "classical_space:spin_unit_vector": {
+        "dimension": 3,
+        "kind": "unit_vector_sphere"
+      }
+    },
+    "operator_bases": {
+      "op_basis:spin_cartesian": {
+        "basis_order": [
+          "Sx",
+          "Sy",
+          "Sz"
+        ],
+        "kind": "spin_cartesian"
+      }
+    },
+    "sites": [
+      {
+        "basis_ref": "basis:spin_s_half",
+        "classical_space_ref": "classical_space:spin_unit_vector",
+        "operator_basis_refs": [
+          "op_basis:spin_cartesian"
+        ],
+        "site_ref": "site:0",
+        "space_ref": "space:spin_s_half"
+      }
+    ]
+  },
+  "local_term": {
+    "representation": {
+      "kind": "natural_language",
+      "value": "Research task C: a new cubic exchange model\n\nUse a simple cubic lattice with primitive vectors (1,0,0), (0,1,0), (0,0,1)\nand one magnetic site at fractional position (0,0,0). The structural target is\nthe full cubic point group, all 48 signed permutation matrices, with no\nfractional translation.\n\nThere is only isotropic nearest-neighbour exchange. Its coefficient is -0.93\nin dimensionless model energy units. Count each unoriented bond once: use the\npositive x, y and z translations. No onsite or higher-body terms are present.\n\nI want a classical reference in a 2 by 2 by 2 periodic cell, then the harmonic\nspectrum at q=(0,0,0) and q=(0.5,0,0) in primitive reciprocal coordinates.\n\nThe physical operator normalization still needs clarification: should the\noperators be ordinary spin-1/2 operators or unit-length Pauli operators?"
+    },
+    "support": []
+  },
+  "magnetic_order": {
+    "kind": "unspecified",
+    "raw_description": "",
+    "reference_frame": {
+      "kind": "laboratory",
+      "phase_origin": null
+    },
+    "status": "unspecified",
+    "wavevector": [],
+    "wavevector_units": null
+  },
+  "parameters": {},
+  "projection": {
+    "heuristic": [
+      "low-energy",
+      "symmetry",
+      "template"
+    ],
+    "status": "not-needed"
+  },
+  "provenance": {
+    "parsed_at": "2026-10-29T16:09:42.342057Z",
+    "source_mode": "freeform",
+    "sources": [
+      {
+        "source_kind": "freeform",
+        "source_path": null
+      }
+    ]
+  },
+  "rotating_frame": {
+    "kind": "not-needed",
+    "status": "not-needed"
+  },
+  "rotating_frame_transform": {
+    "kind": "not-needed",
+    "status": "not-needed"
+  },
+  "schema_version": "lattice-term-contract/v1",
+  "solver_request": {
+    "outputs": [
+      "classical_state"
+    ],
+    "preferred_methods": [
+      "auto"
+    ],
+    "selected_bond_orbit_refs": [],
+    "selected_term_refs": [],
+    "selected_term_set_ref": null,
+    "selection_policy": "term_set_then_explicit_refs",
+    "symmetry_repair": false,
+    "task": "classical_ground_state"
+  },
+  "symmetry": {
+    "local_frame_actions": [
+      {
+        "action": "preserve",
+        "kind": "local_frame_action",
+        "operation_ref": "symmetry-operation:identity",
+        "source_labels": [
+          "spin-term"
+        ],
+        "term_ref": "spin-term"
+      }
+    ],
+    "operations": [
+      {
+        "kind": "space_group_operation",
+        "operation_ref": "symmetry-operation:identity",
+        "rotation": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "source": {
+      "source_kind": "freeform",
+      "source_labels": [],
+      "source_path": null
+    },
+    "spin_space_rotations": [
+      {
+        "kind": "axial_vector_rotation",
+        "matrix": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "operation_ref": "symmetry-operation:identity",
+        "source_labels": [
+          "spin-term"
+        ]
+      }
+    ],
+    "unresolved": [
+      {
+        "code": "unresolved-lattice-symmetry",
+        "reason": "lattice symmetry could not be determined from the available document model"
+      }
+    ]
+  },
+  "symmetry_hints": [],
+  "system": {
+    "name": "",
+    "units": "arb."
+  },
+  "term_attachments": {
+    "bond_terms": [],
+    "candidate_terms": [],
+    "higher_body_terms": [],
+    "site_terms": [],
+    "term_sets": []
+  },
+  "timeouts": {
+    "classical_solver_seconds": 600,
+    "projection_seconds": 300,
+    "simplification_seconds": 600
+  },
+  "user_notes": "Research task C: a new cubic exchange model\n\nUse a simple cubic lattice with primitive vectors (1,0,0), (0,1,0), (0,0,1)\nand one magnetic site at fractional position (0,0,0). The structural target is\nthe full cubic point group, all 48 signed permutation matrices, with no\nfractional translation.\n\nThere is only isotropic nearest-neighbour exchange. Its coefficient is -0.93\nin dimensionless model energy units. Count each unoriented bond once: use the\npositive x, y and z translations. No onsite or higher-body terms are present.\n\nI want a classical reference in a 2 by 2 by 2 periodic cell, then the harmonic\nspectrum at q=(0,0,0) and q=(0.5,0,0) in primitive reciprocal coordinates.\n\nThe physical operator normalization still needs clarification: should the\noperators be ordinary spin-1/2 operators or unit-length Pauli operators?",
+  "user_required_symmetries": []
+}

@@ -8,7 +8,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from common.canonical_hamiltonian import CanonicalHamiltonianError
+from common.canonical_hamiltonian import CanonicalHamiltonianError, pair_coefficient_representation
 from common.operator_family_symmetry import (
     canonicalize_family_term,
     registered_operator_families,
@@ -208,6 +208,8 @@ def transform_term(term, operation, context):
     """Transform one term whose local operator representation is available."""
 
     family = str(term.get("operator_family") or "")
+    if family == "pair_matrix":
+        term = {**term, "coefficient_representation": pair_coefficient_representation(term, context)}
     if family not in registered_operator_families():
         raise CanonicalHamiltonianError("symmetry-projection-unsupported-term", family)
 

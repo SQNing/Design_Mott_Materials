@@ -1,0 +1,53 @@
+{
+  "action_id": "persistent",
+  "reason": "Check energy, correlations and harmonic excitations in the same finite cell.",
+  "settings": {
+    "candidate_id": "drop",
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.01,
+          "full_energy_penalty": 0.01,
+          "spin_correlations": 0.01
+        },
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.005
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "harmonic_spectrum"
+      }
+    ]
+  },
+  "task": "reduction_validation",
+  "type": "calculate"
+}

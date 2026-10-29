@@ -1,0 +1,13 @@
+{
+  "blocker": "solver-run-budget-exhausted",
+  "diagnostics": [],
+  "execution_status": "not_started",
+  "finished_at": 1793295950.822136,
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "result_id": "response",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [],
+  "scientific_status": "inconclusive",
+  "suggested_actions": [],
+  "task": "mechanism_test"
+}

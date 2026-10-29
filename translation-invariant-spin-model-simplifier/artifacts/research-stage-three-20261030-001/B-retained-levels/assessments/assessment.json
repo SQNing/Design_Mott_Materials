@@ -1,0 +1,193 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "At the sampled points the selected onsite scaling raises the ordered harmonic frequency while the declared local ground-level population stays within tolerance; all three levels are retained.",
+  "evidence": [
+    {
+      "path": "calculation.hypotheses",
+      "result_id": "levels-response"
+    }
+  ],
+  "limitations": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "reason": "Interpret the measured responses and explicit controls.",
+  "scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "rays",
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "rays",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+    "groups": [
+      {
+        "description": "All onsite matrix elements.",
+        "group_id": "onsite",
+        "term_refs": [
+          "onsite:levels"
+        ]
+      }
+    ],
+    "local_basis_labels": [
+      "g",
+      "e1",
+      "e2"
+    ],
+    "mechanism_id": "levels",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "basis_index": 0,
+        "case_id": "rays",
+        "kind": "local_population",
+        "observable_id": "population"
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "onsite": 0.5
+        },
+        "model_id": "d46b8eddc1e93902679a5a55cf9cc3fdeaf198f740f98f4e8ff11c78f26fadc2",
+        "point_id": "half"
+      },
+      {
+        "factors": {
+          "onsite": 1.0
+        },
+        "model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "onsite": 1.5
+        },
+        "model_id": "4a4a73ad06f3fdc865fe7eca417e13818c60ae970641fb17fffc67842f13a3db",
+        "point_id": "strong"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "half",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "rays",
+        "local_dimension": 3,
+        "point_id": "strong",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "half",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "point_id": "strong",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "type": "assess"
+}

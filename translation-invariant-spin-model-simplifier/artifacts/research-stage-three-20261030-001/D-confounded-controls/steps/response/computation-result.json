@@ -1,0 +1,1136 @@
+{
+  "calculation": {
+    "energy_responses": [
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.0,
+        "frozen_state_energy": -0.755,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.755,
+        "point_id": "control",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.755,
+        "relaxed_state_in_full_model_energy": -0.755,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.0
+      },
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.3775,
+        "frozen_state_energy": -0.3775,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.755,
+        "point_id": "joint-half",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.3775,
+        "relaxed_state_in_full_model_energy": -0.755,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.3775
+      },
+      {
+        "case_id": "reference",
+        "direct_energy_change": 0.56625,
+        "frozen_state_energy": -0.18875,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.755,
+        "point_id": "joint-quarter",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.18875,
+        "relaxed_state_in_full_model_energy": -0.755,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.56625
+      }
+    ],
+    "hypotheses": [
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [
+          "joint-half",
+          "joint-quarter"
+        ],
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "statement": "Anisotropy raises the sampled frequency.",
+        "status": "inconclusive",
+        "unused_isolated_points": [],
+        "used_points": [
+          "control"
+        ]
+      },
+      {
+        "absent_below": 0.0001,
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [
+          "joint-half",
+          "joint-quarter"
+        ],
+        "group_id": "anisotropy",
+        "hypothesis_id": "anisotropy-necessary",
+        "kind": "necessary_in_context",
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "present_above": 0.01,
+        "reason": "Necessity requires an isolated zero-factor intervention.",
+        "statement": "Anisotropy is necessary for this finite frequency.",
+        "status": "inconclusive",
+        "unused_isolated_points": [],
+        "used_points": [
+          "control"
+        ]
+      },
+      {
+        "direction": "increasing",
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [
+          "joint-half",
+          "joint-quarter"
+        ],
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-response",
+        "kind": "monotonic_response",
+        "min_effect": 0.015,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "statement": "Exchange raises the sampled frequency.",
+        "status": "inconclusive",
+        "unused_isolated_points": [],
+        "used_points": [
+          "control"
+        ]
+      },
+      {
+        "evidence": [
+          {
+            "evidence": {
+              "calculation_path": "calculation.dispersion",
+              "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "selector": {
+                "band_index": 0,
+                "case_id": "modes",
+                "kind": "harmonic_frequency",
+                "observable_id": "frequency",
+                "q": [
+                  0,
+                  0,
+                  0
+                ]
+              }
+            },
+            "factor": 1.0,
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "point_id": "control",
+            "scientific_status": "usable_within_scope",
+            "value": 0.019999999999999574
+          }
+        ],
+        "excluded_confounded_points": [
+          "joint-half",
+          "joint-quarter"
+        ],
+        "group_id": "exchange",
+        "hypothesis_id": "exchange-insensitive",
+        "kind": "insensitive_response",
+        "max_change": 1e-05,
+        "numerical_tolerance": 1e-07,
+        "observable_id": "frequency",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "statement": "This frequency is insensitive to exchange.",
+        "status": "inconclusive",
+        "unused_isolated_points": [],
+        "used_points": [
+          "control"
+        ]
+      }
+    ],
+    "observations": [
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.019999999999999574
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "joint-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.010000000000000175
+      },
+      {
+        "evidence": {
+          "calculation_path": "calculation.dispersion",
+          "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
+          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+          "selector": {
+            "band_index": 0,
+            "case_id": "modes",
+            "kind": "harmonic_frequency",
+            "observable_id": "frequency",
+            "q": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "point_id": "joint-quarter",
+        "scientific_status": "usable_within_scope",
+        "value": 0.004999999999999866
+      }
+    ],
+    "validated_scope": {
+      "baseline_point_id": "control",
+      "experiments": [
+        {
+          "case_id": "reference",
+          "settings": {
+            "seed": 18,
+            "spin_length": 0.5,
+            "starts": 3,
+            "supercell_shape": [
+              1,
+              1,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        {
+          "case_id": "modes",
+          "reference_case": "reference",
+          "settings": {
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5
+          },
+          "task": "spin_wave_spectrum"
+        }
+      ],
+      "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+      "groups": [
+        {
+          "description": "Uniaxial exchange anisotropy.",
+          "group_id": "anisotropy",
+          "term_refs": [
+            "small"
+          ]
+        },
+        {
+          "description": "The isotropic exchange background.",
+          "group_id": "exchange",
+          "term_refs": [
+            "exchange:0",
+            "exchange:1",
+            "exchange:2"
+          ]
+        }
+      ],
+      "local_basis_labels": [],
+      "mechanism_id": "couplings",
+      "observables": [
+        {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "points": [
+        {
+          "factors": {
+            "anisotropy": 1.0,
+            "exchange": 1.0
+          },
+          "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+          "point_id": "control"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.5,
+            "exchange": 0.5
+          },
+          "model_id": "ce00702ea0bf69227e27b9cf0b53be316ba5bc132dbb2588664510db9965ac04",
+          "point_id": "joint-half"
+        },
+        {
+          "factors": {
+            "anisotropy": 0.25,
+            "exchange": 0.25
+          },
+          "model_id": "76ba24b01ec84b62da3caa53513e39f01381a9610a695e03a339a70d67ea0f15",
+          "point_id": "joint-quarter"
+        }
+      ],
+      "realized_cases": [
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "joint-half",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "point_id": "joint-quarter",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "control",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "joint-half",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "point_id": "joint-quarter",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "reference_tolerance": 1e-07,
+      "units": {
+        "energy": "dimensionless model units",
+        "hbar": 1
+      }
+    }
+  },
+  "calculation_fingerprint": "94dd271f05dd2e82b54c172453e34abc3d72b41a7b493ed2fea47a4981e05702",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
+      "reused": false,
+      "role": "joint-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
+      "reused": false,
+      "role": "joint-quarter",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+      "reused": false,
+      "role": "joint-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+      "reused": false,
+      "role": "joint-quarter",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "energy_responses": [
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.0,
+      "frozen_state_energy": -0.755,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.755,
+      "point_id": "control",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.755,
+      "relaxed_state_in_full_model_energy": -0.755,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.0
+    },
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.3775,
+      "frozen_state_energy": -0.3775,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.755,
+      "point_id": "joint-half",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.3775,
+      "relaxed_state_in_full_model_energy": -0.755,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.3775
+    },
+    {
+      "case_id": "reference",
+      "direct_energy_change": 0.56625,
+      "frozen_state_energy": -0.18875,
+      "full_model_penalty": 0.0,
+      "full_reference_energy": -0.755,
+      "point_id": "joint-quarter",
+      "relaxation_energy_change": 0.0,
+      "relaxed_state_energy": -0.18875,
+      "relaxed_state_in_full_model_energy": -0.755,
+      "scientific_status": "usable_within_scope",
+      "supercell_shape": [
+        1,
+        1,
+        1
+      ],
+      "total_energy_change": 0.56625
+    }
+  ],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
+      "reused": false,
+      "role": "joint-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
+      "reused": false,
+      "role": "joint-quarter",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+      "reused": false,
+      "role": "control",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+      "reused": false,
+      "role": "joint-half",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+      "reused": false,
+      "role": "joint-quarter",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793295949.0503702,
+  "hypotheses": [
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [
+        "joint-half",
+        "joint-quarter"
+      ],
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+      "statement": "Anisotropy raises the sampled frequency.",
+      "status": "inconclusive",
+      "unused_isolated_points": [],
+      "used_points": [
+        "control"
+      ]
+    },
+    {
+      "absent_below": 0.0001,
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [
+        "joint-half",
+        "joint-quarter"
+      ],
+      "group_id": "anisotropy",
+      "hypothesis_id": "anisotropy-necessary",
+      "kind": "necessary_in_context",
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "present_above": 0.01,
+      "reason": "Necessity requires an isolated zero-factor intervention.",
+      "statement": "Anisotropy is necessary for this finite frequency.",
+      "status": "inconclusive",
+      "unused_isolated_points": [],
+      "used_points": [
+        "control"
+      ]
+    },
+    {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [
+        "joint-half",
+        "joint-quarter"
+      ],
+      "group_id": "exchange",
+      "hypothesis_id": "exchange-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+      "statement": "Exchange raises the sampled frequency.",
+      "status": "inconclusive",
+      "unused_isolated_points": [],
+      "used_points": [
+        "control"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 0.019999999999999574
+        }
+      ],
+      "excluded_confounded_points": [
+        "joint-half",
+        "joint-quarter"
+      ],
+      "group_id": "exchange",
+      "hypothesis_id": "exchange-insensitive",
+      "kind": "insensitive_response",
+      "max_change": 1e-05,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+      "statement": "This frequency is insensitive to exchange.",
+      "status": "inconclusive",
+      "unused_isolated_points": [],
+      "used_points": [
+        "control"
+      ]
+    }
+  ],
+  "mechanism_id": "couplings",
+  "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+  "observations": [
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "control",
+      "scientific_status": "usable_within_scope",
+      "value": 0.019999999999999574
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "joint-half",
+      "scientific_status": "usable_within_scope",
+      "value": 0.010000000000000175
+    },
+    {
+      "evidence": {
+        "calculation_path": "calculation.dispersion",
+        "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
+        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+        "selector": {
+          "band_index": 0,
+          "case_id": "modes",
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "q": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "kind": "harmonic_frequency",
+      "observable_id": "frequency",
+      "point_id": "joint-quarter",
+      "scientific_status": "usable_within_scope",
+      "value": 0.004999999999999866
+    }
+  ],
+  "result_id": "response",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.",
+    "Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.",
+    "Stationary finite classical states are not proofs of unique global or infinite-system ground states.",
+    "Harmonic observables use sorted frequencies at specified q in the saved magnetic cell, without unfolding or eigenvector branch tracking.",
+    "Numerical tolerances are declared comparison resolutions, not certified error bars or phase-equivalence bounds.",
+    "Necessity in this context does not establish sufficiency, exclusivity or a universal mechanism.",
+    "No virtual-excitation corrections or automatic extension of a simplified model's validated scope."
+  ],
+  "scientific_status": "inconclusive",
+  "solver_runs": 6,
+  "suggested_actions": [
+    {
+      "reason": "Resolve inadequate controls or test additional finite sizes, momenta and isolated coupling points.",
+      "requires_agent_choice": true,
+      "task": "mechanism_test",
+      "type": "calculate"
+    }
+  ],
+  "task": "mechanism_test",
+  "validated_scope": {
+    "baseline_point_id": "control",
+    "experiments": [
+      {
+        "case_id": "reference",
+        "settings": {
+          "seed": 18,
+          "spin_length": 0.5,
+          "starts": 3,
+          "supercell_shape": [
+            1,
+            1,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+    "groups": [
+      {
+        "description": "Uniaxial exchange anisotropy.",
+        "group_id": "anisotropy",
+        "term_refs": [
+          "small"
+        ]
+      },
+      {
+        "description": "The isotropic exchange background.",
+        "group_id": "exchange",
+        "term_refs": [
+          "exchange:0",
+          "exchange:1",
+          "exchange:2"
+        ]
+      }
+    ],
+    "local_basis_labels": [],
+    "mechanism_id": "couplings",
+    "observables": [
+      {
+        "band_index": 0,
+        "case_id": "modes",
+        "kind": "harmonic_frequency",
+        "observable_id": "frequency",
+        "q": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "points": [
+      {
+        "factors": {
+          "anisotropy": 1.0,
+          "exchange": 1.0
+        },
+        "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
+        "point_id": "control"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.5,
+          "exchange": 0.5
+        },
+        "model_id": "ce00702ea0bf69227e27b9cf0b53be316ba5bc132dbb2588664510db9965ac04",
+        "point_id": "joint-half"
+      },
+      {
+        "factors": {
+          "anisotropy": 0.25,
+          "exchange": 0.25
+        },
+        "model_id": "76ba24b01ec84b62da3caa53513e39f01381a9610a695e03a339a70d67ea0f15",
+        "point_id": "joint-quarter"
+      }
+    ],
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "joint-half",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "point_id": "joint-quarter",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "control",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "joint-half",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "point_id": "joint-quarter",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_tolerance": 1e-07,
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  }
+}

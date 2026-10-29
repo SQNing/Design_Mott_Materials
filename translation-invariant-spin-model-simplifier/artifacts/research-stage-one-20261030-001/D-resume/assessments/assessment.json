@@ -1,0 +1,17 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "A second host process recovered the same worker result without another solve.",
+  "evidence": [
+    {
+      "path": "calculation.energy_per_cell",
+      "result_id": "persistent"
+    }
+  ],
+  "limitations": [
+    "These small calculations do not establish an infinite-system phase diagram."
+  ],
+  "reason": "Interpret the recorded evidence within its tested scope.",
+  "scope": "The recorded finite periodic classical calculation.",
+  "type": "assess"
+}

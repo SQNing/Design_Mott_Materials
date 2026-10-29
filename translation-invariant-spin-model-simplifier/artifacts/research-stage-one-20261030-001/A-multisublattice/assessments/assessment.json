@@ -1,0 +1,21 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "The refined periodic candidate is stationary and harmonically stable at the sampled wavevectors.",
+  "evidence": [
+    {
+      "path": "calculation.energy_per_cell",
+      "result_id": "refine"
+    },
+    {
+      "path": "calculation.stability",
+      "result_id": "spectrum"
+    }
+  ],
+  "limitations": [
+    "These small calculations do not establish an infinite-system phase diagram."
+  ],
+  "reason": "Interpret the recorded evidence within its tested scope.",
+  "scope": "Four-site primitive periodic cell; independent starts; three q points.",
+  "type": "assess"
+}

@@ -1,0 +1,83 @@
+{
+  "assessment": "requires_physical_validation",
+  "full_dimension": 3,
+  "isometry": [
+    [
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 1.0
+      },
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 0.0
+      }
+    ],
+    [
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 0.0
+      },
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 1.0
+      }
+    ],
+    [
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 0.0
+      },
+      {
+        "im": 0.0,
+        "kind": "complex",
+        "re": 0.0
+      }
+    ]
+  ],
+  "kind": "project_local_space",
+  "limitations": [
+    "Direct subspace projection only; virtual-excitation corrections are not included.",
+    "The projection is not certified by a small coupling norm alone."
+  ],
+  "orthogonality_residual": 0.0,
+  "physical_error": null,
+  "reduced_dimension": 2,
+  "symmetry_subspace_residuals": [
+    {
+      "basis": "basis",
+      "operation": "identity",
+      "residual": 0.0
+    }
+  ],
+  "term_mapping": [
+    {
+      "discarded_coupling_norm": 0.0,
+      "full_shape": [
+        3,
+        3
+      ],
+      "reduced_shape": [
+        2,
+        2
+      ],
+      "term_ref": "onsite:levels"
+    },
+    {
+      "discarded_coupling_norm": 0.0,
+      "full_shape": [
+        9,
+        9
+      ],
+      "reduced_shape": [
+        4,
+        4
+      ],
+      "term_ref": "pair:general"
+    }
+  ]
+}

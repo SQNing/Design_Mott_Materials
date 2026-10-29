@@ -1,0 +1,66 @@
+{
+  "action_id": "coupling-controls",
+  "groups": [
+    {
+      "description": "All six second-neighbour bonds per cell",
+      "group_id": "J2",
+      "term_refs": [
+        "J2:0:0",
+        "J2:0:1",
+        "J2:0:2",
+        "J2:1:0",
+        "J2:1:1",
+        "J2:1:2"
+      ]
+    },
+    {
+      "description": "All three third-neighbour bonds per cell",
+      "group_id": "J3",
+      "term_refs": [
+        "J3:0:0",
+        "J3:0:1",
+        "J3:0:2"
+      ]
+    }
+  ],
+  "points": [
+    {
+      "factors": {
+        "J2": 1.0,
+        "J3": 1.0
+      },
+      "point_id": "control"
+    },
+    {
+      "factors": {
+        "J2": 0.0,
+        "J3": 1.0
+      },
+      "point_id": "J2-off"
+    },
+    {
+      "factors": {
+        "J2": 0.5,
+        "J3": 1.0
+      },
+      "point_id": "J2-half"
+    },
+    {
+      "factors": {
+        "J2": 1.0,
+        "J3": 0.0
+      },
+      "point_id": "J3-off"
+    },
+    {
+      "factors": {
+        "J2": 1.0,
+        "J3": 0.5
+      },
+      "point_id": "J3-half"
+    }
+  ],
+  "question": "Are J2 or J3 negligible for the ground-state energy and selected state at P2?",
+  "reason": "Vary complete symmetry-related shells separately, holding the other shell fixed.",
+  "type": "propose_mechanism"
+}

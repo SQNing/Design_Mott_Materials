@@ -1,0 +1,16 @@
+{
+  "budget": {
+    "max_memory_mb": 2048,
+    "max_solver_runs": 4,
+    "max_wall_time_seconds": 120
+  },
+  "question": "Find the requested finite-cell reference and harmonic spectrum after clarifying the operator normalization.",
+  "requested_tasks": [
+    "classical_ground_state",
+    "harmonic_spectrum"
+  ],
+  "source": {
+    "kind": "document",
+    "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/scripts/research/fixtures/host-document-C.txt"
+  }
+}

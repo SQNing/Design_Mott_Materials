@@ -1,0 +1,115 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "conclusion": "The selected local subspace meets the recorded low-energy tolerances; no conclusion applies above the tested window.",
+  "evidence": [
+    {
+      "path": "calculation.metrics",
+      "result_id": "validate"
+    }
+  ],
+  "limitations": [
+    "Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.",
+    "Stationary variational states are not proofs of global or infinite-lattice ground states.",
+    "State distances can distinguish symmetry-related representatives; rejection concerns the stated metric.",
+    "Agreement does not certify phase equivalence, parameter robustness or virtual-excitation corrections."
+  ],
+  "reason": "Interpret the saved comparison in its recorded scope.",
+  "scope": {
+    "candidate_model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+    "energy_offset_per_cell": 0.0,
+    "energy_window_max": 2.0,
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.03,
+          "full_energy_penalty": 0.03,
+          "projector_distance": 0.05
+        },
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.03
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+    "full_reference_tolerance": 1e-07,
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": 3,
+        "role": "full",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": 2,
+        "role": "candidate",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 3,
+        "role": "full",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": 2,
+        "role": "candidate",
+        "spin": null,
+        "spin_length": null,
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ]
+      }
+    ]
+  },
+  "type": "assess"
+}

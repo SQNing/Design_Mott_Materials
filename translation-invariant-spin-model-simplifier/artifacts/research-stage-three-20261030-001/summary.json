@@ -1,0 +1,642 @@
+{
+  "A": {
+    "answer_status": "answered_within_scope",
+    "finite_momentum_hypothesis": {
+      "direction": "increasing",
+      "evidence": [
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0.25,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "exchange-off",
+          "scientific_status": "usable_within_scope",
+          "value": 0.020000000000000004
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0.25,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 0.5,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "exchange-half",
+          "scientific_status": "usable_within_scope",
+          "value": 0.52
+        },
+        {
+          "evidence": {
+            "calculation_path": "calculation.dispersion",
+            "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
+            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+            "selector": {
+              "band_index": 0,
+              "case_id": "modes",
+              "kind": "harmonic_frequency",
+              "observable_id": "frequency",
+              "q": [
+                0.25,
+                0,
+                0
+              ]
+            }
+          },
+          "factor": 1.0,
+          "kind": "harmonic_frequency",
+          "observable_id": "frequency",
+          "point_id": "control",
+          "scientific_status": "usable_within_scope",
+          "value": 1.0199999999999996
+        }
+      ],
+      "excluded_confounded_points": [
+        "anisotropy-off",
+        "anisotropy-half"
+      ],
+      "explanation": "Within the recorded finite model, varying group 'exchange' over [0.0, 0.5, 1.0] gives observable 'frequency' values [0.02, 0.52, 1.02]. All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "group_id": "exchange",
+      "hypothesis_id": "exchange-response",
+      "kind": "monotonic_response",
+      "min_effect": 0.015,
+      "numerical_tolerance": 1e-07,
+      "observable_id": "frequency",
+      "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+      "response": {
+        "baseline_value": 1.0199999999999996,
+        "directed_span": 0.9999999999999996,
+        "factors": [
+          0.0,
+          0.5,
+          1.0
+        ],
+        "minimum_directed_increment": 0.49999999999999956,
+        "values": [
+          0.020000000000000004,
+          0.52,
+          1.0199999999999996
+        ]
+      },
+      "statement": "Exchange raises the sampled frequency.",
+      "status": "supported_within_scope",
+      "unused_isolated_points": [],
+      "used_points": [
+        "exchange-off",
+        "exchange-half",
+        "control"
+      ]
+    },
+    "finite_momentum_solver_runs": 0,
+    "hypotheses": [
+      {
+        "hypothesis_id": "anisotropy-response",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "directed_span": 0.019999999999999907,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": 0.009999999999999787,
+          "values": [
+            -3.3292515621207596e-16,
+            0.009999999999999787,
+            0.019999999999999574
+          ]
+        },
+        "status": "supported_within_scope"
+      },
+      {
+        "hypothesis_id": "anisotropy-necessary",
+        "reason": "The phenomenon is present in the full-model control and disappears under the isolated removal.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "factors": [
+            0.0,
+            1.0
+          ],
+          "values": [
+            -3.3292515621207596e-16,
+            0.019999999999999574
+          ],
+          "zero_factor_value": -3.3292515621207596e-16
+        },
+        "status": "supported_within_scope"
+      },
+      {
+        "hypothesis_id": "exchange-response",
+        "reason": "The measured span is smaller than the stated minimum effect.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "directed_span": -4.3021142204224816e-16,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": -4.440892098500626e-16,
+          "values": [
+            0.020000000000000004,
+            0.020000000000000018,
+            0.019999999999999574
+          ]
+        },
+        "status": "refuted_within_scope"
+      },
+      {
+        "hypothesis_id": "exchange-insensitive",
+        "reason": "All sampled isolated responses stay within the stated change bound.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "maximum_change_from_control": 4.440892098500626e-16,
+          "values": [
+            0.020000000000000004,
+            0.020000000000000018,
+            0.019999999999999574
+          ]
+        },
+        "status": "supported_within_scope"
+      }
+    ],
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.019999999999999574
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "usable_within_scope",
+        "value": -3.3292515621207596e-16
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.009999999999999787
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "exchange-off",
+        "scientific_status": "usable_within_scope",
+        "value": 0.020000000000000004
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "exchange-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.020000000000000018
+      }
+    ],
+    "reduction_metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.004999999999999782
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 0.000744743129729053
+      },
+      {
+        "case_id": "reference",
+        "name": "spin_correlations",
+        "outcome": "pass",
+        "tolerance": 0.01,
+        "value": 2.220446049250313e-16
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "fail",
+        "tolerance": 0.005,
+        "value": 0.019999999999999907
+      }
+    ],
+    "reduction_status": "rejected",
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-report/report.md",
+    "result_new_solver_runs": 8,
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 12
+  },
+  "B": {
+    "answer_status": "answered_within_scope",
+    "energy_responses": [
+      {
+        "case_id": "rays",
+        "direct_energy_change": 0.09999999999999998,
+        "frozen_state_energy": -0.41000000000000003,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "half",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.41000000000000003,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.09999999999999998
+      },
+      {
+        "case_id": "rays",
+        "direct_energy_change": 0.0,
+        "frozen_state_energy": -0.51,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "control",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.51,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": 0.0
+      },
+      {
+        "case_id": "rays",
+        "direct_energy_change": -0.10000000000000009,
+        "frozen_state_energy": -0.6100000000000001,
+        "full_model_penalty": 0.0,
+        "full_reference_energy": -0.51,
+        "point_id": "strong",
+        "relaxation_energy_change": 0.0,
+        "relaxed_state_energy": -0.6100000000000001,
+        "relaxed_state_in_full_model_energy": -0.51,
+        "scientific_status": "usable_within_scope",
+        "supercell_shape": [
+          1,
+          1,
+          1
+        ],
+        "total_energy_change": -0.10000000000000009
+      }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis_id": "levels-raise-mode",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 1.52,
+          "directed_span": 0.7999999999999998,
+          "factors": [
+            0.5,
+            1.0,
+            1.5
+          ],
+          "minimum_directed_increment": 0.39999999999999947,
+          "values": [
+            1.1199999999999997,
+            1.52,
+            1.9199999999999995
+          ]
+        },
+        "status": "supported_within_scope"
+      },
+      {
+        "hypothesis_id": "population-preserved",
+        "reason": "All sampled isolated responses stay within the stated change bound.",
+        "response": {
+          "baseline_value": 1.0,
+          "factors": [
+            0.5,
+            1.0,
+            1.5
+          ],
+          "maximum_change_from_control": 0.0,
+          "values": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "status": "supported_within_scope"
+      }
+    ],
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "half",
+        "scientific_status": "usable_within_scope",
+        "value": 1.1199999999999997
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 1.52
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "strong",
+        "scientific_status": "usable_within_scope",
+        "value": 1.9199999999999995
+      },
+      {
+        "observable_id": "population",
+        "point_id": "half",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      },
+      {
+        "observable_id": "population",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      },
+      {
+        "observable_id": "population",
+        "point_id": "strong",
+        "scientific_status": "usable_within_scope",
+        "value": 1.0
+      }
+    ],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-report/report.md",
+    "result_new_solver_runs": 6,
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 6
+  },
+  "C": {
+    "answer_status": "answered_within_scope",
+    "hypotheses": [
+      {
+        "hypothesis_id": "anisotropy-response",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 0.02000000000000135,
+          "directed_span": 0.020000000000000462,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": 0.009999999999998899,
+          "values": [
+            8.881784197001252e-16,
+            0.009999999999999787,
+            0.02000000000000135
+          ]
+        },
+        "status": "supported_within_scope"
+      }
+    ],
+    "maximum_eigenpair_residual": 9.343822720965947e-11,
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.02000000000000135
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "usable_within_scope",
+        "value": 8.881784197001252e-16
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.009999999999999787
+      }
+    ],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-report/report.md",
+    "result_new_solver_runs": 3,
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 3
+  },
+  "D": {
+    "answer_status": "inconclusive",
+    "hypotheses": [
+      {
+        "hypothesis_id": "anisotropy-response",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "response": null,
+        "status": "inconclusive"
+      },
+      {
+        "hypothesis_id": "anisotropy-necessary",
+        "reason": "Necessity requires an isolated zero-factor intervention.",
+        "response": null,
+        "status": "inconclusive"
+      },
+      {
+        "hypothesis_id": "exchange-response",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "response": null,
+        "status": "inconclusive"
+      },
+      {
+        "hypothesis_id": "exchange-insensitive",
+        "reason": "Insufficient isolated coupling points with all other groups fixed to the full-model control.",
+        "response": null,
+        "status": "inconclusive"
+      }
+    ],
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.019999999999999574
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "joint-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.010000000000000175
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "joint-quarter",
+        "scientific_status": "usable_within_scope",
+        "value": 0.004999999999999866
+      }
+    ],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-report/report.md",
+    "result_new_solver_runs": 6,
+    "scientific_status": "inconclusive",
+    "solver_runs": 6
+  },
+  "E": {
+    "answer_status": "answered_within_scope",
+    "hypotheses": [
+      {
+        "hypothesis_id": "anisotropy-response",
+        "reason": "All sampled isolated increments follow the proposed direction and the span exceeds the threshold.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "directed_span": 0.019999999999999907,
+          "factors": [
+            0.0,
+            0.5,
+            1.0
+          ],
+          "minimum_directed_increment": 0.009999999999999787,
+          "values": [
+            -3.3292515621207596e-16,
+            0.009999999999999787,
+            0.019999999999999574
+          ]
+        },
+        "status": "supported_within_scope"
+      },
+      {
+        "hypothesis_id": "anisotropy-necessary",
+        "reason": "The phenomenon is present in the full-model control and disappears under the isolated removal.",
+        "response": {
+          "baseline_value": 0.019999999999999574,
+          "factors": [
+            0.0,
+            1.0
+          ],
+          "values": [
+            -3.3292515621207596e-16,
+            0.019999999999999574
+          ],
+          "zero_factor_value": -3.3292515621207596e-16
+        },
+        "status": "supported_within_scope"
+      }
+    ],
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "usable_within_scope",
+        "value": 0.019999999999999574
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "usable_within_scope",
+        "value": -3.3292515621207596e-16
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "usable_within_scope",
+        "value": 0.009999999999999787
+      }
+    ],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-report/report.md",
+    "result_new_solver_runs": 6,
+    "scientific_status": "usable_within_scope",
+    "solver_runs": 6,
+    "worker": {
+      "host": "login001",
+      "pid": 4396,
+      "start_ticks": "217810718"
+    }
+  },
+  "F": {
+    "answer_status": "inconclusive",
+    "hypotheses": [
+      {
+        "hypothesis_id": "anisotropy-response",
+        "reason": "A required control or response is scientifically inconclusive.",
+        "response": null,
+        "status": "inconclusive"
+      }
+    ],
+    "observations": [
+      {
+        "observable_id": "frequency",
+        "point_id": "control",
+        "scientific_status": "inconclusive",
+        "value": null
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-off",
+        "scientific_status": "inconclusive",
+        "value": null
+      },
+      {
+        "observable_id": "frequency",
+        "point_id": "anisotropy-half",
+        "scientific_status": "inconclusive",
+        "value": null
+      }
+    ],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-report/report.md",
+    "result_new_solver_runs": 3,
+    "scientific_status": "inconclusive",
+    "solver_runs": 3
+  },
+  "G": {
+    "answer_status": "inconclusive",
+    "blocker": "solver-run-budget-exhausted",
+    "hypotheses": [],
+    "observations": [],
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/G-report/report.md",
+    "result_new_solver_runs": 0,
+    "scientific_status": "inconclusive",
+    "solver_runs": 0
+  },
+  "acceptance_invocation": {
+    "additional_solver_runs": 0,
+    "resumed": true,
+    "solver_runs_after": 36,
+    "solver_runs_before": 36
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  }
+}

@@ -1,0 +1,2558 @@
+{
+  "backend_result": {
+    "calculation": {
+      "backend": {
+        "implementation": "local-frame-quadratic-expansion",
+        "name": "python-glswt"
+      },
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "classical_reference": {},
+      "diagnostics": {
+        "bogoliubov": {
+          "max_A_antihermitian_norm": 0.0,
+          "max_B_asymmetry_norm": 8.5444690586515655e-16,
+          "max_complex_eigenvalue_count": 0,
+          "mode_count": 32
+        },
+        "dispersion": {
+          "omega_max": 1.6337053335281384,
+          "omega_min": -3.7950160052140543e-07,
+          "omega_min_q_vector": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "soft_mode_count": 3,
+          "soft_mode_q_points": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "soft_mode_threshold": -1e-08
+        },
+        "quadratic_phase_dressing_consistency": {
+          "reason": "no-supercell-site-phases",
+          "status": "unsupported"
+        },
+        "rotating_frame_metadata_phase_sample_cross_check": {
+          "conflict_sources": [],
+          "likely_conflicting_path": "unknown",
+          "max_site_phase_offset_difference": null,
+          "max_wavevector_difference": null,
+          "metadata_status": "unavailable",
+          "phase_sample_status": "unavailable",
+          "status": "unavailable"
+        },
+        "stationarity": {
+          "is_stationary": true,
+          "linear_term_max_norm": 2.934553557345487e-13,
+          "linear_term_mean_norm": 1.2218201518900722e-13,
+          "scope": "full-local-tangent",
+          "sites": [
+            {
+              "annihilation_linear_norm": 8.944976468427667e-14,
+              "cell": [
+                0,
+                0,
+                0
+              ],
+              "creation_linear_norm": 8.95466030659274e-14,
+              "linear_term_norm": 8.95466030659274e-14,
+              "mode_site_index": 0,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.4262586170244386e-13,
+              "cell": [
+                0,
+                0,
+                0
+              ],
+              "creation_linear_norm": 1.426538988656529e-13,
+              "linear_term_norm": 1.426538988656529e-13,
+              "mode_site_index": 1,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.681608768129731e-13,
+              "cell": [
+                0,
+                1,
+                0
+              ],
+              "creation_linear_norm": 2.68162518701666e-13,
+              "linear_term_norm": 2.68162518701666e-13,
+              "mode_site_index": 2,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.2486481103519537e-13,
+              "cell": [
+                0,
+                1,
+                0
+              ],
+              "creation_linear_norm": 1.2489368859115255e-13,
+              "linear_term_norm": 1.2489368859115255e-13,
+              "mode_site_index": 3,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.2932737561383055e-14,
+              "cell": [
+                0,
+                2,
+                0
+              ],
+              "creation_linear_norm": 1.2920943385572241e-14,
+              "linear_term_norm": 1.2932737561383055e-14,
+              "mode_site_index": 4,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.4280458360481132e-13,
+              "cell": [
+                0,
+                2,
+                0
+              ],
+              "creation_linear_norm": 1.4282413630124384e-13,
+              "linear_term_norm": 1.4282413630124384e-13,
+              "mode_site_index": 5,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.2259857177646631e-13,
+              "cell": [
+                0,
+                3,
+                0
+              ],
+              "creation_linear_norm": 2.2254531715172915e-13,
+              "linear_term_norm": 2.2259857177646631e-13,
+              "mode_site_index": 6,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 7.28414425462223e-14,
+              "cell": [
+                0,
+                3,
+                0
+              ],
+              "creation_linear_norm": 7.284832059536217e-14,
+              "linear_term_norm": 7.284832059536217e-14,
+              "mode_site_index": 7,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.933786945644084e-13,
+              "cell": [
+                1,
+                0,
+                0
+              ],
+              "creation_linear_norm": 2.934553557345487e-13,
+              "linear_term_norm": 2.934553557345487e-13,
+              "mode_site_index": 8,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.7867483382012396e-14,
+              "cell": [
+                1,
+                0,
+                0
+              ],
+              "creation_linear_norm": 1.7767671625319815e-14,
+              "linear_term_norm": 1.7867483382012396e-14,
+              "mode_site_index": 9,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.3445164241421207e-13,
+              "cell": [
+                1,
+                1,
+                0
+              ],
+              "creation_linear_norm": 1.3448266748610104e-13,
+              "linear_term_norm": 1.3448266748610104e-13,
+              "mode_site_index": 10,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.1889509754756266e-13,
+              "cell": [
+                1,
+                1,
+                0
+              ],
+              "creation_linear_norm": 1.1898408507884232e-13,
+              "linear_term_norm": 1.1898408507884232e-13,
+              "mode_site_index": 11,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.207112038977245e-13,
+              "cell": [
+                1,
+                2,
+                0
+              ],
+              "creation_linear_norm": 2.2072135769504158e-13,
+              "linear_term_norm": 2.2072135769504158e-13,
+              "mode_site_index": 12,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 9.024449036920348e-14,
+              "cell": [
+                1,
+                2,
+                0
+              ],
+              "creation_linear_norm": 9.025554159067448e-14,
+              "linear_term_norm": 9.025554159067448e-14,
+              "mode_site_index": 13,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 4.907885299208702e-14,
+              "cell": [
+                1,
+                3,
+                0
+              ],
+              "creation_linear_norm": 4.906782487934576e-14,
+              "linear_term_norm": 4.907885299208702e-14,
+              "mode_site_index": 14,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.1380434521935537e-14,
+              "cell": [
+                1,
+                3,
+                0
+              ],
+              "creation_linear_norm": 1.1351541730037268e-14,
+              "linear_term_norm": 1.1380434521935537e-14,
+              "mode_site_index": 15,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.8261759537558947e-13,
+              "cell": [
+                2,
+                0,
+                0
+              ],
+              "creation_linear_norm": 2.8264266469919746e-13,
+              "linear_term_norm": 2.8264266469919746e-13,
+              "mode_site_index": 16,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.176591981093212e-13,
+              "cell": [
+                2,
+                0,
+                0
+              ],
+              "creation_linear_norm": 1.1762820559364178e-13,
+              "linear_term_norm": 1.176591981093212e-13,
+              "mode_site_index": 17,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 8.961544270593409e-14,
+              "cell": [
+                2,
+                1,
+                0
+              ],
+              "creation_linear_norm": 8.969134381495558e-14,
+              "linear_term_norm": 8.969134381495558e-14,
+              "mode_site_index": 18,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.3163785775027635e-13,
+              "cell": [
+                2,
+                1,
+                0
+              ],
+              "creation_linear_norm": 1.315160654927404e-13,
+              "linear_term_norm": 1.3163785775027635e-13,
+              "mode_site_index": 19,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.5773758880504681e-13,
+              "cell": [
+                2,
+                2,
+                0
+              ],
+              "creation_linear_norm": 1.5777387432649122e-13,
+              "linear_term_norm": 1.5777387432649122e-13,
+              "mode_site_index": 20,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.330404679630417e-13,
+              "cell": [
+                2,
+                2,
+                0
+              ],
+              "creation_linear_norm": 1.330891610297555e-13,
+              "linear_term_norm": 1.330891610297555e-13,
+              "mode_site_index": 21,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 2.69275763968716e-13,
+              "cell": [
+                2,
+                3,
+                0
+              ],
+              "creation_linear_norm": 2.692908943216794e-13,
+              "linear_term_norm": 2.692908943216794e-13,
+              "mode_site_index": 22,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.0195301960470754e-13,
+              "cell": [
+                2,
+                3,
+                0
+              ],
+              "creation_linear_norm": 1.0184367854719102e-13,
+              "linear_term_norm": 1.0195301960470754e-13,
+              "mode_site_index": 23,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.0273258875840586e-13,
+              "cell": [
+                3,
+                0,
+                0
+              ],
+              "creation_linear_norm": 1.0273496517056416e-13,
+              "linear_term_norm": 1.0273496517056416e-13,
+              "mode_site_index": 24,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 6.316156181200426e-14,
+              "cell": [
+                3,
+                0,
+                0
+              ],
+              "creation_linear_norm": 6.328478528815371e-14,
+              "linear_term_norm": 6.328478528815371e-14,
+              "mode_site_index": 25,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.4389872631959427e-13,
+              "cell": [
+                3,
+                1,
+                0
+              ],
+              "creation_linear_norm": 1.4393870654194493e-13,
+              "linear_term_norm": 1.4393870654194493e-13,
+              "mode_site_index": 26,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 3.6238985253015364e-14,
+              "cell": [
+                3,
+                1,
+                0
+              ],
+              "creation_linear_norm": 3.6233450126150544e-14,
+              "linear_term_norm": 3.6238985253015364e-14,
+              "mode_site_index": 27,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 5.890164327582478e-14,
+              "cell": [
+                3,
+                2,
+                0
+              ],
+              "creation_linear_norm": 5.889877676902937e-14,
+              "linear_term_norm": 5.890164327582478e-14,
+              "mode_site_index": 28,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 7.251163784222403e-14,
+              "cell": [
+                3,
+                2,
+                0
+              ],
+              "creation_linear_norm": 7.252189868329347e-14,
+              "linear_term_norm": 7.252189868329347e-14,
+              "mode_site_index": 29,
+              "site": 1
+            },
+            {
+              "annihilation_linear_norm": 1.354975331193217e-13,
+              "cell": [
+                3,
+                3,
+                0
+              ],
+              "creation_linear_norm": 1.3558053455636608e-13,
+              "linear_term_norm": 1.3558053455636608e-13,
+              "mode_site_index": 30,
+              "site": 0
+            },
+            {
+              "annihilation_linear_norm": 1.5700924586837752e-16,
+              "cell": [
+                3,
+                3,
+                0
+              ],
+              "creation_linear_norm": 1.986996825864056e-16,
+              "linear_term_norm": 1.986996825864056e-16,
+              "mode_site_index": 31,
+              "site": 1
+            }
+          ],
+          "tolerance": 1e-05
+        }
+      },
+      "dispersion": [
+        {
+          "bands": [
+            0.107591656440207,
+            0.16286644964718464,
+            0.27076485638166814,
+            0.2786687698489556,
+            0.38654731451339425,
+            0.4073646942822507,
+            0.6011885665008437,
+            0.6138760510803238,
+            0.8466570321822248,
+            0.8678561621143461,
+            0.9832833028265855,
+            1.004751153048688,
+            1.0176333364327066,
+            1.0248410562387682,
+            1.041365185560932,
+            1.0635754914144337,
+            1.0763358885475227,
+            1.1008379820650047,
+            1.1181344617465279,
+            1.1352067208945082,
+            1.1544947322168508,
+            1.169931630913279,
+            1.22511522214998,
+            1.23443311657216,
+            1.6324282702079251,
+            1.6337053335281342,
+            1.5991361825791906e-14,
+            -1.5238477683184066e-14,
+            -2.266131952578819e-07,
+            2.2661319499635907e-07,
+            3.790861371694051e-07,
+            -3.790861373863519e-07
+          ],
+          "omega": -3.790861373863519e-07,
+          "q": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            0.18003675139160588,
+            0.18880072438706436,
+            0.24729747391553064,
+            0.27031507456722587,
+            0.2890270486959487,
+            0.30720277421634,
+            0.38810508725696263,
+            0.4035001445695889,
+            0.6054385222659998,
+            0.6161049185039068,
+            0.7222001424554728,
+            0.7353474945887317,
+            0.9109567500303198,
+            0.9234454561580535,
+            1.013223731119588,
+            1.0167665043483305,
+            1.0476564593112572,
+            1.0648675744173832,
+            1.0923479135896854,
+            1.1058581053301415,
+            1.1320932161922628,
+            1.1429091597903906,
+            1.1931052009821503,
+            1.210249436030305,
+            1.3554268324536862,
+            1.3577333368569273,
+            1.5638743605534828,
+            1.56997085387235,
+            -6.017793296469808e-08,
+            6.017793445097053e-08,
+            9.085138803851098e-08,
+            -9.085138948916793e-08
+          ],
+          "omega": -9.085138948916793e-08,
+          "q": [
+            0.125,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            0.09314652979632262,
+            0.1170395639320545,
+            0.1958938776708234,
+            0.20669808278918983,
+            0.21269777674420554,
+            0.22992724158415911,
+            0.2714118527727834,
+            0.3252167636925281,
+            0.39139605697180757,
+            0.4146743063494546,
+            0.4790991047454341,
+            0.49906610266256995,
+            0.6152757241840149,
+            0.6305613934559825,
+            0.6950404096875774,
+            0.7211988550191122,
+            0.8621291050745331,
+            0.8723834558023991,
+            0.9291265294695185,
+            0.9360068783254434,
+            1.0152775303738852,
+            1.0237284627363599,
+            1.0849420156531482,
+            1.086975346749336,
+            1.148779873919646,
+            1.1566395012361685,
+            1.1845624081295651,
+            1.2024745039008766,
+            1.4629004266216392,
+            1.4643927408584168,
+            1.495192206066653,
+            1.5126024496070136
+          ],
+          "omega": 0.09314652979632262,
+          "q": [
+            0.125,
+            0.125,
+            0.0
+          ]
+        },
+        {
+          "bands": [
+            0.10759165644020705,
+            0.16286644964718483,
+            0.27076485638166964,
+            0.2786687698489557,
+            0.3865473145133954,
+            0.4073646942822492,
+            0.6011885665008414,
+            0.6138760510803254,
+            0.8466570321822265,
+            0.8678561621143513,
+            0.9832833028265834,
+            1.00475115304869,
+            1.0176333364327061,
+            1.0248410562387675,
+            1.0413651855609318,
+            1.0635754914144329,
+            1.076335888547523,
+            1.100837982065002,
+            1.1181344617465268,
+            1.1352067208945098,
+            1.1544947322168528,
+            1.1699316309132815,
+            1.2251152221499888,
+            1.2344331165721598,
+            1.6324282702079271,
+            1.6337053335281384,
+            1.5403499655502802e-14,
+            -1.4888404711771364e-14,
+            -3.7950160052140543e-07,
+            3.7950160079708237e-07,
+            2.2634361749017918e-07,
+            -2.2634361818439645e-07
+          ],
+          "omega": -3.7950160052140543e-07,
+          "q": [
+            0.25,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "limitations": [
+        "Harmonic approximation about the supplied or numerically optimized reference.",
+        "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+        "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+      ],
+      "method": "spin-coherent-reference-generalized-linear-spin-wave",
+      "momentum_coordinates": "primitive-reciprocal-lattice-units",
+      "ordering": {},
+      "path": {},
+      "payload_kind": "python_glswt_local_rays",
+      "spin": 0.5,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "stability": {
+        "is_stationary": true,
+        "linear_term_max_norm": 2.934553557345487e-13,
+        "maximum_imaginary_frequency": 3.343314871602291e-07,
+        "minimum_bdg_hessian_eigenvalue": -1.1114795944761122e-13,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "status": "ok",
+      "supercell_shape": [
+        4,
+        4,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:a1b51cd1cee09f93885d152fb14572b5b0f3fcde045b6f26d16484ca09be2af9",
+        "content_hash": "a1b51cd1cee09f93885d152fb14572b5b0f3fcde045b6f26d16484ca09be2af9"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:a1b51cd1cee09f93885d152fb14572b5b0f3fcde045b6f26d16484ca09be2af9",
+        "content_hash": "a1b51cd1cee09f93885d152fb14572b5b0f3fcde045b6f26d16484ca09be2af9"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P6/mmm",
+          "kind": "structural_space_group",
+          "number": 191,
+          "operation_count": 24,
+          "operation_refs": [
+            "space:00",
+            "space:01",
+            "space:02",
+            "space:03",
+            "space:04",
+            "space:05",
+            "space:06",
+            "space:07",
+            "space:08",
+            "space:09",
+            "space:10",
+            "space:11",
+            "space:12",
+            "space:13",
+            "space:14",
+            "space:15",
+            "space:16",
+            "space:17",
+            "space:18",
+            "space:19",
+            "space:20",
+            "space:21",
+            "space:22",
+            "space:23"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "a1b51cd1cee09f93885d152fb14572b5b0f3fcde045b6f26d16484ca09be2af9",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 24,
+        "operation_refs": [
+          "space:00",
+          "space:01",
+          "space:02",
+          "space:03",
+          "space:04",
+          "space:05",
+          "space:06",
+          "space:07",
+          "space:08",
+          "space:09",
+          "space:10",
+          "space:11",
+          "space:12",
+          "space:13",
+          "space:14",
+          "space:15",
+          "space:16",
+          "space:17",
+          "space:18",
+          "space:19",
+          "space:20",
+          "space:21",
+          "space:22",
+          "space:23"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 1.1102230246251565e-16,
+      "max_relative_residual": 1.1102230246251565e-16,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:00",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:01",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:1:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:02",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:03",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:04",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:05",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:06",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:1:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:07",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:08",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:09",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:10",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:11",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:12",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:13",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:14",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:15",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:16",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:0:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:17",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:1:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:18",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:19",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:1"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:20",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 1.9229626863835638e-16,
+          "max_absolute_residual": 1.1102230246251565e-16,
+          "max_relative_residual": 1.1102230246251565e-16,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:21",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 1.1102230246251565e-16,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 1.1102230246251565e-16,
+            "source_term_refs": [
+              "J1:0:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "J1:0:2"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:22",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:1:0"
+            ]
+          }
+        },
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "space:23",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    0,
+                    1,
+                    0
+                  ]
+                ]
+              ],
+              "spin",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "J2:0:1"
+            ],
+            "threshold": 6.1e-09,
+            "transformed_term_refs": [
+              "J2:0:0"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P6/mmm",
+        "kind": "structural_space_group",
+        "number": 191,
+        "operation_count": 24,
+        "operation_refs": [
+          "space:00",
+          "space:01",
+          "space:02",
+          "space:03",
+          "space:04",
+          "space:05",
+          "space:06",
+          "space:07",
+          "space:08",
+          "space:09",
+          "space:10",
+          "space:11",
+          "space:12",
+          "space:13",
+          "space:14",
+          "space:15",
+          "space:16",
+          "space:17",
+          "space:18",
+          "space:19",
+          "space:20",
+          "space:21",
+          "space:22",
+          "space:23"
+        ]
+      }
+    },
+    "task": "spin_wave_spectrum",
+    "warnings": []
+  },
+  "calculation": {
+    "backend": {
+      "implementation": "local-frame-quadratic-expansion",
+      "name": "python-glswt"
+    },
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "classical_reference": {},
+    "diagnostics": {
+      "bogoliubov": {
+        "max_A_antihermitian_norm": 0.0,
+        "max_B_asymmetry_norm": 8.5444690586515655e-16,
+        "max_complex_eigenvalue_count": 0,
+        "mode_count": 32
+      },
+      "dispersion": {
+        "omega_max": 1.6337053335281384,
+        "omega_min": -3.7950160052140543e-07,
+        "omega_min_q_vector": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "soft_mode_count": 3,
+        "soft_mode_q_points": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "soft_mode_threshold": -1e-08
+      },
+      "quadratic_phase_dressing_consistency": {
+        "reason": "no-supercell-site-phases",
+        "status": "unsupported"
+      },
+      "rotating_frame_metadata_phase_sample_cross_check": {
+        "conflict_sources": [],
+        "likely_conflicting_path": "unknown",
+        "max_site_phase_offset_difference": null,
+        "max_wavevector_difference": null,
+        "metadata_status": "unavailable",
+        "phase_sample_status": "unavailable",
+        "status": "unavailable"
+      },
+      "stationarity": {
+        "is_stationary": true,
+        "linear_term_max_norm": 2.934553557345487e-13,
+        "linear_term_mean_norm": 1.2218201518900722e-13,
+        "scope": "full-local-tangent",
+        "sites": [
+          {
+            "annihilation_linear_norm": 8.944976468427667e-14,
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "creation_linear_norm": 8.95466030659274e-14,
+            "linear_term_norm": 8.95466030659274e-14,
+            "mode_site_index": 0,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.4262586170244386e-13,
+            "cell": [
+              0,
+              0,
+              0
+            ],
+            "creation_linear_norm": 1.426538988656529e-13,
+            "linear_term_norm": 1.426538988656529e-13,
+            "mode_site_index": 1,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.681608768129731e-13,
+            "cell": [
+              0,
+              1,
+              0
+            ],
+            "creation_linear_norm": 2.68162518701666e-13,
+            "linear_term_norm": 2.68162518701666e-13,
+            "mode_site_index": 2,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.2486481103519537e-13,
+            "cell": [
+              0,
+              1,
+              0
+            ],
+            "creation_linear_norm": 1.2489368859115255e-13,
+            "linear_term_norm": 1.2489368859115255e-13,
+            "mode_site_index": 3,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.2932737561383055e-14,
+            "cell": [
+              0,
+              2,
+              0
+            ],
+            "creation_linear_norm": 1.2920943385572241e-14,
+            "linear_term_norm": 1.2932737561383055e-14,
+            "mode_site_index": 4,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.4280458360481132e-13,
+            "cell": [
+              0,
+              2,
+              0
+            ],
+            "creation_linear_norm": 1.4282413630124384e-13,
+            "linear_term_norm": 1.4282413630124384e-13,
+            "mode_site_index": 5,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.2259857177646631e-13,
+            "cell": [
+              0,
+              3,
+              0
+            ],
+            "creation_linear_norm": 2.2254531715172915e-13,
+            "linear_term_norm": 2.2259857177646631e-13,
+            "mode_site_index": 6,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 7.28414425462223e-14,
+            "cell": [
+              0,
+              3,
+              0
+            ],
+            "creation_linear_norm": 7.284832059536217e-14,
+            "linear_term_norm": 7.284832059536217e-14,
+            "mode_site_index": 7,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.933786945644084e-13,
+            "cell": [
+              1,
+              0,
+              0
+            ],
+            "creation_linear_norm": 2.934553557345487e-13,
+            "linear_term_norm": 2.934553557345487e-13,
+            "mode_site_index": 8,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.7867483382012396e-14,
+            "cell": [
+              1,
+              0,
+              0
+            ],
+            "creation_linear_norm": 1.7767671625319815e-14,
+            "linear_term_norm": 1.7867483382012396e-14,
+            "mode_site_index": 9,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.3445164241421207e-13,
+            "cell": [
+              1,
+              1,
+              0
+            ],
+            "creation_linear_norm": 1.3448266748610104e-13,
+            "linear_term_norm": 1.3448266748610104e-13,
+            "mode_site_index": 10,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.1889509754756266e-13,
+            "cell": [
+              1,
+              1,
+              0
+            ],
+            "creation_linear_norm": 1.1898408507884232e-13,
+            "linear_term_norm": 1.1898408507884232e-13,
+            "mode_site_index": 11,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.207112038977245e-13,
+            "cell": [
+              1,
+              2,
+              0
+            ],
+            "creation_linear_norm": 2.2072135769504158e-13,
+            "linear_term_norm": 2.2072135769504158e-13,
+            "mode_site_index": 12,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 9.024449036920348e-14,
+            "cell": [
+              1,
+              2,
+              0
+            ],
+            "creation_linear_norm": 9.025554159067448e-14,
+            "linear_term_norm": 9.025554159067448e-14,
+            "mode_site_index": 13,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 4.907885299208702e-14,
+            "cell": [
+              1,
+              3,
+              0
+            ],
+            "creation_linear_norm": 4.906782487934576e-14,
+            "linear_term_norm": 4.907885299208702e-14,
+            "mode_site_index": 14,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.1380434521935537e-14,
+            "cell": [
+              1,
+              3,
+              0
+            ],
+            "creation_linear_norm": 1.1351541730037268e-14,
+            "linear_term_norm": 1.1380434521935537e-14,
+            "mode_site_index": 15,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.8261759537558947e-13,
+            "cell": [
+              2,
+              0,
+              0
+            ],
+            "creation_linear_norm": 2.8264266469919746e-13,
+            "linear_term_norm": 2.8264266469919746e-13,
+            "mode_site_index": 16,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.176591981093212e-13,
+            "cell": [
+              2,
+              0,
+              0
+            ],
+            "creation_linear_norm": 1.1762820559364178e-13,
+            "linear_term_norm": 1.176591981093212e-13,
+            "mode_site_index": 17,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 8.961544270593409e-14,
+            "cell": [
+              2,
+              1,
+              0
+            ],
+            "creation_linear_norm": 8.969134381495558e-14,
+            "linear_term_norm": 8.969134381495558e-14,
+            "mode_site_index": 18,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.3163785775027635e-13,
+            "cell": [
+              2,
+              1,
+              0
+            ],
+            "creation_linear_norm": 1.315160654927404e-13,
+            "linear_term_norm": 1.3163785775027635e-13,
+            "mode_site_index": 19,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.5773758880504681e-13,
+            "cell": [
+              2,
+              2,
+              0
+            ],
+            "creation_linear_norm": 1.5777387432649122e-13,
+            "linear_term_norm": 1.5777387432649122e-13,
+            "mode_site_index": 20,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.330404679630417e-13,
+            "cell": [
+              2,
+              2,
+              0
+            ],
+            "creation_linear_norm": 1.330891610297555e-13,
+            "linear_term_norm": 1.330891610297555e-13,
+            "mode_site_index": 21,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 2.69275763968716e-13,
+            "cell": [
+              2,
+              3,
+              0
+            ],
+            "creation_linear_norm": 2.692908943216794e-13,
+            "linear_term_norm": 2.692908943216794e-13,
+            "mode_site_index": 22,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.0195301960470754e-13,
+            "cell": [
+              2,
+              3,
+              0
+            ],
+            "creation_linear_norm": 1.0184367854719102e-13,
+            "linear_term_norm": 1.0195301960470754e-13,
+            "mode_site_index": 23,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.0273258875840586e-13,
+            "cell": [
+              3,
+              0,
+              0
+            ],
+            "creation_linear_norm": 1.0273496517056416e-13,
+            "linear_term_norm": 1.0273496517056416e-13,
+            "mode_site_index": 24,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 6.316156181200426e-14,
+            "cell": [
+              3,
+              0,
+              0
+            ],
+            "creation_linear_norm": 6.328478528815371e-14,
+            "linear_term_norm": 6.328478528815371e-14,
+            "mode_site_index": 25,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.4389872631959427e-13,
+            "cell": [
+              3,
+              1,
+              0
+            ],
+            "creation_linear_norm": 1.4393870654194493e-13,
+            "linear_term_norm": 1.4393870654194493e-13,
+            "mode_site_index": 26,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 3.6238985253015364e-14,
+            "cell": [
+              3,
+              1,
+              0
+            ],
+            "creation_linear_norm": 3.6233450126150544e-14,
+            "linear_term_norm": 3.6238985253015364e-14,
+            "mode_site_index": 27,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 5.890164327582478e-14,
+            "cell": [
+              3,
+              2,
+              0
+            ],
+            "creation_linear_norm": 5.889877676902937e-14,
+            "linear_term_norm": 5.890164327582478e-14,
+            "mode_site_index": 28,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 7.251163784222403e-14,
+            "cell": [
+              3,
+              2,
+              0
+            ],
+            "creation_linear_norm": 7.252189868329347e-14,
+            "linear_term_norm": 7.252189868329347e-14,
+            "mode_site_index": 29,
+            "site": 1
+          },
+          {
+            "annihilation_linear_norm": 1.354975331193217e-13,
+            "cell": [
+              3,
+              3,
+              0
+            ],
+            "creation_linear_norm": 1.3558053455636608e-13,
+            "linear_term_norm": 1.3558053455636608e-13,
+            "mode_site_index": 30,
+            "site": 0
+          },
+          {
+            "annihilation_linear_norm": 1.5700924586837752e-16,
+            "cell": [
+              3,
+              3,
+              0
+            ],
+            "creation_linear_norm": 1.986996825864056e-16,
+            "linear_term_norm": 1.986996825864056e-16,
+            "mode_site_index": 31,
+            "site": 1
+          }
+        ],
+        "tolerance": 1e-05
+      }
+    },
+    "dispersion": [
+      {
+        "bands": [
+          0.107591656440207,
+          0.16286644964718464,
+          0.27076485638166814,
+          0.2786687698489556,
+          0.38654731451339425,
+          0.4073646942822507,
+          0.6011885665008437,
+          0.6138760510803238,
+          0.8466570321822248,
+          0.8678561621143461,
+          0.9832833028265855,
+          1.004751153048688,
+          1.0176333364327066,
+          1.0248410562387682,
+          1.041365185560932,
+          1.0635754914144337,
+          1.0763358885475227,
+          1.1008379820650047,
+          1.1181344617465279,
+          1.1352067208945082,
+          1.1544947322168508,
+          1.169931630913279,
+          1.22511522214998,
+          1.23443311657216,
+          1.6324282702079251,
+          1.6337053335281342,
+          1.5991361825791906e-14,
+          -1.5238477683184066e-14,
+          -2.266131952578819e-07,
+          2.2661319499635907e-07,
+          3.790861371694051e-07,
+          -3.790861373863519e-07
+        ],
+        "omega": -3.790861373863519e-07,
+        "q": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          0.18003675139160588,
+          0.18880072438706436,
+          0.24729747391553064,
+          0.27031507456722587,
+          0.2890270486959487,
+          0.30720277421634,
+          0.38810508725696263,
+          0.4035001445695889,
+          0.6054385222659998,
+          0.6161049185039068,
+          0.7222001424554728,
+          0.7353474945887317,
+          0.9109567500303198,
+          0.9234454561580535,
+          1.013223731119588,
+          1.0167665043483305,
+          1.0476564593112572,
+          1.0648675744173832,
+          1.0923479135896854,
+          1.1058581053301415,
+          1.1320932161922628,
+          1.1429091597903906,
+          1.1931052009821503,
+          1.210249436030305,
+          1.3554268324536862,
+          1.3577333368569273,
+          1.5638743605534828,
+          1.56997085387235,
+          -6.017793296469808e-08,
+          6.017793445097053e-08,
+          9.085138803851098e-08,
+          -9.085138948916793e-08
+        ],
+        "omega": -9.085138948916793e-08,
+        "q": [
+          0.125,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          0.09314652979632262,
+          0.1170395639320545,
+          0.1958938776708234,
+          0.20669808278918983,
+          0.21269777674420554,
+          0.22992724158415911,
+          0.2714118527727834,
+          0.3252167636925281,
+          0.39139605697180757,
+          0.4146743063494546,
+          0.4790991047454341,
+          0.49906610266256995,
+          0.6152757241840149,
+          0.6305613934559825,
+          0.6950404096875774,
+          0.7211988550191122,
+          0.8621291050745331,
+          0.8723834558023991,
+          0.9291265294695185,
+          0.9360068783254434,
+          1.0152775303738852,
+          1.0237284627363599,
+          1.0849420156531482,
+          1.086975346749336,
+          1.148779873919646,
+          1.1566395012361685,
+          1.1845624081295651,
+          1.2024745039008766,
+          1.4629004266216392,
+          1.4643927408584168,
+          1.495192206066653,
+          1.5126024496070136
+        ],
+        "omega": 0.09314652979632262,
+        "q": [
+          0.125,
+          0.125,
+          0.0
+        ]
+      },
+      {
+        "bands": [
+          0.10759165644020705,
+          0.16286644964718483,
+          0.27076485638166964,
+          0.2786687698489557,
+          0.3865473145133954,
+          0.4073646942822492,
+          0.6011885665008414,
+          0.6138760510803254,
+          0.8466570321822265,
+          0.8678561621143513,
+          0.9832833028265834,
+          1.00475115304869,
+          1.0176333364327061,
+          1.0248410562387675,
+          1.0413651855609318,
+          1.0635754914144329,
+          1.076335888547523,
+          1.100837982065002,
+          1.1181344617465268,
+          1.1352067208945098,
+          1.1544947322168528,
+          1.1699316309132815,
+          1.2251152221499888,
+          1.2344331165721598,
+          1.6324282702079271,
+          1.6337053335281384,
+          1.5403499655502802e-14,
+          -1.4888404711771364e-14,
+          -3.7950160052140543e-07,
+          3.7950160079708237e-07,
+          2.2634361749017918e-07,
+          -2.2634361818439645e-07
+        ],
+        "omega": -3.7950160052140543e-07,
+        "q": [
+          0.25,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "limitations": [
+      "Harmonic approximation about the supplied or numerically optimized reference.",
+      "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+      "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+    ],
+    "method": "spin-coherent-reference-generalized-linear-spin-wave",
+    "momentum_coordinates": "primitive-reciprocal-lattice-units",
+    "ordering": {},
+    "path": {},
+    "payload_kind": "python_glswt_local_rays",
+    "spin": 0.5,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "stability": {
+      "is_stationary": true,
+      "linear_term_max_norm": 2.934553557345487e-13,
+      "maximum_imaginary_frequency": 3.343314871602291e-07,
+      "minimum_bdg_hessian_eigenvalue": -1.1114795944761122e-13,
+      "scope": "requested q points and zero-point quadrature only"
+    },
+    "status": "ok",
+    "supercell_shape": [
+      4,
+      4,
+      1
+    ]
+  },
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "details": {
+        "is_stationary": true,
+        "linear_term_max_norm": 2.934553557345487e-13,
+        "maximum_imaginary_frequency": 3.343314871602291e-07,
+        "minimum_bdg_hessian_eigenvalue": -1.1114795944761122e-13,
+        "scope": "requested q points and zero-point quadrature only"
+      },
+      "kind": "harmonic_stability",
+      "satisfied": true
+    }
+  ],
+  "evidence_digest": "7ddf1a2b2421f57f118997a5bdb22b9d0e855116b8a86432d6d3221508793ac9",
+  "execution_status": "succeeded",
+  "finished_at": 1793297893.5382597,
+  "job_fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9",
+  "model_id": "cd46005c9d58b3f3d7f9776adda961b3e23bb598eeb98adb32ff7137c90d921f",
+  "reference_result": "job-b474b33ee8c9bc842c03658d",
+  "result_id": "job-3a4c5726a3d0fd303c46926a",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Harmonic approximation about the supplied or numerically optimized reference.",
+    "For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).",
+    "Zero-point energy is a finite BZ quadrature, not an exact many-body energy."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 3072.0,
+    "reduced_momenta": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.125,
+        0,
+        0
+      ],
+      [
+        0.125,
+        0.125,
+        0
+      ],
+      [
+        0.25,
+        0,
+        0
+      ]
+    ],
+    "spin": 0.5,
+    "stability_tolerance": 1e-05
+  },
+  "suggested_actions": [
+    {
+      "reason": "Refine the reference if unstable; otherwise increase q sampling for broader claims.",
+      "requires_agent_choice": true,
+      "task": "spin_wave_spectrum",
+      "type": "calculate"
+    }
+  ],
+  "task": "spin_wave_spectrum"
+}

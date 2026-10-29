@@ -1,0 +1,1347 @@
+{
+  "lattice_structure": {
+    "basis_sites": [
+      {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "site_ref": "site:0"
+      },
+      {
+        "position": [
+          0.3333333333333333,
+          0.3333333333333333,
+          0.0
+        ],
+        "site_ref": "site:1"
+      }
+    ],
+    "bond_orbits": [],
+    "lattice_vectors": [
+      [
+        0.8660254037844386,
+        1.5,
+        0.0
+      ],
+      [
+        -0.8660254037844386,
+        1.5,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        8.0
+      ]
+    ]
+  },
+  "local_hilbert": {
+    "classical_spaces": {
+      "sphere": {
+        "dimension": 3,
+        "kind": "unit_vector_sphere"
+      }
+    },
+    "operator_bases": {
+      "spin": {
+        "kind": "spin_vector",
+        "labels": [
+          "Sx",
+          "Sy",
+          "Sz"
+        ]
+      }
+    }
+  },
+  "schema_version": "canonical-hamiltonian/v1",
+  "source_schema_version": "lattice-term-contract/v1",
+  "symmetry": {
+    "operations": [
+      {
+        "operation_ref": "space:00",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:01",
+        "rotation": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333315,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:02",
+        "rotation": [
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:03",
+        "rotation": [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:04",
+        "rotation": [
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          1.1102230246251565e-16,
+          -1.1102230246251565e-16,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:05",
+        "rotation": [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:06",
+        "rotation": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333315,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:07",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:08",
+        "rotation": [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:09",
+        "rotation": [
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:10",
+        "rotation": [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:11",
+        "rotation": [
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          1.1102230246251565e-16,
+          -1.1102230246251565e-16,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:12",
+        "rotation": [
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          1.1102230246251565e-16,
+          -1.1102230246251565e-16,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:13",
+        "rotation": [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:14",
+        "rotation": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:15",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:16",
+        "rotation": [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:17",
+        "rotation": [
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333315,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:18",
+        "rotation": [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:19",
+        "rotation": [
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          1.1102230246251565e-16,
+          -1.1102230246251565e-16,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:20",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            -1,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:21",
+        "rotation": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333326,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:22",
+        "rotation": [
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            -1
+          ]
+        ],
+        "translation": [
+          0.33333333333333337,
+          0.33333333333333315,
+          0.0
+        ]
+      },
+      {
+        "operation_ref": "space:23",
+        "rotation": [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "source": {
+      "international_symbol": "P6/mmm",
+      "number": 191
+    },
+    "unresolved": []
+  },
+  "terms": [
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J1:0:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          }
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J1:0:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          }
+        ],
+        [
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 0.0
+          },
+          {
+            "im": -0.0,
+            "kind": "complex",
+            "re": 1.0
+          }
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J1:0:2"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:0:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:0:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:0:2"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            0,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:1:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:1:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.6,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.6,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.6
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J2:1:2"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:0"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 0,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 1,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:1"
+    },
+    {
+      "adjoint_action": {},
+      "arity": 2,
+      "attach_to": {
+        "kind": "explicit_cluster",
+        "orientation": "explicit"
+      },
+      "cluster": [
+        {
+          "site": 1,
+          "translation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "site": 0,
+          "translation": [
+            1,
+            -1,
+            0
+          ]
+        }
+      ],
+      "coefficient": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "coordinate_convention": "global_crystallographic",
+      "operator_basis_ref": "spin",
+      "operator_family": "bilinear_exchange_tensor",
+      "orientation_sector": "default",
+      "permutation_action": {},
+      "provenance": {},
+      "term_ref": "J3:0:2"
+    }
+  ],
+  "units": {
+    "energy": "J1 with J1=+1; each undirected bond counted once",
+    "hbar": 1
+  }
+}

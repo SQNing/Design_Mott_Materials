@@ -1,0 +1,35 @@
+{
+  "action_id": "levels",
+  "groups": [
+    {
+      "description": "All onsite matrix elements.",
+      "group_id": "onsite",
+      "term_refs": [
+        "onsite:levels"
+      ]
+    }
+  ],
+  "points": [
+    {
+      "factors": {
+        "onsite": 0.5
+      },
+      "point_id": "half"
+    },
+    {
+      "factors": {
+        "onsite": 1.0
+      },
+      "point_id": "control"
+    },
+    {
+      "factors": {
+        "onsite": 1.5
+      },
+      "point_id": "strong"
+    }
+  ],
+  "question": "How do the local levels affect the sampled excitations and ground-state population?",
+  "reason": "Vary the complete onsite matrix.",
+  "type": "propose_mechanism"
+}

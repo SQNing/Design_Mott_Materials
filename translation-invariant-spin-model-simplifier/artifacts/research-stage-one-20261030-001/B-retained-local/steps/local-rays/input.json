@@ -1,0 +1,429 @@
+{
+  "calculation_fingerprint": "a585d585b51e57283d6d472ddab8322410ea4447265ca634f7dc58f420b1bfbf",
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "complex_projective_space"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "local_rays",
+    "solver_id": "retained-local-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum"
+    ],
+    "term_families": [
+      "pair_matrix",
+      "local_operator_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "906b75394a4cdf54c1982a69ff868fa0bf39279cf66118e47f0a40115c120783"
+  },
+  "max_memory_mb": 2048.0,
+  "model": {
+    "lattice_structure": {
+      "basis_sites": [
+        {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "site_ref": "site:0"
+        }
+      ],
+      "bond_orbits": [],
+      "lattice_vectors": [
+        [
+          1.1,
+          0.0,
+          0.0
+        ],
+        [
+          0.17,
+          1.23,
+          0.0
+        ],
+        [
+          0.09,
+          0.21,
+          1.37
+        ]
+      ]
+    },
+    "local_basis_labels": [
+      "g",
+      "e1",
+      "e2"
+    ],
+    "local_hilbert": {
+      "classical_spaces": {
+        "space": {
+          "dimension": 3,
+          "kind": "complex_projective_space"
+        }
+      },
+      "operator_bases": {
+        "basis": {
+          "dimension": 3,
+          "kind": "dense_local_matrix_units",
+          "symmetry_actions": {
+            "identity": {
+              "matrix": [
+                [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    "schema_version": "canonical-hamiltonian/v1",
+    "source_schema_version": "lattice-term-contract/v1",
+    "symmetry": {
+      "operations": [
+        {
+          "operation_ref": "identity",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "source": {
+        "international_symbol": "P1",
+        "number": 1
+      },
+      "unresolved": []
+    },
+    "terms": [
+      {
+        "adjoint_action": {},
+        "arity": 1,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -0.2,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.6,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.4
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "local_operator_matrix",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "onsite:levels"
+      },
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -0.31,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            {
+              "im": 0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.041,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            {
+              "im": -0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.041,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "coefficient_representation": "full_pair_operator",
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "pair_matrix",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "pair:general"
+      }
+    ],
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
+  "reference": null,
+  "result_id": "local-rays",
+  "settings": {
+    "max_linear_size": 1,
+    "max_memory_mb": 2048.0,
+    "max_sweeps": 120,
+    "seed": 2,
+    "starts": 2
+  },
+  "task": "classical_ground_state",
+  "timeout": 180.0
+}

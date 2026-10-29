@@ -1,0 +1,6 @@
+This is the scripted researcher's reply for acceptance task C, not a live reply
+from the project owner:
+
+Use ordinary spin-1/2 operators, with hbar=1 and classical spin length 0.5.
+Do not rescale the stated exchange coefficient. Use the full model and the
+space group stated in the original document.

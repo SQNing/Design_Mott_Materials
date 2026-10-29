@@ -1,0 +1,2421 @@
+{
+  "calculation_fingerprint": "5c8277f2e9c7222b4af324e5504b9f33f0e02d201da91b052a5d3779aeaceb08",
+  "capability": {
+    "solver_id": "reduction-comparison",
+    "status": "supported"
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+  },
+  "comparison": {
+    "candidate": {
+      "action_hash": "cb3721d3f2b291ad546cf900a16000bb209c23c359449c7147e6f82d9558d824",
+      "candidate": {
+        "basis_sites": [
+          {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "site_ref": "site:0"
+          }
+        ],
+        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/reductions/candidate/models/model-0001",
+        "fidelity": {
+          "assessment": "not_assessed",
+          "reconstruction_error": null
+        },
+        "hamiltonian_hash": "6e918b7c2432bbe2ce608303196f5c29315cd100abfdee5af5c6949381533f85",
+        "lattice_vectors": [
+          [
+            1.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.17,
+            1.23,
+            0.0
+          ],
+          [
+            0.09,
+            0.21,
+            1.37
+          ]
+        ],
+        "local_basis_labels": [
+          "retained:0",
+          "retained:1"
+        ],
+        "local_spaces": {
+          "space": {
+            "dimension": 2,
+            "kind": "complex_projective_space"
+          }
+        },
+        "model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+        "questions": [],
+        "site_count": 1,
+        "source_term_count": 2,
+        "status": "ready",
+        "symmetry_validation": {
+          "failed_operations": [],
+          "forbidden_terms": [],
+          "input_hamiltonian_subgroup": {
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ],
+            "status": "verified-subgroup"
+          },
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_reports": [
+            {
+              "allowed_residual": 6.1e-09,
+              "frobenius_residual": 0.0,
+              "max_absolute_residual": 0.0,
+              "max_relative_residual": 0.0,
+              "missing_symmetry_partners": [],
+              "operation_ref": "identity",
+              "passed": true,
+              "worst_term": {
+                "absolute_residual": 0.0,
+                "canonical_key": [
+                  "local_operator_matrix",
+                  [
+                    [
+                      0,
+                      [
+                        0,
+                        0,
+                        0
+                      ]
+                    ]
+                  ],
+                  "basis",
+                  "default"
+                ],
+                "relative_residual": 0.0,
+                "source_term_refs": [
+                  "onsite:levels"
+                ],
+                "threshold": 6.1e-09,
+                "transformed_term_refs": [
+                  "onsite:levels"
+                ]
+              }
+            }
+          ],
+          "status": "passed",
+          "target_group": {
+            "international_symbol": "P1",
+            "kind": "structural_space_group",
+            "number": 1,
+            "operation_count": 1,
+            "operation_refs": [
+              "identity"
+            ]
+          }
+        },
+        "term_count": 2,
+        "term_families": {
+          "local_operator_matrix": 1,
+          "pair_matrix": 1
+        },
+        "units": {
+          "energy": "dimensionless model units",
+          "hbar": 1
+        },
+        "version": 1,
+        "warnings": []
+      },
+      "candidate_id": "candidate",
+      "complexity": {
+        "candidate_dimension": 2,
+        "candidate_terms": 2,
+        "full_dimension": 3,
+        "full_terms": 2
+      },
+      "limitations": [
+        "Direct subspace projection only; virtual-excitation corrections are not included.",
+        "The projection is not certified by a small coupling norm alone."
+      ],
+      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001",
+      "parent_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+      "schema_version": "reduction-candidate/v1",
+      "status": "ready",
+      "transformation": {
+        "assessment": "requires_physical_validation",
+        "full_dimension": 3,
+        "isometry": [
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 1.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 1.0
+            }
+          ],
+          [
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            },
+            {
+              "im": 0.0,
+              "kind": "complex",
+              "re": 0.0
+            }
+          ]
+        ],
+        "kind": "project_local_space",
+        "limitations": [
+          "Direct subspace projection only; virtual-excitation corrections are not included.",
+          "The projection is not certified by a small coupling norm alone."
+        ],
+        "orthogonality_residual": 0.0,
+        "physical_error": null,
+        "reduced_dimension": 2,
+        "symmetry_subspace_residuals": [
+          {
+            "basis": "basis",
+            "operation": "identity",
+            "residual": 0.0
+          }
+        ],
+        "term_mapping": [
+          {
+            "discarded_coupling_norm": 0.0,
+            "full_shape": [
+              3,
+              3
+            ],
+            "reduced_shape": [
+              2,
+              2
+            ],
+            "term_ref": "onsite:levels"
+          },
+          {
+            "discarded_coupling_norm": 0.0,
+            "full_shape": [
+              9,
+              9
+            ],
+            "reduced_shape": [
+              4,
+              4
+            ],
+            "term_ref": "pair:general"
+          }
+        ]
+      },
+      "validation_status": "not_assessed"
+    },
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.03,
+          "full_energy_penalty": 0.03,
+          "projector_distance": 0.05
+        },
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.03
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "jobs": [
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/validation-cache/b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802.json",
+        "case_id": "reference",
+        "fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "complex_projective_space"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "local_rays",
+            "solver_id": "retained-local-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum"
+            ],
+            "term_families": [
+              "pair_matrix",
+              "local_operator_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_basis_labels": [
+              "g",
+              "e1",
+              "e2"
+            ],
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "complex_projective_space"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "dimension": 3,
+                  "kind": "dense_local_matrix_units",
+                  "symmetry_actions": {
+                    "identity": {
+                      "matrix": [
+                        [
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 1,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.2,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.6,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    10.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "local_operator_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "onsite:levels"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.31,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    {
+                      "im": 0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.041,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    {
+                      "im": -0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.041,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "coefficient_representation": "full_pair_operator",
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "pair_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "pair:general"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+          "result_id": "job-b2094e50a523afea0c8f5d3d",
+          "settings": {
+            "max_linear_size": 1,
+            "max_memory_mb": 2048.0,
+            "max_sweeps": 100,
+            "seed": 6,
+            "starts": 2
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "full"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/validation-cache/e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025.json",
+        "case_id": "reference",
+        "fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "complex_projective_space"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "local_rays",
+            "solver_id": "retained-local-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum"
+            ],
+            "term_families": [
+              "pair_matrix",
+              "local_operator_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_basis_labels": [
+              "retained:0",
+              "retained:1"
+            ],
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 2,
+                  "kind": "complex_projective_space"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "dimension": 2,
+                  "kind": "dense_local_matrix_units",
+                  "symmetry_actions": {
+                    "identity": {
+                      "matrix": [
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 1,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": -0.2
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.6
+                    }
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "local_operator_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "onsite:levels"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": -0.31
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": -0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ]
+                ],
+                "coefficient_representation": "full_pair_operator",
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "pair_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "pair:general"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+          "result_id": "job-e6f6480bce9f3802f97db393",
+          "settings": {
+            "max_linear_size": 1,
+            "max_memory_mb": 2048.0,
+            "max_sweeps": 100,
+            "seed": 6,
+            "starts": 2
+          },
+          "task": "classical_ground_state"
+        },
+        "reference_fingerprint": null,
+        "role": "candidate"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/validation-cache/9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77.json",
+        "case_id": "modes",
+        "fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "complex_projective_space"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "local_rays",
+            "solver_id": "retained-local-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum"
+            ],
+            "term_families": [
+              "pair_matrix",
+              "local_operator_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_basis_labels": [
+              "g",
+              "e1",
+              "e2"
+            ],
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 3,
+                  "kind": "complex_projective_space"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "dimension": 3,
+                  "kind": "dense_local_matrix_units",
+                  "symmetry_actions": {
+                    "identity": {
+                      "matrix": [
+                        [
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0
+                        ],
+                        [
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 1,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.2,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.6,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    10.0
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "local_operator_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "onsite:levels"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    -0.31,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    {
+                      "im": 0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.041,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    {
+                      "im": -0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.041,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "coefficient_representation": "full_pair_operator",
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "pair_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "pair:general"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+          "result_id": "job-9b0875e0be7381cdab31e507",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ]
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802",
+        "role": "full"
+      },
+      {
+        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/validation-cache/851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361.json",
+        "case_id": "modes",
+        "fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361",
+        "inputs": {
+          "capability": {
+            "backend": "python",
+            "classical_spaces": [
+              "complex_projective_space"
+            ],
+            "max_body_order": 2,
+            "reference_kind": "local_rays",
+            "solver_id": "retained-local-python",
+            "status": "supported",
+            "tasks": [
+              "classical_ground_state",
+              "spin_wave_spectrum"
+            ],
+            "term_families": [
+              "pair_matrix",
+              "local_operator_matrix"
+            ]
+          },
+          "code_identity": {
+            "runtime": {
+              "backend_environment": {},
+              "executable": "/data/home/zhli/anaconda3/bin/python",
+              "packages": {
+                "numpy": "1.23.5",
+                "scipy": "1.13.1"
+              },
+              "python": "3.9.13"
+            },
+            "source_hash": "0a7c4daa8704014e53c862408b05a42332c92fdbb842d132d528ac7b5baeccb0"
+          },
+          "model": {
+            "lattice_structure": {
+              "basis_sites": [
+                {
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "site_ref": "site:0"
+                }
+              ],
+              "bond_orbits": [],
+              "lattice_vectors": [
+                [
+                  1.1,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  1.23,
+                  0.0
+                ],
+                [
+                  0.09,
+                  0.21,
+                  1.37
+                ]
+              ]
+            },
+            "local_basis_labels": [
+              "retained:0",
+              "retained:1"
+            ],
+            "local_hilbert": {
+              "classical_spaces": {
+                "space": {
+                  "dimension": 2,
+                  "kind": "complex_projective_space"
+                }
+              },
+              "operator_bases": {
+                "basis": {
+                  "dimension": 2,
+                  "kind": "dense_local_matrix_units",
+                  "symmetry_actions": {
+                    "identity": {
+                      "matrix": [
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          }
+                        ],
+                        [
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 0.0
+                          },
+                          {
+                            "im": 0.0,
+                            "kind": "complex",
+                            "re": 1.0
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "schema_version": "canonical-hamiltonian/v1",
+            "source_schema_version": "lattice-term-contract/v1",
+            "symmetry": {
+              "operations": [
+                {
+                  "operation_ref": "identity",
+                  "rotation": [
+                    [
+                      1,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      1,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      1
+                    ]
+                  ],
+                  "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              ],
+              "source": {
+                "international_symbol": "P1",
+                "number": 1
+              },
+              "unresolved": []
+            },
+            "terms": [
+              {
+                "adjoint_action": {},
+                "arity": 1,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": -0.2
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.6
+                    }
+                  ]
+                ],
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "local_operator_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "onsite:levels"
+              },
+              {
+                "adjoint_action": {},
+                "arity": 2,
+                "attach_to": {
+                  "kind": "explicit_cluster",
+                  "orientation": "explicit"
+                },
+                "cluster": [
+                  {
+                    "site": 0,
+                    "translation": [
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "site": 0,
+                    "translation": [
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ],
+                "coefficient": [
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": -0.31
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": -0.03,
+                      "kind": "complex",
+                      "re": 0.05
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ],
+                  [
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    },
+                    {
+                      "im": 0.0,
+                      "kind": "complex",
+                      "re": 0.0
+                    }
+                  ]
+                ],
+                "coefficient_representation": "full_pair_operator",
+                "coordinate_convention": "global_crystallographic",
+                "operator_basis_ref": "basis",
+                "operator_family": "pair_matrix",
+                "orientation_sector": "default",
+                "permutation_action": {},
+                "provenance": {},
+                "term_ref": "pair:general"
+              }
+            ],
+            "units": {
+              "energy": "dimensionless model units",
+              "hbar": 1
+            }
+          },
+          "model_id": "d6e0d4ba30ba77b989c00f39976c3d4bd1f4975cc62d4df26adbe3cd03169e6a",
+          "result_id": "job-851e6c26ea571e3c273e8b22",
+          "settings": {
+            "max_memory_mb": 2048.0,
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ]
+          },
+          "task": "spin_wave_spectrum"
+        },
+        "reference_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025",
+        "role": "candidate"
+      }
+    ],
+    "planned_solver_runs": 0
+  },
+  "max_memory_mb": 2048.0,
+  "model": {
+    "lattice_structure": {
+      "basis_sites": [
+        {
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "site_ref": "site:0"
+        }
+      ],
+      "bond_orbits": [],
+      "lattice_vectors": [
+        [
+          1.1,
+          0.0,
+          0.0
+        ],
+        [
+          0.17,
+          1.23,
+          0.0
+        ],
+        [
+          0.09,
+          0.21,
+          1.37
+        ]
+      ]
+    },
+    "local_basis_labels": [
+      "g",
+      "e1",
+      "e2"
+    ],
+    "local_hilbert": {
+      "classical_spaces": {
+        "space": {
+          "dimension": 3,
+          "kind": "complex_projective_space"
+        }
+      },
+      "operator_bases": {
+        "basis": {
+          "dimension": 3,
+          "kind": "dense_local_matrix_units",
+          "symmetry_actions": {
+            "identity": {
+              "matrix": [
+                [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    "schema_version": "canonical-hamiltonian/v1",
+    "source_schema_version": "lattice-term-contract/v1",
+    "symmetry": {
+      "operations": [
+        {
+          "operation_ref": "identity",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "source": {
+        "international_symbol": "P1",
+        "number": 1
+      },
+      "unresolved": []
+    },
+    "terms": [
+      {
+        "adjoint_action": {},
+        "arity": 1,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -0.2,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.6,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            10.0
+          ]
+        ],
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "local_operator_matrix",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "onsite:levels"
+      },
+      {
+        "adjoint_action": {},
+        "arity": 2,
+        "attach_to": {
+          "kind": "explicit_cluster",
+          "orientation": "explicit"
+        },
+        "cluster": [
+          {
+            "site": 0,
+            "translation": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "site": 0,
+            "translation": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "coefficient": [
+          [
+            -0.31,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            {
+              "im": 0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.041,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            {
+              "im": -0.03,
+              "kind": "complex",
+              "re": 0.05
+            },
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.041,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "coefficient_representation": "full_pair_operator",
+        "coordinate_convention": "global_crystallographic",
+        "operator_basis_ref": "basis",
+        "operator_family": "pair_matrix",
+        "orientation_sector": "default",
+        "permutation_action": {},
+        "provenance": {},
+        "term_ref": "pair:general"
+      }
+    ],
+    "units": {
+      "energy": "dimensionless model units",
+      "hbar": 1
+    }
+  },
+  "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
+  "reference": null,
+  "result_id": "wide-window",
+  "settings": {
+    "candidate_id": "candidate",
+    "energy_window_max": 20.0,
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.03,
+          "full_energy_penalty": 0.03,
+          "projector_distance": 0.05
+        },
+        "settings": {
+          "max_linear_size": 1,
+          "max_sweeps": 100,
+          "seed": 6,
+          "starts": 2
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.03
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ]
+        },
+        "task": "harmonic_spectrum"
+      }
+    ],
+    "max_memory_mb": 2048.0
+  },
+  "task": "reduction_validation",
+  "timeout": 179.2867660522461,
+  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window"
+}

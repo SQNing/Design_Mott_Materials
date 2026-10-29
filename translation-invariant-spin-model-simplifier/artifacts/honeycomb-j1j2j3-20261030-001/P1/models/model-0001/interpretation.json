@@ -1,0 +1,22 @@
+{
+  "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P1/models/model-0001",
+  "fidelity": {
+    "assessment": "not_assessed",
+    "reconstruction_error": null
+  },
+  "model_id": "e232e766e81085a5e3b7d83afc2a86aab1c266097ded5111ee624edcb2199108",
+  "questions": [
+    {
+      "id": "classical_bond_label_selection",
+      "options": [
+        "spin-only",
+        "cpn"
+      ],
+      "question": "This input can be interpreted either as a spin-only model or as a CP^(N-1) multiplet model. Which classical bond_label should the workflow use?",
+      "status": "needs_input"
+    }
+  ],
+  "source_term_count": 0,
+  "status": "needs_input",
+  "version": 1
+}

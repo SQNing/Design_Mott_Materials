@@ -1,0 +1,47 @@
+{
+  "model": "honeycomb J1-J2-J3 isotropic Heisenberg",
+  "user_request": "J1-J2-J3 honeycomb; classical ground states and competition at representative points",
+  "coupling_points_selected_by_agent": {
+    "P1": [
+      1.0,
+      0.1,
+      0.1
+    ],
+    "P2": [
+      1.0,
+      0.6,
+      0.8
+    ],
+    "P3": [
+      1.0,
+      0.4,
+      -0.5
+    ],
+    "P4": [
+      1.0,
+      0.3,
+      0.05
+    ]
+  },
+  "conventions": {
+    "positive_J": "antiferromagnetic",
+    "bond_counting": "each undirected bond once",
+    "classical_spin_length": 0.5,
+    "reported_energy": "E/(N S^2 J1)",
+    "physical_dimension": 2,
+    "third_vector": "noninteracting periodic stacking for the 3D data contract"
+  },
+  "code_identity": {
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2",
+    "runtime": {
+      "python": "3.9.13",
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "backend_environment": {}
+    }
+  },
+  "study_script_sha256": "b8240519781058f17a4f9da6871f3427f0336c864e7293a36af18bacaf2bdf13"
+}

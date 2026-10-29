@@ -1,0 +1,16 @@
+{
+  "action_id": "host-ground",
+  "reason": "The clarification fixes the operator scale; find a finite 2x2x2 reference with two independent starts.",
+  "settings": {
+    "seed": 87,
+    "spin_length": 0.5,
+    "starts": 2,
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

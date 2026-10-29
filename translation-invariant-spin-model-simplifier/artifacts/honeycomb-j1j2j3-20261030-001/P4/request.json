@@ -1,0 +1,15 @@
+{
+  "budget": {
+    "max_memory_mb": 3072,
+    "max_solver_runs": 28,
+    "max_wall_time_seconds": 500
+  },
+  "question": "Determine the finite-cell classical ground-state family and numerical robustness at P4",
+  "requested_tasks": [
+    "classical_ground_state"
+  ],
+  "source": {
+    "kind": "text",
+    "text": "Classical isotropic Heisenberg exchange on the honeycomb lattice through third neighbours. Positive J is antiferromagnetic, each undirected bond once, no field or anisotropy. Agent-selected representative couplings are J1=1, J2=0.3, J3=0.05. The user requested representative-point ground-state competition, not a quantum phase diagram."
+  }
+}

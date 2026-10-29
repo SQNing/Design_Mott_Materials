@@ -1,0 +1,16 @@
+{
+  "action_id": "host-ground",
+  "reason": "Use the clarified physical operator convention.",
+  "settings": {
+    "seed": 87,
+    "spin_length": 0.5,
+    "starts": 2,
+    "supercell_shape": [
+      2,
+      2,
+      2
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

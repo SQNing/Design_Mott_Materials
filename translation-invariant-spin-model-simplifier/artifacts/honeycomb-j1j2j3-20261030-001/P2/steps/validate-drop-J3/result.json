@@ -1,0 +1,408 @@
+{
+  "calculation": {
+    "metrics": [
+      {
+        "case_id": "reference",
+        "name": "energy_per_cell",
+        "outcome": "fail",
+        "tolerance": 0.01,
+        "value": 0.1000000000000002
+      },
+      {
+        "case_id": "reference",
+        "name": "full_energy_penalty",
+        "outcome": "fail",
+        "tolerance": 0.01,
+        "value": 0.607783652850554
+      },
+      {
+        "case_id": "reference",
+        "name": "spin_correlations",
+        "outcome": "fail",
+        "tolerance": 0.05,
+        "value": 2.0
+      },
+      {
+        "case_id": "modes",
+        "name": "spectrum",
+        "outcome": "fail",
+        "tolerance": 0.01,
+        "value": 0.9485858657604984
+      }
+    ],
+    "validated_scope": {
+      "candidate_model_id": "cd46005c9d58b3f3d7f9776adda961b3e23bb598eeb98adb32ff7137c90d921f",
+      "energy_offset_per_cell": 0.0,
+      "energy_window_max": null,
+      "experiments": [
+        {
+          "case_id": "reference",
+          "metrics": {
+            "energy_per_cell": 0.01,
+            "full_energy_penalty": 0.01,
+            "spin_correlations": 0.05
+          },
+          "settings": {
+            "maxiter": 2000,
+            "seed": 19,
+            "spin_length": 0.5,
+            "starts": 8,
+            "stationarity_tolerance": 1e-06,
+            "supercell_shape": [
+              4,
+              4,
+              1
+            ]
+          },
+          "task": "classical_ground_state"
+        },
+        {
+          "case_id": "modes",
+          "metrics": {
+            "spectrum": 0.01
+          },
+          "reference_case": "reference",
+          "settings": {
+            "reduced_momenta": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0.125,
+                0,
+                0
+              ],
+              [
+                0.125,
+                0.125,
+                0
+              ],
+              [
+                0.25,
+                0,
+                0
+              ]
+            ],
+            "spin": 0.5,
+            "stability_tolerance": 1e-05
+          },
+          "task": "spin_wave_spectrum"
+        }
+      ],
+      "full_model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
+      "full_reference_tolerance": 1e-07,
+      "realized_cases": [
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "role": "full",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            4,
+            4,
+            1
+          ]
+        },
+        {
+          "case_id": "reference",
+          "local_dimension": null,
+          "role": "candidate",
+          "spin": null,
+          "spin_length": 0.5,
+          "supercell_shape": [
+            4,
+            4,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "role": "full",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            4,
+            4,
+            1
+          ]
+        },
+        {
+          "case_id": "modes",
+          "local_dimension": null,
+          "role": "candidate",
+          "spin": 0.5,
+          "spin_length": null,
+          "supercell_shape": [
+            4,
+            4,
+            1
+          ]
+        }
+      ]
+    },
+    "validation_status": "rejected"
+  },
+  "calculation_fingerprint": "ddb4ff0089355c85dfc6d9e4a8282a696555268a913dca4ba16c64bce4c38bfb",
+  "candidate_id": "drop-J3",
+  "candidate_model_id": "cd46005c9d58b3f3d7f9776adda961b3e23bb598eeb98adb32ff7137c90d921f",
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "c3a8f9e1ec92808b87777795cd95eae97b12f3d851e541bc20e0f8518eaa0ba2"
+  },
+  "diagnostics": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "evidence": [
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "reference",
+      "job_fingerprint": "b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json",
+      "reused": false,
+      "role": "full",
+      "scientific_status": "usable_within_scope"
+    },
+    {
+      "blocker": null,
+      "case_id": "modes",
+      "job_fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9",
+      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json",
+      "reused": false,
+      "role": "candidate",
+      "scientific_status": "usable_within_scope"
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1793297893.7919977,
+  "metrics": [
+    {
+      "case_id": "reference",
+      "name": "energy_per_cell",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.1000000000000002
+    },
+    {
+      "case_id": "reference",
+      "name": "full_energy_penalty",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.607783652850554
+    },
+    {
+      "case_id": "reference",
+      "name": "spin_correlations",
+      "outcome": "fail",
+      "tolerance": 0.05,
+      "value": 2.0
+    },
+    {
+      "case_id": "modes",
+      "name": "spectrum",
+      "outcome": "fail",
+      "tolerance": 0.01,
+      "value": 0.9485858657604984
+    }
+  ],
+  "model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
+  "result_id": "validate-drop-J3",
+  "reusable": true,
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.",
+    "Stationary variational states are not proofs of global or infinite-lattice ground states.",
+    "State distances can distinguish symmetry-related representatives; rejection concerns the stated metric.",
+    "Agreement does not certify phase equivalence, parameter robustness or virtual-excitation corrections."
+  ],
+  "scientific_status": "usable_within_scope",
+  "solver_runs": 4,
+  "suggested_actions": [
+    {
+      "reason": "Refine inadequate controls or extend the tested cells, momenta and parameter points.",
+      "requires_agent_choice": true,
+      "task": "reduction_validation",
+      "type": "calculate"
+    }
+  ],
+  "task": "reduction_validation",
+  "validated_scope": {
+    "candidate_model_id": "cd46005c9d58b3f3d7f9776adda961b3e23bb598eeb98adb32ff7137c90d921f",
+    "energy_offset_per_cell": 0.0,
+    "energy_window_max": null,
+    "experiments": [
+      {
+        "case_id": "reference",
+        "metrics": {
+          "energy_per_cell": 0.01,
+          "full_energy_penalty": 0.01,
+          "spin_correlations": 0.05
+        },
+        "settings": {
+          "maxiter": 2000,
+          "seed": 19,
+          "spin_length": 0.5,
+          "starts": 8,
+          "stationarity_tolerance": 1e-06,
+          "supercell_shape": [
+            4,
+            4,
+            1
+          ]
+        },
+        "task": "classical_ground_state"
+      },
+      {
+        "case_id": "modes",
+        "metrics": {
+          "spectrum": 0.01
+        },
+        "reference_case": "reference",
+        "settings": {
+          "reduced_momenta": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.125,
+              0,
+              0
+            ],
+            [
+              0.125,
+              0.125,
+              0
+            ],
+            [
+              0.25,
+              0,
+              0
+            ]
+          ],
+          "spin": 0.5,
+          "stability_tolerance": 1e-05
+        },
+        "task": "spin_wave_spectrum"
+      }
+    ],
+    "full_model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
+    "full_reference_tolerance": 1e-07,
+    "realized_cases": [
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "role": "full",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          4,
+          4,
+          1
+        ]
+      },
+      {
+        "case_id": "reference",
+        "local_dimension": null,
+        "role": "candidate",
+        "spin": null,
+        "spin_length": 0.5,
+        "supercell_shape": [
+          4,
+          4,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "role": "full",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          4,
+          4,
+          1
+        ]
+      },
+      {
+        "case_id": "modes",
+        "local_dimension": null,
+        "role": "candidate",
+        "spin": 0.5,
+        "spin_length": null,
+        "supercell_shape": [
+          4,
+          4,
+          1
+        ]
+      }
+    ]
+  },
+  "validation_status": "rejected"
+}
