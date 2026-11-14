@@ -1,0 +1,575 @@
+{
+  "backend_result": {
+    "calculation": {
+      "boundary": "periodic",
+      "bridge_metadata": {
+        "bridge_kind": "validated_canonical_spin_only",
+        "global_frame_converted_terms": [],
+        "symmetry_validation_required": true
+      },
+      "energy_per_cell": -0.31250000000000006,
+      "energy_total": -0.6250000000000001,
+      "finite_cell_bound_gap": 0.43749999999999994,
+      "finite_cell_lt_lower_bound_per_cell": -0.75,
+      "finite_cell_lt_minimum_q": [
+        0.5,
+        0.0,
+        0.0
+      ],
+      "ground_state_evidence": {
+        "comparison_tolerance_per_cell": 1.7500000000000002e-09,
+        "energy_gap_per_cell": 0.43749999999999994,
+        "finite_cell_lower_bound_per_cell": -0.75,
+        "finite_cell_status": "not_certified",
+        "ground_state_absolute_tolerance": 1e-09,
+        "ground_state_relative_tolerance": 1e-09,
+        "infinite_lattice_status": "not_certified",
+        "interpretation": "A positive LT gap is lack of certification, not proof of a wrong state: the relaxed bound can be unattainable.",
+        "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+        "spin_length": 0.5,
+        "stationary": true,
+        "supercell_shape": [
+          2,
+          1,
+          1
+        ]
+      },
+      "infinite_lattice_certified": false,
+      "initial_search": {
+        "energy_per_cell": -0.31250000000000006,
+        "finite_cell_bound_gap": 0.43749999999999994,
+        "spins": [
+          [
+            0.2732119266368399,
+            0.06542889234199267,
+            -0.413611294805021
+          ],
+          [
+            -0.16300662899614204,
+            -0.41263072759439057,
+            -0.23057476346781308
+          ],
+          [
+            0.3007683935549671,
+            0.0547223799288921,
+            -0.39565620755054814
+          ],
+          [
+            -0.2732119266368399,
+            -0.06542889234199267,
+            0.413611294805021
+          ],
+          [
+            -0.16300662899614204,
+            -0.41263072759439057,
+            -0.23057476346781308
+          ],
+          [
+            0.3007683935549671,
+            0.0547223799288921,
+            -0.39565620755054814
+          ]
+        ],
+        "starts": [
+          {
+            "energy_per_cell": -0.31250000000000006,
+            "iterations": 14,
+            "local_field_polishing": true,
+            "optimizer_success": true,
+            "origin": "random",
+            "stationarity_max_norm": 2.498001805406602e-16
+          },
+          {
+            "energy_per_cell": -0.31250000000000006,
+            "iterations": 11,
+            "local_field_polishing": true,
+            "optimizer_success": true,
+            "origin": "random",
+            "stationarity_max_norm": 2.3551386880256624e-16
+          },
+          {
+            "energy_per_cell": -0.31250000000000006,
+            "iterations": 10,
+            "local_field_polishing": true,
+            "optimizer_success": true,
+            "origin": "random",
+            "stationarity_max_norm": 2.5438405243138006e-16
+          }
+        ],
+        "stationarity_max_norm": 2.498001805406602e-16
+      },
+      "limitations": [
+        "Stationary states remain usable references when the finite-cell bound is not saturated.",
+        "A positive LT gap alone does not prove that a lower locally feasible state exists.",
+        "Finite-cell saturation is numerical evidence for this cell, not an infinite-lattice proof."
+      ],
+      "method": "fixed-length-real-space-L-BFGS-B",
+      "recovery": {
+        "accepted": false,
+        "additional_starts": 0,
+        "attempted": false,
+        "enabled": true,
+        "reason": "No tested lowest Fourier mode satisfies every local length constraint and the energy bound."
+      },
+      "seed": 7,
+      "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+      "spin_length": 0.5,
+      "spins": [
+        [
+          0.2732119266368399,
+          0.06542889234199267,
+          -0.413611294805021
+        ],
+        [
+          -0.16300662899614204,
+          -0.41263072759439057,
+          -0.23057476346781308
+        ],
+        [
+          0.3007683935549671,
+          0.0547223799288921,
+          -0.39565620755054814
+        ],
+        [
+          -0.2732119266368399,
+          -0.06542889234199267,
+          0.413611294805021
+        ],
+        [
+          -0.16300662899614204,
+          -0.41263072759439057,
+          -0.23057476346781308
+        ],
+        [
+          0.3007683935549671,
+          0.0547223799288921,
+          -0.39565620755054814
+        ]
+      ],
+      "starts": [
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 14,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.498001805406602e-16
+        },
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 11,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.3551386880256624e-16
+        },
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 10,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.5438405243138006e-16
+        }
+      ],
+      "stationarity_max_norm": 2.498001805406602e-16,
+      "stationarity_tolerance": 1e-06,
+      "status": "ok",
+      "supercell_shape": [
+        2,
+        1,
+        1
+      ]
+    },
+    "hamiltonian_provenance": {
+      "input_model": {
+        "canonical_model_ref": "canonical-model:7113d355dfed5eec6babc6bfa7c8ecb80440c3006be6961d35aea94e53d04eda",
+        "content_hash": "7113d355dfed5eec6babc6bfa7c8ecb80440c3006be6961d35aea94e53d04eda"
+      },
+      "solver_model": {
+        "canonical_model_ref": "canonical-model:7113d355dfed5eec6babc6bfa7c8ecb80440c3006be6961d35aea94e53d04eda",
+        "content_hash": "7113d355dfed5eec6babc6bfa7c8ecb80440c3006be6961d35aea94e53d04eda"
+      },
+      "symmetry_operation": {
+        "algorithm_version": "validate-only/v1",
+        "repair_requested": false,
+        "target_group": {
+          "international_symbol": "P1",
+          "kind": "structural_space_group",
+          "number": 1,
+          "operation_count": 1,
+          "operation_refs": [
+            "identity"
+          ]
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "cleanup": 1e-12,
+          "relative": 1e-08
+        }
+      }
+    },
+    "solver_model_hash": "7113d355dfed5eec6babc6bfa7c8ecb80440c3006be6961d35aea94e53d04eda",
+    "status": "ok",
+    "symmetry_validation": {
+      "failed_operations": [],
+      "forbidden_terms": [],
+      "input_hamiltonian_subgroup": {
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ],
+        "status": "verified-subgroup"
+      },
+      "max_absolute_residual": 0.0,
+      "max_relative_residual": 0.0,
+      "missing_symmetry_partners": [],
+      "operation_reports": [
+        {
+          "allowed_residual": 1.01e-08,
+          "frobenius_residual": 0.0,
+          "max_absolute_residual": 0.0,
+          "max_relative_residual": 0.0,
+          "missing_symmetry_partners": [],
+          "operation_ref": "identity",
+          "passed": true,
+          "worst_term": {
+            "absolute_residual": 0.0,
+            "canonical_key": [
+              "bilinear_exchange_tensor",
+              [
+                [
+                  0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  0,
+                  [
+                    1,
+                    0,
+                    0
+                  ]
+                ]
+              ],
+              "basis",
+              "default"
+            ],
+            "relative_residual": 0.0,
+            "source_term_refs": [
+              "chain:0"
+            ],
+            "threshold": 1.01e-08,
+            "transformed_term_refs": [
+              "chain:0"
+            ]
+          }
+        }
+      ],
+      "status": "passed",
+      "target_group": {
+        "international_symbol": "P1",
+        "kind": "structural_space_group",
+        "number": 1,
+        "operation_count": 1,
+        "operation_refs": [
+          "identity"
+        ]
+      }
+    },
+    "task": "classical_ground_state",
+    "warnings": []
+  },
+  "calculation": {
+    "boundary": "periodic",
+    "bridge_metadata": {
+      "bridge_kind": "validated_canonical_spin_only",
+      "global_frame_converted_terms": [],
+      "symmetry_validation_required": true
+    },
+    "energy_per_cell": -0.31250000000000006,
+    "energy_total": -0.6250000000000001,
+    "finite_cell_bound_gap": 0.43749999999999994,
+    "finite_cell_lt_lower_bound_per_cell": -0.75,
+    "finite_cell_lt_minimum_q": [
+      0.5,
+      0.0,
+      0.0
+    ],
+    "ground_state_evidence": {
+      "comparison_tolerance_per_cell": 1.7500000000000002e-09,
+      "energy_gap_per_cell": 0.43749999999999994,
+      "finite_cell_lower_bound_per_cell": -0.75,
+      "finite_cell_status": "not_certified",
+      "ground_state_absolute_tolerance": 1e-09,
+      "ground_state_relative_tolerance": 1e-09,
+      "infinite_lattice_status": "not_certified",
+      "interpretation": "A positive LT gap is lack of certification, not proof of a wrong state: the relaxed bound can be unattainable.",
+      "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+      "spin_length": 0.5,
+      "stationary": true,
+      "supercell_shape": [
+        2,
+        1,
+        1
+      ]
+    },
+    "infinite_lattice_certified": false,
+    "initial_search": {
+      "energy_per_cell": -0.31250000000000006,
+      "finite_cell_bound_gap": 0.43749999999999994,
+      "spins": [
+        [
+          0.2732119266368399,
+          0.06542889234199267,
+          -0.413611294805021
+        ],
+        [
+          -0.16300662899614204,
+          -0.41263072759439057,
+          -0.23057476346781308
+        ],
+        [
+          0.3007683935549671,
+          0.0547223799288921,
+          -0.39565620755054814
+        ],
+        [
+          -0.2732119266368399,
+          -0.06542889234199267,
+          0.413611294805021
+        ],
+        [
+          -0.16300662899614204,
+          -0.41263072759439057,
+          -0.23057476346781308
+        ],
+        [
+          0.3007683935549671,
+          0.0547223799288921,
+          -0.39565620755054814
+        ]
+      ],
+      "starts": [
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 14,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.498001805406602e-16
+        },
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 11,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.3551386880256624e-16
+        },
+        {
+          "energy_per_cell": -0.31250000000000006,
+          "iterations": 10,
+          "local_field_polishing": true,
+          "optimizer_success": true,
+          "origin": "random",
+          "stationarity_max_norm": 2.5438405243138006e-16
+        }
+      ],
+      "stationarity_max_norm": 2.498001805406602e-16
+    },
+    "limitations": [
+      "Stationary states remain usable references when the finite-cell bound is not saturated.",
+      "A positive LT gap alone does not prove that a lower locally feasible state exists.",
+      "Finite-cell saturation is numerical evidence for this cell, not an infinite-lattice proof."
+    ],
+    "method": "fixed-length-real-space-L-BFGS-B",
+    "recovery": {
+      "accepted": false,
+      "additional_starts": 0,
+      "attempted": false,
+      "enabled": true,
+      "reason": "No tested lowest Fourier mode satisfies every local length constraint and the energy bound."
+    },
+    "seed": 7,
+    "spin_coordinate_frame": "global Cartesian (crystallographic axes)",
+    "spin_length": 0.5,
+    "spins": [
+      [
+        0.2732119266368399,
+        0.06542889234199267,
+        -0.413611294805021
+      ],
+      [
+        -0.16300662899614204,
+        -0.41263072759439057,
+        -0.23057476346781308
+      ],
+      [
+        0.3007683935549671,
+        0.0547223799288921,
+        -0.39565620755054814
+      ],
+      [
+        -0.2732119266368399,
+        -0.06542889234199267,
+        0.413611294805021
+      ],
+      [
+        -0.16300662899614204,
+        -0.41263072759439057,
+        -0.23057476346781308
+      ],
+      [
+        0.3007683935549671,
+        0.0547223799288921,
+        -0.39565620755054814
+      ]
+    ],
+    "starts": [
+      {
+        "energy_per_cell": -0.31250000000000006,
+        "iterations": 14,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "origin": "random",
+        "stationarity_max_norm": 2.498001805406602e-16
+      },
+      {
+        "energy_per_cell": -0.31250000000000006,
+        "iterations": 11,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "origin": "random",
+        "stationarity_max_norm": 2.3551386880256624e-16
+      },
+      {
+        "energy_per_cell": -0.31250000000000006,
+        "iterations": 10,
+        "local_field_polishing": true,
+        "optimizer_success": true,
+        "origin": "random",
+        "stationarity_max_norm": 2.5438405243138006e-16
+      }
+    ],
+    "stationarity_max_norm": 2.498001805406602e-16,
+    "stationarity_tolerance": 1e-06,
+    "status": "ok",
+    "supercell_shape": [
+      2,
+      1,
+      1
+    ]
+  },
+  "calculation_fingerprint": "61ebde1482a245d51680f4321f5b2d9a89a1564dc7bad1f1bd011f6ab6c72e4a",
+  "capability": {
+    "backend": "python",
+    "classical_spaces": [
+      "unit_vector_sphere"
+    ],
+    "max_body_order": 2,
+    "reference_kind": "spin_frame",
+    "solver_id": "periodic-spin-python",
+    "status": "supported",
+    "tasks": [
+      "classical_ground_state",
+      "spin_wave_spectrum",
+      "classical_monte_carlo",
+      "classical_finite_size",
+      "quantum_low_energy",
+      "fourier_exchange_spectrum"
+    ],
+    "term_families": [
+      "bilinear_exchange_tensor",
+      "bilinear_exchange_matrix"
+    ]
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "57095b3624575462f5db46c40e91c0a26619c14990ba48941c5413a5f095a0f5"
+  },
+  "compute_seconds": 0.44037207355722785,
+  "diagnostics": [
+    {
+      "kind": "stationarity",
+      "satisfied": true,
+      "value": 2.498001805406602e-16
+    },
+    {
+      "evidence": {
+        "comparison_tolerance_per_cell": 1.7500000000000002e-09,
+        "energy_gap_per_cell": 0.43749999999999994,
+        "finite_cell_lower_bound_per_cell": -0.75,
+        "finite_cell_status": "not_certified",
+        "ground_state_absolute_tolerance": 1e-09,
+        "ground_state_relative_tolerance": 1e-09,
+        "infinite_lattice_status": "not_certified",
+        "interpretation": "A positive LT gap is lack of certification, not proof of a wrong state: the relaxed bound can be unattainable.",
+        "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+        "spin_length": 0.5,
+        "stationary": true,
+        "supercell_shape": [
+          2,
+          1,
+          1
+        ]
+      },
+      "kind": "finite_cell_ground_state",
+      "satisfied": false
+    },
+    {
+      "finite_cell_bound_gap": 0.43749999999999994,
+      "kind": "global_ground_state",
+      "note": "Only the recorded finite search was performed.",
+      "satisfied": false
+    }
+  ],
+  "execution_status": "succeeded",
+  "finished_at": 1794631152.3968964,
+  "model_id": "20fda524766ed8237b76ed15e9447a3f7cb08bf81861eb5fbdb1cb76b1e8f985",
+  "reference_result": null,
+  "result_id": "reference",
+  "schema_version": "research-result/v1",
+  "scientific_scope": [
+    "Stationary states remain usable references when the finite-cell bound is not saturated.",
+    "A positive LT gap alone does not prove that a lower locally feasible state exists.",
+    "Finite-cell saturation is numerical evidence for this cell, not an infinite-lattice proof.",
+    "Energy is per primitive cell in the supplied Hamiltonian's energy units.",
+    "A positive LT gap is lack of certification, not proof of a wrong state: the relaxed bound can be unattainable.",
+    "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof."
+  ],
+  "scientific_status": "usable_within_scope",
+  "settings": {
+    "max_memory_mb": 3072.0,
+    "maxiter": 2000,
+    "seed": 7,
+    "spin_length": 0.5,
+    "starts": 3,
+    "stationarity_tolerance": 1e-06,
+    "supercell_shape": [
+      2,
+      1,
+      1
+    ]
+  },
+  "suggested_actions": [
+    {
+      "reason": "Use independent starts and appropriate cells; an unsaturated relaxed LT bound alone does not prove that this state is wrong.",
+      "requires_agent_choice": true,
+      "task": "classical_ground_state",
+      "type": "calculate"
+    }
+  ],
+  "task": "classical_ground_state"
+}

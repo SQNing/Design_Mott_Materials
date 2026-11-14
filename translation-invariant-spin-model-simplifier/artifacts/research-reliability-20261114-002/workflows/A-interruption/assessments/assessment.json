@@ -1,0 +1,19 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "claim_level": "finite_cell_ground_state",
+  "conclusion": "The resumed calculation attains its finite-cell numerical bound; the interrupted record is retained.",
+  "evidence": [
+    {
+      "path": "calculation.ground_state_evidence",
+      "result_id": "resumed"
+    }
+  ],
+  "limitations": [
+    "No thermodynamic-limit ground-state claim.",
+    "Checkpoint accounting preserves any uncertainty in an interrupted duration."
+  ],
+  "reason": "State exactly what the saved numerical evidence supports.",
+  "scope": "The specified finite periodic cell and Hamiltonian.",
+  "type": "assess"
+}

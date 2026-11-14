@@ -1,0 +1,197 @@
+FFFFFFFFFFFFF                                                            [100%]
+=================================== FAILURES ===================================
+________ test_interrupted_legacy_duration_does_not_grow_with_idle_clock ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x2b6fcd5eb070>
+
+    def test_interrupted_legacy_duration_does_not_grow_with_idle_clock(monkeypatch):
+        steps = [{"execution": {"status": "interrupted", "counted": True,
+                  "started_at": 1000., "timeout_seconds": 30.}}]
+        monkeypatch.setattr("research.state.time.time", lambda: 5000.)
+        first = compute_seconds(steps)
+        monkeypatch.setattr("research.state.time.time", lambda: 500000.)
+>       assert compute_seconds(steps) == first == 30.
+E       AssertionError: assert 499000.0 == 4000.0
+E        +  where 499000.0 = compute_seconds([{'execution': {'counted': True, 'started_at': 1000.0, 'status': 'interrupted', 'timeout_seconds': 30.0}}])
+
+scripts/research/tests/test_reliability.py:38: AssertionError
+__ test_interrupted_checkpoint_is_charged_once_without_rewriting_old_records ___
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_interrupted_checkpoint_is0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x2b6fcd6227c0>
+
+    def test_interrupted_checkpoint_is_charged_once_without_rewriting_old_records(tmp_path, monkeypatch):
+        step = interrupted_step(tmp_path)
+        before = (step / "execution.json").read_bytes()
+        monkeypatch.setattr("research.state.time.time", lambda: 5000.)
+        steps = collect_steps(tmp_path, {"steps": ["interrupted"]})
+        assert steps[0]["execution"]["status"] == "interrupted"
+>       assert compute_seconds(steps) == 4.25
+E       AssertionError: assert 4000.0 == 4.25
+E        +  where 4000.0 = compute_seconds([{'action': {'action_id': 'interrupted', 'reason': 'Retain a previously interrupted calculation.', 'task': 'classical_... 'execution': {'counted': True, 'solver_runs': 1, 'started_at': 1000.0, 'status': 'interrupted', ...}, 'result': None}])
+
+scripts/research/tests/test_reliability.py:47: AssertionError
+_______ test_completed_child_supplies_duration_when_supervisor_was_lost ________
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_completed_child_supplies_0')
+
+    def test_completed_child_supplies_duration_when_supervisor_was_lost(tmp_path):
+        step = interrupted_step(tmp_path)
+        write_json(step / "computation-result.json", {"compute_seconds": 5.5, "finished_at": 1005.5})
+        steps = collect_steps(tmp_path, {"steps": ["interrupted"]})
+>       assert compute_seconds(steps) == 5.5
+E       AssertionError: assert 1794628751.2040937 == 5.5
+E        +  where 1794628751.2040937 = compute_seconds([{'action': {'action_id': 'interrupted', 'reason': 'Retain a previously interrupted calculation.', 'task': 'classical_... 'execution': {'counted': True, 'solver_runs': 1, 'started_at': 1000.0, 'status': 'interrupted', ...}, 'result': None}])
+
+scripts/research/tests/test_reliability.py:58: AssertionError
+___ test_public_resume_uses_recorded_time_and_new_result_has_terminal_timing ___
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_public_resume_uses_record0')
+
+    def test_public_resume_uses_recorded_time_and_new_result_has_terminal_timing(tmp_path):
+        run = tmp_path / "run"
+        prepare_research_task(request(), run)
+        interrupted_step(run)
+        state = read_json(run / "state.json")
+        state["steps"].append("interrupted")
+        write_json(run / "state.json", state)
+>       assert inspect_research_task(run)["compute_seconds"] == 4.25
+E       assert 1794628752.510436 == 4.25
+
+scripts/research/tests/test_reliability.py:91: AssertionError
+___ test_finite_cell_claim_and_report_use_bound_evidence_without_new_solves ____
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_finite_cell_claim_and_rep0')
+
+    def test_finite_cell_claim_and_report_use_bound_evidence_without_new_solves(tmp_path):
+        run = tmp_path / "run"
+        prepare_research_task(request(), run)
+        result = execute_research_action(run, ground(), wait=True)
+>       assert result["calculation"]["ground_state_evidence"]["finite_cell_status"] == "bound_saturated"
+E       KeyError: 'ground_state_evidence'
+
+scripts/research/tests/test_reliability.py:107: KeyError
+______ test_stationary_unverified_state_cannot_support_finite_cell_claim _______
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_stationary_unverified_sta0')
+
+    def test_stationary_unverified_state_cannot_support_finite_cell_claim(tmp_path):
+        model = cubic_input(1., {})["model"]
+        # These symmetry-complete R=2 bonds are constant on the requested cell.
+        for term in copy.deepcopy(model["term_attachments"]["bond_terms"]):
+            term["term_ref"] += ":second"
+            for endpoint in term["cluster"]:
+                endpoint["translation"] = [2*v for v in endpoint["translation"]]
+>           term["payload"]["matrix"]["data"] = (-.01*np.eye(3)).tolist()
+E           TypeError: list indices must be integers or slices, not str
+
+scripts/research/tests/test_reliability.py:124: TypeError
+________ test_finite_evidence_cannot_be_promoted_to_thermodynamic_claim ________
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-16/test_finite_evidence_cannot_be0')
+
+    def test_finite_evidence_cannot_be_promoted_to_thermodynamic_claim(tmp_path):
+        run = tmp_path / "run"
+        prepare_research_task(request(), run)
+        execute_research_action(run, ground(), wait=True)
+        with pytest.raises(ValueError, match="thermodynamic"):
+>           execute_research_action(run, assessment("overclaim", "thermodynamic_ground_state"))
+E           Failed: DID NOT RAISE <class 'ValueError'>
+
+scripts/research/tests/test_reliability.py:143: Failed
+_________ test_stationary_high_energy_search_is_retained_and_recovered _________
+
+    def test_stationary_high_energy_search_is_retained_and_recovered():
+        original = [[0.,0.,.5]]*4
+        result = minimize_fixed_length(chain(), {"spin_length":.5,"starts":1,"initial_spins":original})
+>       assert result["energy_per_cell"] == pytest.approx(-.2525, abs=1e-10)
+E       assert 0.2475 == -0.2525 ± 1.0e-10
+E         comparison failed
+E         Obtained: 0.2475
+E         Expected: -0.2525 ± 1.0e-10
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:26: AssertionError
+_____ test_recovery_can_be_disabled_without_certifying_a_stationary_state ______
+
+    def test_recovery_can_be_disabled_without_certifying_a_stationary_state():
+        result = minimize_fixed_length(chain(), {"spin_length":.5,"starts":1,
+            "initial_spins":[[0.,0.,.5]]*4,"fourier_seed_recovery":False})
+        assert result["status"] == "ok"  # usable as a stationary reference only
+        assert result["energy_per_cell"] == pytest.approx(.2475)
+>       assert result["ground_state_evidence"]["stationary"] is True
+E       KeyError: 'ground_state_evidence'
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:43: KeyError
+____ test_unequal_local_lengths_in_the_lt_mode_do_not_certify_a_loose_bound ____
+
+    def test_unequal_local_lengths_in_the_lt_mode_do_not_certify_a_loose_bound():
+        model = system([(0,0,[1,0,0],np.eye(3)),(1,1,[1,0,0],-.1*np.eye(3))],[2,1,1],basis=2)
+        result = minimize_fixed_length(model,{"spin_length":.5,"starts":2,"seed":7})
+        assert result["energy_per_cell"] == pytest.approx(-.275,abs=1e-9)
+        assert result["finite_cell_bound_gap"] > .2
+>       assert result["ground_state_evidence"]["finite_cell_status"] == "not_certified"
+E       KeyError: 'ground_state_evidence'
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:53: KeyError
+_______ test_anisotropic_feasible_mode_is_checked_as_a_full_spin_tensor ________
+
+    def test_anisotropic_feasible_mode_is_checked_as_a_full_spin_tensor():
+        model = system([(0,0,[1,0,0],-np.diag([.4,.7,1.]))],[2,1,1])
+        result = minimize_fixed_length(model,{"spin_length":.5,"starts":1,"initial_spins":[[.5,0,0]]*2})
+>       assert result["energy_per_cell"] == pytest.approx(-.25,abs=1e-10)
+E       assert -0.1 == -0.25 ± 1.0e-10
+E         comparison failed
+E         Obtained: -0.1
+E         Expected: -0.25 ± 1.0e-10
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:62: AssertionError
+_____ test_complex_two_sublattice_mode_respects_fourier_phase_and_lengths ______
+
+    def test_complex_two_sublattice_mode_respects_fourier_phase_and_lengths():
+        bonds=[]
+        shells={1:[[0,0,0],[-1,0,0],[0,-1,0]],
+                2:[[1,0,0],[0,1,0],[1,-1,0]],
+                3:[[-1,-1,0],[1,-1,0],[-1,1,0]]}
+        for shell,strength in [(1,1.),(2,.3),(3,.05)]:
+            for left in ([0,1] if shell==2 else [0]):
+                for v in shells[shell]:
+                    bonds.append((left,left if shell==2 else 1,v,strength*np.eye(3)))
+        bonds.extend((i,i,[6,0,0],-.001*np.eye(3)) for i in [0,1])
+        model=system(bonds,[6,6,1],basis=2)
+        result=minimize_fixed_length(model,{"spin_length":.5,"starts":1,"initial_spins":[[0.,0.,.5]]*72})
+>       assert result["energy_per_cell"] == pytest.approx(-.4255,abs=1e-10)
+E       assert 1.2369999999999963 == -0.4255 ± 1.0e-10
+E         comparison failed
+E         Obtained: 1.2369999999999963
+E         Expected: -0.4255 ± 1.0e-10
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:79: AssertionError
+__________ test_a_state_below_the_numerical_bound_is_an_inconsistency __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x2b6fcf7eac70>
+
+    def test_a_state_below_the_numerical_bound_is_an_inconsistency(monkeypatch):
+        model=chain()
+        monkeypatch.setattr(model,'finite_cell_lower_bound',lambda _s:(1.,[0.,0.,0.]))
+        result=minimize_fixed_length(model,{"spin_length":.5,"starts":1,"seed":3})
+>       assert result["status"] == "inconclusive"
+E       AssertionError: assert 'ok' == 'inconclusive'
+E         - inconclusive
+E         + ok
+
+scripts/three_dimensional/tests/test_ground_state_evidence.py:89: AssertionError
+=========================== short test summary info ============================
+FAILED scripts/research/tests/test_reliability.py::test_interrupted_legacy_duration_does_not_grow_with_idle_clock
+FAILED scripts/research/tests/test_reliability.py::test_interrupted_checkpoint_is_charged_once_without_rewriting_old_records
+FAILED scripts/research/tests/test_reliability.py::test_completed_child_supplies_duration_when_supervisor_was_lost
+FAILED scripts/research/tests/test_reliability.py::test_public_resume_uses_recorded_time_and_new_result_has_terminal_timing
+FAILED scripts/research/tests/test_reliability.py::test_finite_cell_claim_and_report_use_bound_evidence_without_new_solves
+FAILED scripts/research/tests/test_reliability.py::test_stationary_unverified_state_cannot_support_finite_cell_claim
+FAILED scripts/research/tests/test_reliability.py::test_finite_evidence_cannot_be_promoted_to_thermodynamic_claim
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_stationary_high_energy_search_is_retained_and_recovered
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_recovery_can_be_disabled_without_certifying_a_stationary_state
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_unequal_local_lengths_in_the_lt_mode_do_not_certify_a_loose_bound
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_anisotropic_feasible_mode_is_checked_as_a_full_spin_tensor
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_complex_two_sublattice_mode_respects_fourier_phase_and_lengths
+FAILED scripts/three_dimensional/tests/test_ground_state_evidence.py::test_a_state_below_the_numerical_bound_is_an_inconsistency
+13 failed in 16.07s

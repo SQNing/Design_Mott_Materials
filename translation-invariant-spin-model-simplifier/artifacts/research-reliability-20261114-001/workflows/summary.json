@@ -1,0 +1,110 @@
+{
+  "A": {
+    "answer_status": "answered_within_scope",
+    "compute_seconds": 2.95345526188612,
+    "ground_state_evidence": {
+      "comparison_tolerance_per_cell": 1.414717849903826e-09,
+      "energy_gap_per_cell": 1.1600054250493486e-11,
+      "finite_cell_lower_bound_per_cell": -0.41471784990382593,
+      "finite_cell_status": "bound_saturated",
+      "ground_state_absolute_tolerance": 1e-09,
+      "ground_state_relative_tolerance": 1e-09,
+      "infinite_lattice_status": "not_certified",
+      "interpretation": "A locally feasible stationary state attains the finite-cell LT lower bound within the declared numerical resolution.",
+      "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+      "spin_length": 0.5,
+      "stationary": true,
+      "supercell_shape": [
+        4,
+        4,
+        1
+      ]
+    },
+    "interrupted_accounting": {
+      "kind": "last_checkpoint",
+      "note": "Recorded through the last checkpoint; an interruption tail is unmeasured.",
+      "seconds": 0.8357331897132099,
+      "uncertain": true,
+      "updated_at": 1794630440.4795685
+    },
+    "interrupted_charge_after_idle": 0.8357331897132099,
+    "interrupted_charge_before": 0.8357331897132099,
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-001/workflows/A-report/report.md",
+    "solver_runs": 2
+  },
+  "B": {
+    "answer_status": "answered_within_scope",
+    "compute_seconds": 39.19334376137704,
+    "final_energy_per_cell": -0.4249999999999998,
+    "final_gap": 2.7755575615628914e-16,
+    "ground_state_evidence": {
+      "comparison_tolerance_per_cell": 1.4250000000000001e-09,
+      "energy_gap_per_cell": 2.7755575615628914e-16,
+      "finite_cell_lower_bound_per_cell": -0.4250000000000001,
+      "finite_cell_status": "bound_saturated",
+      "ground_state_absolute_tolerance": 1e-09,
+      "ground_state_relative_tolerance": 1e-09,
+      "infinite_lattice_status": "not_certified",
+      "interpretation": "A locally feasible stationary state attains the finite-cell LT lower bound within the declared numerical resolution.",
+      "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+      "spin_length": 0.5,
+      "stationary": true,
+      "supercell_shape": [
+        12,
+        12,
+        1
+      ]
+    },
+    "initial_energy_per_cell": -0.42498789285113153,
+    "initial_gap": 1.2107148868567563e-05,
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-001/workflows/B-report/report.md",
+    "solver_runs": 1
+  },
+  "C": {
+    "answer_status": "answered_within_scope",
+    "compute_seconds": 0.4971666680648923,
+    "ground_state_evidence": {
+      "comparison_tolerance_per_cell": 1.7500000000000002e-09,
+      "energy_gap_per_cell": 0.43749999999999994,
+      "finite_cell_lower_bound_per_cell": -0.75,
+      "finite_cell_status": "not_certified",
+      "ground_state_absolute_tolerance": 1e-09,
+      "ground_state_relative_tolerance": 1e-09,
+      "infinite_lattice_status": "not_certified",
+      "interpretation": "A positive LT gap is lack of certification, not proof of a wrong state: the relaxed bound can be unattainable.",
+      "scope": "This fixed periodic cell only; floating-point evidence, not interval certification or a thermodynamic-limit proof.",
+      "spin_length": 0.5,
+      "stationary": true,
+      "supercell_shape": [
+        2,
+        1,
+        1
+      ]
+    },
+    "recovery": {
+      "accepted": false,
+      "additional_starts": 0,
+      "attempted": false,
+      "enabled": true,
+      "reason": "No tested lowest Fourier mode satisfies every local length constraint and the energy bound."
+    },
+    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-001/workflows/C-report/report.md",
+    "solver_runs": 1
+  },
+  "code_identity": {
+    "runtime": {
+      "backend_environment": {},
+      "executable": "/data/home/zhli/anaconda3/bin/python",
+      "packages": {
+        "numpy": "1.23.5",
+        "scipy": "1.13.1"
+      },
+      "python": "3.9.13"
+    },
+    "source_hash": "4588c3b114e24f596e8714d628b3f1184991a324891f4a22e312d3fc2dbd99ac"
+  },
+  "script_sha256": "6bcd6a0f5127bf2f74e1adc3bae993c7bad08c6241e42427424294741bfe5727",
+  "solver_attempts": 4,
+  "source_model": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4-model.json",
+  "source_model_sha256": "ef73d578ca28a94b642664def274cec82cbe65ec3117dd6860ab8f92b7b5b634"
+}

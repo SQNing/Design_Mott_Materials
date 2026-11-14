@@ -53,6 +53,8 @@ def _view(root, state):
             "questions": model.get("questions", []), "steps": steps,
             "active_actions": active, "solver_runs": solver_runs,
             "compute_seconds": compute_seconds(steps),
+            "time_accounting": [{"action_id": s["action_id"], **s["execution"]["time_accounting"]}
+                                for s in steps],
             "budget": budget_for(state["request"]),
             "assessments": state["assessments"],
             "reductions": reductions,
@@ -147,9 +149,14 @@ def _assess(root, state, action):
         raise ValueError("assessment needs a valid answer_status")
     if not action.get("conclusion") or not action.get("limitations"):
         raise ValueError("assessment needs conclusion and explicit limitations")
+    claim = action.get("claim_level", "within_recorded_scope")
+    if claim not in {"within_recorded_scope", "stationary_reference",
+                     "finite_cell_ground_state", "thermodynamic_ground_state"}:
+        raise ValueError("unknown assessment claim_level")
     results = {s["action_id"]: s["result"] for s in collect_steps(root, state)}
     evidence = action.get("evidence", [])
     tasks = set()
+    classical = []
     for citation in evidence:
         result = results.get(citation.get("result_id"))
         if not result or result["model_id"] != state["model"]["model_id"]:
@@ -163,6 +170,8 @@ def _assess(root, state, action):
         if status == "answered_within_scope" and result["scientific_status"] != "usable_within_scope":
             raise ValueError("inconclusive or diagnostic-only evidence cannot complete the task")
         tasks.add(result["task"])
+        if result["task"] == "classical_ground_state":
+            classical.append(result)
     required = {task_name(t) for t in state["request"].get("requested_tasks", [])}
     if status == "answered_within_scope":
         if not evidence or not required or not required.issubset(tasks):
@@ -171,6 +180,17 @@ def _assess(root, state, action):
             raise ValueError("task still has active calculations or unresolved physical inputs")
         if not action.get("scope"):
             raise ValueError("answered assessment requires the finite/approximate scope of the claim")
+        if claim == "thermodynamic_ground_state":
+            raise ValueError("thermodynamic ground-state claims need evidence beyond the connected finite-cell calculations")
+        if claim in {"stationary_reference", "finite_cell_ground_state"}:
+            if not classical:
+                raise ValueError("the declared claim_level needs explicit classical reference evidence")
+            for result in classical:
+                recorded = result["calculation"].get("ground_state_evidence", {})
+                if claim == "finite_cell_ground_state" and recorded.get("finite_cell_status") != "bound_saturated":
+                    raise ValueError("finite-cell ground-state claims require recorded finite-cell bound saturation")
+                if claim == "stationary_reference" and recorded.get("stationary") is not True:
+                    raise ValueError("stationary_reference claims require recorded stationarity evidence")
     state["assessments"].append(deepcopy(action))
     state["answer_status"] = status
     write_json(root / "assessments" / (action["action_id"] + ".json"), action, exclusive=True)

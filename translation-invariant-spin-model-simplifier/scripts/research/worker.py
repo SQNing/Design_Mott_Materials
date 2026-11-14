@@ -28,6 +28,10 @@ def compute(directory, inputs):
     import resource
     memory = int(inputs["max_memory_mb"] * 1024 ** 2)
     resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
+    origin = time.monotonic()
+    origin_wall = time.time()
+    execution = read_json(directory / "execution.json")
+    startup = max(0., origin_wall - execution["started_at"])
     try:
         from research.contracts import code_identity
         if code_identity() != inputs["code_identity"]:
@@ -41,10 +45,25 @@ def compute(directory, inputs):
     except Exception as exc:
         traceback.print_exc()
         result = failure(inputs, type(exc).__name__ + ": " + str(exc))
+    result["compute_seconds"] = startup + time.monotonic() - origin
     write_json(directory / "computation-result.json", result)
 
 
 def supervise(directory, inputs):
+    origin = time.monotonic()
+    origin_wall = time.time()
+    execution = read_json(directory / "execution.json")
+    startup = max(0., origin_wall - execution["started_at"])
+
+    def checkpoint(terminal=False):
+        duration = startup + time.monotonic() - origin
+        write_json(directory / "timing.json", {
+            "result_id": inputs["result_id"], "elapsed_seconds": duration,
+            "updated_at": time.time(), "terminal": terminal, "clock": "monotonic",
+            "checkpoint_interval_seconds": .25})
+        return duration
+
+    checkpoint()
     with (directory / "calculation.log").open("ab") as stream:
         child = subprocess.Popen([sys.executable, "-B", "-m", "research.worker",
                                   str(directory), "--compute"],
@@ -52,22 +71,37 @@ def supervise(directory, inputs):
                                  stderr=subprocess.STDOUT, start_new_session=True)
         write_json(directory / "computation.json", {"worker": process_identity(child.pid),
                                                    "started_at": time.time()})
-        try:
-            child.wait(timeout=inputs["timeout"])
-        except subprocess.TimeoutExpired:
-            os.killpg(child.pid, signal.SIGTERM)
+        deadline = origin + max(0., inputs["timeout"] - startup)
+        timed_out = False
+        while child.poll() is None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+            try:
+                child.wait(timeout=min(.25, remaining))
+            except subprocess.TimeoutExpired:
+                checkpoint()
+        if timed_out:
+            try:
+                os.killpg(child.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 child.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 os.killpg(child.pid, signal.SIGKILL)
                 child.wait()
-            write_json(directory / "result.json", failure(inputs, "wall-time-limit", "timed_out"))
+            result = failure(inputs, "wall-time-limit", "timed_out")
+            result["compute_seconds"] = checkpoint(terminal=True)
+            write_json(directory / "result.json", result)
             return
     output = directory / "computation-result.json"
     if output.exists():
         result = read_json(output)
     else:
         result = failure(inputs, "computation-exited-without-result (exit %s); inspect calculation.log" % child.returncode)
+    result["compute_seconds"] = checkpoint(terminal=True)
     write_json(directory / "result.json", result)
 
 

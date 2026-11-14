@@ -1,0 +1,29 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_stationary_unverified_state_cannot_support_finite_cell_claim _______
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-17/test_stationary_unverified_sta0')
+
+    def test_stationary_unverified_state_cannot_support_finite_cell_claim(tmp_path):
+        model = cubic_input(1., {})["model"]
+        # These symmetry-complete R=2 bonds are constant on the requested cell.
+        for term in copy.deepcopy(model["term_attachments"]["bond_terms"]):
+            term["term_ref"] += ":second"
+            for endpoint in term["cluster"]:
+                endpoint["translation"] = [2*v for v in endpoint["translation"]]
+            term["payload"]["matrix"] = (-.01*np.eye(3)).tolist()
+            model["term_attachments"]["bond_terms"].append(term)
+        run = tmp_path / "run"
+        prepare_research_task(request(model), run)
+        result = execute_research_action(run, ground(
+            initial_spins=[[0., 0., .5]]*8, fourier_seed_recovery=False), wait=True)
+        assert result["scientific_status"] == "usable_within_scope"
+        assert result["calculation"]["stationarity_max_norm"] < 1e-8
+        with pytest.raises(ValueError, match="finite.cell.*bound|bound.*finite.cell"):
+>           execute_research_action(run, assessment("overclaim", "finite_cell_ground_state"))
+E           Failed: DID NOT RAISE <class 'ValueError'>
+
+scripts/research/tests/test_reliability.py:133: Failed
+=========================== short test summary info ============================
+FAILED scripts/research/tests/test_reliability.py::test_stationary_unverified_state_cannot_support_finite_cell_claim
+1 failed in 2.27s

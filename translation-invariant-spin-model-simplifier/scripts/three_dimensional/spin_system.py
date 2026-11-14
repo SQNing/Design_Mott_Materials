@@ -7,6 +7,7 @@ from scipy.optimize import minimize
 
 from classical.lt_fourier_exchange import fourier_exchange_matrix
 from classical.classical_solver_driver import _refine_spin_supercell_state
+from three_dimensional.ground_state import evidence_settings, ground_state_evidence, feasible_fourier_seed
 
 
 def supercell_shape(values):
@@ -75,6 +76,9 @@ def minimize_fixed_length(system, request):
     tolerance = float(request.get("stationarity_tolerance", 1e-6))
     if not np.isfinite(spin_length) or spin_length <= 0 or starts < 1:
         raise ValueError("positive spin_length and starts are required")
+    if not np.isfinite(tolerance) or tolerance <= 0:
+        raise ValueError("stationarity_tolerance must be finite and positive")
+    evidence_options, recovery_enabled = evidence_settings(request)
     rng = np.random.default_rng(int(request.get("seed", 0)))
 
     def objective(raw):
@@ -86,14 +90,9 @@ def minimize_fixed_length(system, request):
         derivative = spin_length * tangent / np.maximum(norms, 1e-15)
         return energy, derivative.ravel()
 
-    results = []
-    best = None
-    for index in range(starts):
-        if index == 0 and request.get("initial_spins") is not None:
-            raw = np.array(request["initial_spins"], dtype=float).reshape((system.site_count, 3))
-        else:
-            raw = rng.normal(size=(system.site_count, 3))
-        if np.any(np.linalg.norm(raw, axis=1) < 1e-14):
+    def optimize(raw, origin):
+        raw = np.asarray(raw, dtype=float).reshape((system.site_count, 3)).copy()
+        if not np.all(np.isfinite(raw)) or np.any(np.linalg.norm(raw, axis=1) < 1e-14):
             raise ValueError("initial_spins must have nonzero length")
         raw /= np.linalg.norm(raw, axis=1, keepdims=True)
         optimized = minimize(objective, raw.ravel(), jac=True, method="L-BFGS-B",
@@ -118,17 +117,54 @@ def minimize_fixed_length(system, request):
         energy, gradient = system.energy_gradient(spins)
         tangent = gradient - directions * np.sum(gradient * directions, axis=1, keepdims=True)
         residual = float(np.max(np.linalg.norm(tangent, axis=1)))
-        results.append({"energy_per_cell": energy / system.cell_count,
+        record = {"energy_per_cell": energy / system.cell_count,
                         "stationarity_max_norm": residual,
                         "optimizer_success": bool(optimized.success),
                         "local_field_polishing": polished,
-                        "iterations": int(optimized.nit)})
+                        "iterations": int(optimized.nit), "origin": origin}
+        return (energy, spins, residual), record
+
+    results = []
+    best = None
+    for index in range(starts):
+        supplied = index == 0 and request.get("initial_spins") is not None
+        raw = request["initial_spins"] if supplied else rng.normal(size=(system.site_count, 3))
+        outcome, record = optimize(raw, "provided" if supplied else "random")
+        results.append(record)
+        energy = outcome[0]
         if best is None or energy < best[0]:
-            best = energy, spins, residual
+            best = outcome
     energy, spins, residual = best
     bound, q = system.finite_cell_lower_bound(spin_length)
+    initial = {"energy_per_cell": energy/system.cell_count, "spins": spins.tolist(),
+               "stationarity_max_norm": residual, "finite_cell_bound_gap": energy/system.cell_count-bound,
+               "starts": list(results)}
+    evidence = ground_state_evidence(system, spin_length, energy/system.cell_count, residual,
+                                     bound, evidence_options, tolerance)
+    recovery = {"enabled": recovery_enabled, "attempted": False, "accepted": False, "additional_starts": 0,
+                "reason": "Initial search already saturates the finite-cell bound."}
+    if evidence["finite_cell_status"] == "inconsistent_bound":
+        recovery["reason"] = "An inconsistent lower bound needs diagnosis, not another seed."
+    elif evidence["finite_cell_status"] != "bound_saturated":
+        recovery["reason"] = "Fourier recovery was explicitly disabled."
+        if recovery_enabled:
+            seed = feasible_fourier_seed(system, q, spin_length, bound,
+                evidence["comparison_tolerance_per_cell"], tolerance)
+            recovery["reason"] = "No tested lowest Fourier mode satisfies every local length constraint and the energy bound."
+            if seed is not None:
+                recovery.update(attempted=True, additional_starts=1,
+                    seed={key: (value.tolist() if key == "spins" else value) for key,value in seed.items()},
+                    reason="A lowest-mode state satisfies all local length and energy checks.")
+                outcome, record = optimize(seed["spins"], "feasible_fourier_seed")
+                results.append(record)
+                if outcome[0] < energy or (abs(outcome[0]-energy) <=
+                        system.cell_count*evidence["comparison_tolerance_per_cell"] and outcome[2] < residual):
+                    energy, spins, residual = outcome
+                    recovery["accepted"] = True
+                evidence = ground_state_evidence(system, spin_length, energy/system.cell_count,
+                    residual, bound, evidence_options, tolerance)
     return {
-        "status": "ok" if residual <= tolerance else "inconclusive",
+        "status": "ok" if residual <= tolerance and evidence["finite_cell_status"] != "inconsistent_bound" else "inconclusive",
         "method": "fixed-length-real-space-L-BFGS-B",
         "supercell_shape": list(system.shape), "boundary": "periodic",
         "spin_length": spin_length, "spins": spins.tolist(),
@@ -137,8 +173,10 @@ def minimize_fixed_length(system, request):
         "finite_cell_lt_lower_bound_per_cell": bound,
         "finite_cell_lt_minimum_q": q,
         "finite_cell_bound_gap": energy / system.cell_count - bound,
+        "ground_state_evidence": evidence, "initial_search": initial, "recovery": recovery,
         "infinite_lattice_certified": False,
         "starts": results, "seed": int(request.get("seed", 0)),
-        "limitations": ["Local minimization on the requested finite periodic supercell.",
-                        "An LT bound gap near zero certifies this cell, not the infinite lattice."],
+        "limitations": ["Stationary states remain usable references when the finite-cell bound is not saturated.",
+                        "A positive LT gap alone does not prove that a lower locally feasible state exists.",
+                        "Finite-cell saturation is numerical evidence for this cell, not an infinite-lattice proof."],
     }

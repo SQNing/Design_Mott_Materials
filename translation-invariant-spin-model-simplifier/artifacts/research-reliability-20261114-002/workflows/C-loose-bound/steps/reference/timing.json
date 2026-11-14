@@ -1,0 +1,8 @@
+{
+  "checkpoint_interval_seconds": 0.25,
+  "clock": "monotonic",
+  "elapsed_seconds": 0.5007928479462862,
+  "result_id": "reference",
+  "terminal": true,
+  "updated_at": 1794631152.4573324
+}

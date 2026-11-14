@@ -1,0 +1,19 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "claim_level": "stationary_reference",
+  "conclusion": "A stationary reference is usable; no tested lowest mode meets all local constraints, so finite-cell certification remains unavailable.",
+  "evidence": [
+    {
+      "path": "calculation.ground_state_evidence",
+      "result_id": "reference"
+    }
+  ],
+  "limitations": [
+    "No thermodynamic-limit ground-state claim.",
+    "Checkpoint accounting preserves any uncertainty in an interrupted duration."
+  ],
+  "reason": "State exactly what the saved numerical evidence supports.",
+  "scope": "The specified finite periodic cell and Hamiltonian.",
+  "type": "assess"
+}

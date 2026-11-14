@@ -1,0 +1,18 @@
+{
+  "action_id": "interrupted",
+  "reason": "Check the complete finite model and retain numerical evidence.",
+  "settings": {
+    "maxiter": 2000,
+    "seed": 89,
+    "spin_length": 0.5,
+    "starts": 100,
+    "stationarity_tolerance": 1e-06,
+    "supercell_shape": [
+      12,
+      12,
+      1
+    ]
+  },
+  "task": "classical_ground_state",
+  "type": "calculate"
+}

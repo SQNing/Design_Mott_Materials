@@ -1,0 +1,8 @@
+{
+  "checkpoint_interval_seconds": 0.25,
+  "clock": "monotonic",
+  "elapsed_seconds": 38.860560497734696,
+  "result_id": "automatic-recovery",
+  "terminal": true,
+  "updated_at": 1794631151.7738283
+}

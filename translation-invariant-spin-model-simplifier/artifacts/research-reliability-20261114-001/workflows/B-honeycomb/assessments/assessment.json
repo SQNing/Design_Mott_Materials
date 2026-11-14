@@ -1,0 +1,19 @@
+{
+  "action_id": "assessment",
+  "answer_status": "answered_within_scope",
+  "claim_level": "finite_cell_ground_state",
+  "conclusion": "Automatic feasible-Fourier recovery reaches the finite-cell bound and retains the original stationary higher-energy state.",
+  "evidence": [
+    {
+      "path": "calculation.ground_state_evidence",
+      "result_id": "automatic-recovery"
+    }
+  ],
+  "limitations": [
+    "No thermodynamic-limit ground-state claim.",
+    "Checkpoint accounting preserves any uncertainty in an interrupted duration."
+  ],
+  "reason": "State exactly what the saved numerical evidence supports.",
+  "scope": "The specified finite periodic cell and Hamiltonian.",
+  "type": "assess"
+}

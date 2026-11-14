@@ -110,6 +110,22 @@ render_research_report(run_dir, output_dir)
 
 返回的谱支包含参考磁超胞引起的折叠。若参考超胞大于实际磁周期，不应直接把最小折叠频率解释为对应原胞波矢的单一激发；当前入口没有计算谱的展开权重。
 
+普通自旋经典搜索现在保存 `ground_state_evidence`，分别说明驻点、有限周期胞和无限晶格的证据范围：
+
+- `stationary`：是否满足已声明的切向梯度容差。
+- `finite_cell_status=bound_saturated`：实际定长态在声明的数值分辨率内达到该周期胞的 LT 下界，支持该胞中的经典最小能量结论。
+- `finite_cell_status=not_certified`：缺少这样的认证。正的 LT 差距本身不能证明搜索失败，松弛下界可能无法满足每个站点的定长约束。
+- `finite_cell_status=inconsistent_bound`：实际能量低于数值下界且超过容差，结果保持 inconclusive，先检查实现和约定。
+- `infinite_lattice_status=not_certified`：有限胞饱和不升级为热力学极限证明。
+
+比较容差为 `ground_state_absolute_tolerance + ground_state_relative_tolerance * max(abs(energy_per_cell), abs(bound_per_cell))`，两个参数默认均为 1e-9，必须为有限非负数。能量按每原胞输入单位解释；这不是严格区间算术证明。
+
+默认 `fourier_seed_recovery=true`。当初次搜索尚未认证时，程序从本模型、本周期胞的最低 Fourier 模尝试构造一个补充初态。各向同性交换允许正交的余弦／正弦自旋平面；一般张量使用其实际本征模。只有所有站点同时满足定长约束、完整模型能量符合下界且驻点残差合格时，才额外执行一次优化。不能通过分别归一化明显不等幅的 LT 模来宣称认证，也不因单模构造失败而否定真实基态。
+
+`initial_search` 保留初次搜索的态、能量、残差与各初态记录；`recovery` 保存是否尝试、是否采用、候选构造和额外初态数。每个动作最多增加一个这样的优化初态，仍受同一动作预算约束；`max_solver_runs` 的单位仍是后端调用，不是内部初态数量。可设置 `fourier_seed_recovery=false` 重现原来的纯初态搜索。
+
+保留局域多能级的路线继续提供驻定变分参考，当前没有接入相同的有限胞下界认证，`finite_cell_status` 为 `not_assessed`。
+
 保留 N 能级的 classical_ground_state 使用 starts、seed、max_linear_size、max_sweeps 等既有局域射线参数；不能把任意 supercell_shape 当成已支持参数。它在结构维度决定的有限尺寸序列上搜索，max_linear_size 必须有限。对应谱动作也引用参考结果，并给 reduced_momenta；不用 spin 字段，不推断物理自旋表示。
 
 可通过 wall_time_seconds 对单次动作设更小时间限额；整个任务的总计算时间、实际调用数和每次进程地址空间内存均受 budget 约束。记录的计算时间包括 worker 启动与运行，不包含两次动作之间的等待。地址空间限制是保守的内存上限，可能先于物理内存耗尽触发。
@@ -133,6 +149,17 @@ render_research_report(run_dir, output_dir)
 ~~~
 
 answered_within_scope 必须有覆盖 requested_tasks 的当前模型结果、存在的证据路径和明确范围。partial、inconclusive 用于尚未完成的问题。程序检查证据引用、结果状态和任务覆盖；结论的物理解释仍是宿主 agent 的责任，不是自动证明。
+
+`assess` 可显式声明 `claim_level`：
+
+| claim_level | 完成结论所需证据 |
+| --- | --- |
+| `within_recorded_scope` | 默认兼容原协议，仅回答已记录的有限数值问题，不构成新增基态认证 |
+| `stationary_reference` | 所引用的经典参考必须有已记录的驻点证据 |
+| `finite_cell_ground_state` | 所引用的经典结果必须有 `finite_cell_status=bound_saturated`，不接受仅驻定或无认证字段的历史结果 |
+| `thermodynamic_ground_state` | 当前有限计算路线不能据此设置 answered_within_scope，可保留为 partial/inconclusive 的待解决问题 |
+
+宿主在明确回答“该周期胞的基态已找到”时应使用 `finite_cell_ground_state`。报告同时显示声明层级、初次能量与最终能量、有限胞证据和补充搜索；读报告不启动补算。
 
 ## 当前接通的范围
 
@@ -168,6 +195,8 @@ models/model-NNNN 的原始/规范/可读模型，以及 steps/ACTION 的动作�
 状态索引原子写入，输入和完成结果可独立读取。状态检查不启动新 worker。
 
 同一 action_id 的相同提交幂等；同 ID 不同内容拒绝。不同 ID 但完整模型、设置、参考结果和代码/环境身份均相同的已完成计算会被复用。模型或单位/基底标签改变、相关代码或环境改变，旧参考不能当作兼容参考。活动 worker 的 PID、主机和进程开始时间一起检查，不能只靠 PID 判断。
+
+每个新 worker 定期将单调时钟测得的耗时写入 `timing.json`，完成或受控失败时保存终止耗时。监督进程丢失而计算子进程已有完整结果时，耗时仍可从子结果恢复。确认进程已中断后，按最后计时检查点固定记账，不把之后的闲置时间计入预算；未观测到的故障尾段用 `time_accounting.uncertain=true` 保留，不伪装成精确耗时。旧的中断记录若无计时检查点，则保守计入原先已分配的 `timeout_seconds`，这个固定预留不是实测运行时间。原始执行记录不重写，报告展示每步记账来源。这里的进程预算适用于当前本地 worker，并非 Slurm 的 TimeLimit 设置。
 
 报告只读取已有证据，输出 Markdown、谱 CSV 和采样数据。它不会补算缺失阶段；没有 assess 时明确显示研究问题尚未被评估。磁超胞、局域维数、统计限制、失败与建议动作随结果保留。
 

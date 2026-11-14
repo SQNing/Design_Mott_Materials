@@ -10,9 +10,19 @@ def _summary(calculation):
     fields = ("energy_per_cell", "energy_per_site", "energy_total", "supercell_shape",
               "spin", "spin_length", "local_dimension", "onsite_term_count", "pair_term_count",
               "stationarity_max_norm", "stationarity", "finite_cell_bound_gap",
-              "infinite_lattice_certified", "convergence", "stability",
+              "infinite_lattice_certified", "ground_state_evidence", "convergence", "stability",
               "eigenvalues", "residual_norms", "hilbert_dimension", "sampling", "cutoff_comparison")
-    return {key: calculation[key] for key in fields if key in calculation}
+    result = {key: calculation[key] for key in fields if key in calculation}
+    if "initial_search" in calculation:
+        initial = calculation["initial_search"]
+        result["initial_search"] = {key: initial[key] for key in
+            ("energy_per_cell", "stationarity_max_norm", "finite_cell_bound_gap") if key in initial}
+    if "recovery" in calculation:
+        recovery = calculation["recovery"]
+        result["recovery"] = {key: value for key,value in recovery.items() if key != "seed"}
+        if "seed" in recovery:
+            result["recovery"]["seed"] = {key:value for key,value in recovery["seed"].items() if key != "spins"}
+    return result
 
 
 def render_research_report(run_dir, output_dir):
@@ -94,6 +104,10 @@ def render_research_report(run_dir, output_dir):
                       "- Scientific usability: " + result.get("scientific_status", "pending"),
                       "- Result model: " + result.get("model_id", "pending"),
                       "- Task: " + str(result.get("task", step["action"].get("task"))), ""])
+        accounting = step["execution"]["time_accounting"]
+        lines.extend(["- Charged compute seconds: " + str(accounting["seconds"]),
+                      "- Time accounting: " + accounting["kind"] +
+                      (" (uncertain duration)" if accounting["uncertain"] else ""), ""])
         if result:
             lines.extend(["[Recorded evidence](%s)" % evidence_path, ""])
             if result.get("reference_result"):
@@ -179,6 +193,7 @@ def render_research_report(run_dir, output_dir):
         lines.append("No explicit evidence-based assessment recorded. Successful execution does not complete the research question.")
     for assessment in state["assessments"]:
         lines.extend([assessment["answer_status"] + ": " + assessment["conclusion"], "",
+                      "Claim level: " + assessment.get("claim_level", "within_recorded_scope"), "",
                       "Scope: " + str(assessment.get("scope", "unresolved")), "",
                       "Limitations: " + str(assessment["limitations"]), "",
                       "Evidence: " + json.dumps(assessment.get("evidence", [])), ""])

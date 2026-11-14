@@ -63,6 +63,21 @@ No measured reconstruction error means null with assessment=not_assessed.
 Coefficient weights do not validate physical reduction. Silence or a timeout
 never authorizes projection, truncation, symmetry repair or a change of model.
 
+For classical ground-state questions, read `ground_state_evidence` separately
+from execution success and stationary-reference usability. A feasible state
+that saturates its finite-cell numerical LT bound can support
+`assess.claim_level=finite_cell_ground_state`; a stationary state alone cannot.
+An unsaturated relaxed bound can be unattainable, so it is not by itself proof
+of a wrong state. Default Fourier recovery tests local constraints and the full
+energy before adding at most one optimization start, preserving the initial
+search. No finite-cell result certifies the thermodynamic limit. See the
+evidence levels and settings in `reference/research-workflow.md`.
+
+When resuming interrupted work, inspect `time_accounting`: a last timing
+checkpoint leaves an unmeasured tail, and a legacy timeout reservation is not
+an exact measurement. Do not charge the host's subsequent idle time as solver
+work or rewrite archived execution records to create a precise termination time.
+
 For an authorized physical approximation, use `propose_reduction` followed by
 `calculate/task=reduction_validation` as described in
 [reference/physical-reductions.md](reference/physical-reductions.md). Supply the

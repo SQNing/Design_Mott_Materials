@@ -198,16 +198,30 @@ def run_calculation(inputs):
     diagnostics, suggestions = [], []
     scopes = list(calculation.get("limitations", []))
     if task == "classical_ground_state" and calculation:
+        evidence = calculation.setdefault("ground_state_evidence", {
+            "stationary": status == "ok", "finite_cell_status": "not_assessed",
+            "infinite_lattice_status": "not_certified",
+            "interpretation": "No finite-cell bound certificate is connected for this local-space route.",
+            "scope": "Stationary finite variational reference only."})
         scopes.append("Energy is per primitive cell in the supplied Hamiltonian's energy units.")
+        scopes.extend([evidence["interpretation"], evidence["scope"]])
         diagnostics.append({"kind": "stationarity", "satisfied": status == "ok",
                             "value": calculation.get("stationarity_max_norm",
                                      calculation.get("stationarity", {}).get("max_residual_norm"))})
         gap = calculation.get("finite_cell_bound_gap")
+        diagnostics.append({"kind": "finite_cell_ground_state",
+                            "satisfied": evidence["finite_cell_status"] == "bound_saturated",
+                            "evidence": evidence})
         diagnostics.append({"kind": "global_ground_state", "satisfied": False,
                             "finite_cell_bound_gap": gap,
                             "note": "Only the recorded finite search was performed."})
+        reason = ("This cell saturates its numerical bound; compare larger or differently commensurate cells before extending the claim."
+                  if evidence["finite_cell_status"] == "bound_saturated" else
+                  "Diagnose the bound, energy normalization and local constraints before further physical claims."
+                  if evidence["finite_cell_status"] == "inconsistent_bound" else
+                  "Use independent starts and appropriate cells; an unsaturated relaxed LT bound alone does not prove that this state is wrong.")
         suggestions.append({"type": "calculate", "task": task,
-                            "reason": "Check robustness with more starts, an independent seed or a larger finite cell.",
+                            "reason": reason,
                             "requires_agent_choice": True})
     if task == "spin_wave_spectrum" and calculation:
         diagnostics.append({"kind": "harmonic_stability", "satisfied": status == "ok",

@@ -1,0 +1,40 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_slow_startup_record_read_is_not_counted_twice ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-zhli/pytest-20/test_slow_startup_record_read_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x2b26372d8f40>
+
+    def test_slow_startup_record_read_is_not_counted_twice(tmp_path, monkeypatch):
+        from research import worker
+        directory = tmp_path / "timing"
+        write_json(directory / "execution.json", {"started_at": 1000.})
+        clock = {"wall": 1001., "monotonic": 10.}
+        original_read = worker.read_json
+    
+        def slow_read(path):
+            if path.name == "execution.json":
+                clock["wall"] += 3.
+                clock["monotonic"] += 3.
+            return original_read(path)
+    
+        class FinishedChild:
+            pid = 2147483647
+            returncode = 0
+    
+            def poll(self):
+                return self.returncode
+    
+        monkeypatch.setattr(worker, "read_json", slow_read)
+        monkeypatch.setattr(worker.time, "time", lambda: clock["wall"])
+        monkeypatch.setattr(worker.time, "monotonic", lambda: clock["monotonic"])
+        monkeypatch.setattr(worker.subprocess, "Popen", lambda *args, **kwargs: FinishedChild())
+        worker.supervise(directory, {"result_id": "timing", "model_id": "model", "task": "classical_ground_state",
+            "timeout": 30., "code_identity": {}})
+>       assert read_json(directory / "result.json")["compute_seconds"] == 4.
+E       assert 7.0 == 4.0
+
+scripts/research/tests/test_reliability.py:88: AssertionError
+=========================== short test summary info ============================
+FAILED scripts/research/tests/test_reliability.py::test_slow_startup_record_read_is_not_counted_twice
+1 failed in 0.16s

@@ -1,0 +1,12 @@
+{
+  "answer_status": "answered_within_scope",
+  "artifacts": [],
+  "calculations_started": 0,
+  "model_id": "8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2",
+  "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-001/workflows/B-report/report.md",
+  "results": [
+    "automatic-recovery"
+  ],
+  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-001/workflows/B-honeycomb",
+  "schema_version": "research-report/v1"
+}

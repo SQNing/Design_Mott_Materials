@@ -2,6 +2,7 @@
 import contextlib
 import fcntl
 import json
+import math
 import os
 import socket
 import time
@@ -68,6 +69,65 @@ def process_state(identity):
     return "running" if current == identity else "missing"
 
 
+def _seconds(value):
+    value = float(value)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("recorded compute duration must be finite and nonnegative")
+    return value
+
+
+def _execution_seconds(execution):
+    if not execution.get("counted"):
+        return 0.
+    if "charged_seconds" in execution:
+        return _seconds(execution["charged_seconds"])
+    if execution.get("finished_at") is not None:
+        return max(0., execution["finished_at"] - execution.get("started_at", execution["finished_at"]))
+    if execution.get("status") == "interrupted":
+        # Legacy steps lack checkpoints. Reserve their originally allocated
+        # duration rather than inventing a termination time from today's clock.
+        if "timeout_seconds" not in execution:
+            raise ValueError("interrupted step has no recorded duration or allocated timeout")
+        return _seconds(execution["timeout_seconds"])
+    return max(0., time.time() - execution.get("started_at", time.time()))
+
+
+def _time_accounting(directory, execution, result):
+    """Read elapsed-time evidence; never rewrite archived execution records."""
+    if not execution.get("counted"):
+        return {"seconds": 0., "kind": "not_charged", "uncertain": False}
+    if result is not None and result.get("compute_seconds") is not None:
+        return {"seconds": _seconds(result["compute_seconds"]), "kind": "measured", "uncertain": False}
+    if execution.get("finished_at") is not None:
+        return {"seconds": _execution_seconds(execution), "kind": "recorded_finish", "uncertain": False}
+    child_path = directory / "computation-result.json"
+    if child_path.is_file():
+        child = read_json(child_path)
+        if child.get("compute_seconds") is not None:
+            return {"seconds": _seconds(child["compute_seconds"]), "kind": "completed_child", "uncertain": False}
+        if child.get("finished_at") is not None:
+            elapsed = max(0., child["finished_at"] - execution["started_at"])
+            return {"seconds": elapsed, "kind": "completed_child", "uncertain": False}
+    timing_path = directory / "timing.json"
+    if timing_path.is_file():
+        timing = read_json(timing_path)
+        if timing.get("result_id", directory.name) != directory.name:
+            raise ValueError("timing checkpoint belongs to another action")
+        terminal = bool(timing.get("terminal"))
+        return {"seconds": _seconds(timing["elapsed_seconds"]),
+                "kind": "measured" if terminal else "last_checkpoint",
+                "uncertain": not terminal,
+                "updated_at": timing.get("updated_at"),
+                "note": ("Recorded through completion." if terminal else
+                         "Recorded through the last checkpoint; an interruption tail is unmeasured.")}
+    interrupted = execution.get("status") == "interrupted"
+    return {"seconds": _execution_seconds(execution),
+            "kind": "legacy_timeout_reservation" if interrupted else "live_wall_clock",
+            "uncertain": interrupted,
+            **({"note": "No legacy timing checkpoint: charge the fixed original timeout reservation, not idle time."}
+               if interrupted else {})}
+
+
 def collect_steps(root, state):
     """Observe existing handles only. Observation never launches a replacement."""
     steps = []
@@ -75,6 +135,7 @@ def collect_steps(root, state):
         directory = Path(root) / "steps" / action_id
         execution = read_json(directory / "execution.json")
         result_path = directory / "result.json"
+        result = None
         if result_path.exists():
             result = read_json(result_path)
             execution["status"] = result["execution_status"]
@@ -93,17 +154,17 @@ def collect_steps(root, state):
             progress = directory / "comparison-progress.json"
             if execution["status"] == "interrupted" and progress.exists():
                 execution["solver_runs"] = read_json(progress)["solver_runs"]
+        accounting = _time_accounting(directory, execution, result)
+        execution["charged_seconds"] = accounting["seconds"]
+        execution["time_accounting"] = accounting
         steps.append({"action_id": action_id, "execution": execution,
-                      "result": read_json(result_path) if result_path.exists() else None,
+                      "result": result,
                       "action": read_json(directory / "action.json")})
     return steps
 
 
 def compute_seconds(steps):
-    now = time.time()
-    return sum(max(0., (s["execution"].get("finished_at") or now) -
-                      s["execution"].get("started_at", now))
-               for s in steps if s["execution"].get("counted"))
+    return sum(_execution_seconds(step["execution"]) for step in steps)
 
 
 def new_state(request):
