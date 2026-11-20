@@ -8,7 +8,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -32,7 +32,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -56,7 +56,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -255,7 +255,7 @@
       }
     ],
     "reduction_status": "rejected",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-report/report.md",
     "result_new_solver_runs": 8,
     "scientific_status": "usable_within_scope",
     "solver_runs": 12
@@ -397,7 +397,7 @@
         "value": 1.0
       }
     ],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-report/report.md",
     "result_new_solver_runs": 6,
     "scientific_status": "usable_within_scope",
     "solver_runs": 6
@@ -447,7 +447,7 @@
         "value": 0.009999999999999787
       }
     ],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-report/report.md",
     "result_new_solver_runs": 3,
     "scientific_status": "usable_within_scope",
     "solver_runs": 3
@@ -500,7 +500,7 @@
         "value": 0.004999999999999866
       }
     ],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-report/report.md",
     "result_new_solver_runs": 6,
     "scientific_status": "inconclusive",
     "solver_runs": 6
@@ -566,7 +566,7 @@
         "value": 0.009999999999999787
       }
     ],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-report/report.md",
     "result_new_solver_runs": 6,
     "scientific_status": "usable_within_scope",
     "solver_runs": 6,
@@ -606,7 +606,7 @@
         "value": null
       }
     ],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-report/report.md",
     "result_new_solver_runs": 3,
     "scientific_status": "inconclusive",
     "solver_runs": 3
@@ -616,7 +616,7 @@
     "blocker": "solver-run-budget-exhausted",
     "hypotheses": [],
     "observations": [],
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/G-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/G-report/report.md",
     "result_new_solver_runs": 0,
     "scientific_status": "inconclusive",
     "solver_runs": 0

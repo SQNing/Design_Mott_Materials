@@ -11,7 +11,7 @@
         "site_ref": "site:0"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/reductions/drop/models/model-0001",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/reductions/drop/models/model-0001",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -136,7 +136,7 @@
   "limitations": [
     "Coefficient norms alone do not bound the requested observables."
   ],
-  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/models/model-0001",
+  "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/models/model-0001",
   "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
   "schema_version": "reduction-candidate/v1",
   "status": "ready",

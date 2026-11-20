@@ -77,7 +77,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4.json",
         "case_id": "reference",
         "fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
         "inputs": {
@@ -426,7 +426,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a.json",
         "case_id": "reference",
         "fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
         "inputs": {
@@ -775,7 +775,7 @@
         "role": "anisotropy-off"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d.json",
         "case_id": "reference",
         "fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
         "inputs": {
@@ -1124,7 +1124,7 @@
         "role": "anisotropy-half"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45.json",
         "case_id": "modes",
         "fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
         "inputs": {
@@ -1478,7 +1478,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee.json",
         "case_id": "modes",
         "fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
         "inputs": {
@@ -1832,7 +1832,7 @@
         "role": "anisotropy-off"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/validation-cache/c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260.json",
         "case_id": "modes",
         "fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
         "inputs": {
@@ -3104,7 +3104,7 @@
         "A successful plan does not establish any physical hypothesis."
       ],
       "mechanism_id": "couplings",
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
       "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
       "points": [
         {
@@ -3122,7 +3122,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3254,7 +3254,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-off/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-off/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3386,7 +3386,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-half/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/points/anisotropy-half/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3883,5 +3883,5 @@
   },
   "task": "mechanism_test",
   "timeout": 180.0,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent"
 }

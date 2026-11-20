@@ -100,7 +100,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -124,7 +124,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -148,7 +148,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -211,7 +211,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -234,7 +234,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -257,7 +257,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -280,7 +280,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -303,7 +303,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -584,7 +584,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/control.json",
       "reused": true,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -593,7 +593,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-off.json",
       "reused": true,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -602,7 +602,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-half.json",
       "reused": true,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -611,7 +611,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "6f03dead1dd3603c5df96f5ac0bc5a88454082d815743f532385054bb0be090a",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-off.json",
       "reused": true,
       "role": "exchange-off",
       "scientific_status": "usable_within_scope"
@@ -620,7 +620,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "0b10cd526cdcba284b8f2b6b83c453d912ae3d2783c8faa914a98c464c654ade",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-half.json",
       "reused": true,
       "role": "exchange-half",
       "scientific_status": "usable_within_scope"
@@ -629,7 +629,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
       "reused": true,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -638,7 +638,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
       "reused": true,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -647,7 +647,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
       "reused": true,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -656,7 +656,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
       "reused": true,
       "role": "exchange-off",
       "scientific_status": "usable_within_scope"
@@ -665,7 +665,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
       "reused": true,
       "role": "exchange-half",
       "scientific_status": "usable_within_scope"
@@ -768,7 +768,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/control.json",
       "reused": true,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -777,7 +777,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-off.json",
       "reused": true,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -786,7 +786,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/anisotropy-half.json",
       "reused": true,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -795,7 +795,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "6f03dead1dd3603c5df96f5ac0bc5a88454082d815743f532385054bb0be090a",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-off.json",
       "reused": true,
       "role": "exchange-off",
       "scientific_status": "usable_within_scope"
@@ -804,7 +804,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "0b10cd526cdcba284b8f2b6b83c453d912ae3d2783c8faa914a98c464c654ade",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/reference/exchange-half.json",
       "reused": true,
       "role": "exchange-half",
       "scientific_status": "usable_within_scope"
@@ -813,7 +813,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
       "reused": true,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -822,7 +822,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
       "reused": true,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -831,7 +831,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
       "reused": true,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -840,7 +840,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
       "reused": true,
       "role": "exchange-off",
       "scientific_status": "usable_within_scope"
@@ -849,7 +849,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
       "reused": true,
       "role": "exchange-half",
       "scientific_status": "usable_within_scope"
@@ -865,7 +865,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -889,7 +889,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -913,7 +913,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -978,7 +978,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/control.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -1001,7 +1001,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-off.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -1024,7 +1024,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/anisotropy-half.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -1047,7 +1047,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "6dc5c48c6854dcfc197be8904423537dd46e3d30dbd7627ae702eed13c644e09",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-off.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -1070,7 +1070,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "3750e83bc517d777aeaf02bc9868c7563f77ba297b7bfd8132bc152dc80b20b0",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/A-reduction-to-mechanism/steps/finite-momentum/evidence/modes/exchange-half.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",

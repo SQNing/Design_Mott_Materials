@@ -12,10 +12,10 @@ Resume the same mechanism experiment.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -39,7 +39,7 @@ Which interaction controls the frequency at the selected momentum?
 - Preparation: ready
 - Parent is current: True
 - Full-model control: control
-[Intervention plan and complete models](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/record.json)
+[Intervention plan and complete models](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/mechanisms/couplings/record.json)
 
 - anisotropy: Uniaxial exchange anisotropy. Terms: small
 
@@ -57,7 +57,7 @@ Which interaction controls the frequency at the selected momentum?
 - Result model: ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf
 - Task: mechanism_test
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/result.json)
 
 - Mechanism study: couplings
 - New solver calls: 6
@@ -75,9 +75,9 @@ Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0
 
 Excluded confounded points: 
 
-- [anisotropy-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json): value -3.3292515621207596e-16; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
-- [anisotropy-half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json): value 0.009999999999999787; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json): value 0.019999999999999574; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [anisotropy-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json): value -3.3292515621207596e-16; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [anisotropy-half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json): value 0.009999999999999787; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json): value 0.019999999999999574; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
 
 ### anisotropy-necessary
 
@@ -87,8 +87,8 @@ Within the recorded finite model, varying group 'anisotropy' over [0.0, 1.0] giv
 
 Excluded confounded points: 
 
-- [anisotropy-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json): value -3.3292515621207596e-16; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json): value 0.019999999999999574; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [anisotropy-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json): value -3.3292515621207596e-16; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json): value 0.019999999999999574; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
 
 | Observable | Point | Value | Scientific usability |
 | --- | --- | --- | --- |
@@ -279,12 +279,12 @@ Tested scope:
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "c0dc131b37f17a3e4ff29784a51d295175447a00d96d9274e03ecaba70ad476a", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "99237db5788ea70fcb0c2b79f62880808b9214b9b4be1868f518cf92606ca40d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/reference/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "deb8fef24ad34445c5b513816b8dc911b71716f4c0989ba75157b12483c993ee", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "c2605d0d78cb74adb1ad93ffbb6db6c749ed227998bacc6467f85d253eec8260", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/E-resume/steps/persistent/evidence/modes/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.
 - Scope/limitation: Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.

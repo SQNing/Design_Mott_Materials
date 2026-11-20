@@ -19,7 +19,7 @@
         "site_ref": "site:1"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/models/model-0001",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/models/model-0001",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -1179,7 +1179,7 @@
   "limitations": [
     "Coefficient norms alone do not bound the requested observables."
   ],
-  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
+  "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
   "parent_model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
   "schema_version": "reduction-candidate/v1",
   "status": "ready",

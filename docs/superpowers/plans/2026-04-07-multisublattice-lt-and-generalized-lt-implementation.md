@@ -13,19 +13,19 @@
 ## File Structure
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_fourier_exchange.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_brillouin_zone.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_solver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_constraint_recovery.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/generalized_lt_solver.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/render_report.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/render_plots.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_fourier_exchange.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_brillouin_zone.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_constraint_recovery.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/generalized_lt_solver.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/render_report.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/render_plots.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py`
 - Reference: `/data/work/zhli/docs/notes/2026-04-06-luttinger-tisza-and-generalized-lt-note.md`
 
 ### Responsibility Map
@@ -59,8 +59,8 @@
 ### Task 1: Fourier Exchange Matrix Foundation
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_fourier_exchange.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_fourier_exchange.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -73,7 +73,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py -q
 ```
 
 Expected:
@@ -90,7 +90,7 @@ Add a first version of:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py -q
 ```
 
 Expected:
@@ -101,9 +101,9 @@ Expected:
 ### Task 2: Full Brillouin-Zone LT Search
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_brillouin_zone.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_brillouin_zone.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_solver.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -116,7 +116,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py -q
 ```
 
 Expected:
@@ -137,7 +137,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py -q
 ```
 
 Expected:
@@ -148,8 +148,8 @@ Expected:
 ### Task 3: Strong-Constraint Recovery
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lt_constraint_recovery.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lt_constraint_recovery.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -162,7 +162,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py -q
 ```
 
 Expected:
@@ -179,7 +179,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py -q
 ```
 
 Expected:
@@ -190,8 +190,8 @@ Expected:
 ### Task 4: Generalized LT Outer Optimization
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/generalized_lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/generalized_lt_solver.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -208,7 +208,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py -q
 ```
 
 Expected:
@@ -226,7 +226,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py -q
 ```
 
 Expected:
@@ -237,10 +237,10 @@ Expected:
 ### Task 5: Pipeline Integration
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/render_report.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/render_plots.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/render_report.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/render_plots.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py`
 
 - [ ] **Step 1: Write the failing integration tests**
 
@@ -253,7 +253,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py -q
 ```
 
 Expected:
@@ -274,7 +274,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py -q
 ```
 
 Expected:
@@ -292,11 +292,11 @@ Expected:
 Run:
 ```bash
 python -m pytest \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_fourier_exchange.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_solver.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_constraint_recovery.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_generalized_lt_solver.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_lt_pipeline_integration.py \
   -q
 ```
 
@@ -307,7 +307,7 @@ Expected:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests -q
 ```
 
 Expected:

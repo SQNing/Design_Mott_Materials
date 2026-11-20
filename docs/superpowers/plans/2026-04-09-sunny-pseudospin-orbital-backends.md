@@ -129,12 +129,12 @@ Expected: PASS
 - [ ] **Step 8: Commit the classical backend adapter slice**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/classical/sunny_sun_classical_driver.py \
   translation-invariant-spin-model-simplifier/scripts/classical/run_sunny_sun_classical.jl \
   translation-invariant-spin-model-simplifier/tests/test_sunny_sun_classical_driver.py \
   translation-invariant-spin-model-simplifier/tests/test_run_sunny_sun_classical_script.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add Sunny classical backend adapter"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: add Sunny classical backend adapter"
 ```
 
 ### Task 2: Wire the Sunny Classical Method Into the Pseudospin-Orbital CLI
@@ -247,10 +247,10 @@ Expected: PASS
 - [ ] **Step 8: Commit the CLI classical integration slice**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py \
   translation-invariant-spin-model-simplifier/tests/test_solve_pseudospin_orbital_pipeline_cli.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: expose Sunny classical method in pseudospin CLI"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: expose Sunny classical method in pseudospin CLI"
 ```
 
 ### Task 3: Add the Sunny Thermodynamics Adapter and Backend Scripts
@@ -383,12 +383,12 @@ Expected: PASS
 - [ ] **Step 9: Commit the thermodynamics adapter slice**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/classical/sunny_sun_thermodynamics_driver.py \
   translation-invariant-spin-model-simplifier/scripts/classical/run_sunny_sun_thermodynamics.jl \
   translation-invariant-spin-model-simplifier/tests/test_sunny_sun_thermodynamics_driver.py \
   translation-invariant-spin-model-simplifier/tests/test_run_sunny_sun_thermodynamics_script.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add Sunny thermodynamics backend adapter"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: add Sunny thermodynamics backend adapter"
 ```
 
 ### Task 4: Integrate Thermodynamics Into the Pseudospin-Orbital CLI
@@ -568,10 +568,10 @@ Expected: PASS
 - [ ] **Step 9: Commit the thermodynamics CLI integration slice**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py \
   translation-invariant-spin-model-simplifier/tests/test_solve_pseudospin_orbital_pipeline_cli.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add Sunny thermodynamics options to pseudospin CLI"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: add Sunny thermodynamics options to pseudospin CLI"
 ```
 
 ### Task 5: Update User-Facing Docs and Run End-to-End Verification
@@ -640,6 +640,6 @@ Expected: JSON manifest with `"status": "ok"` if `julia` and `Sunny.jl` are avai
 - [ ] **Step 7: Commit the docs and verification slice**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add README.md translation-invariant-spin-model-simplifier/SKILL.md
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "docs: document Sunny pseudospin-orbital backends"
+git -C /data/work/zhli/soft/spinforge add README.md translation-invariant-spin-model-simplifier/SKILL.md
+git -C /data/work/zhli/soft/spinforge commit -m "docs: document Sunny pseudospin-orbital backends"
 ```

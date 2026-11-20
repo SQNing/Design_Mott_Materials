@@ -134,7 +134,7 @@ P4 的 12×12 随机搜索给出能量 -0.849975785702，驻点残差约 3.20e-7
 远端完整记录目录：
 
 ```
-/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001
+/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001
 ```
 
 该目录保留首次脚本版本、最终脚本版本、原始失败日志、完成报告和全部 worker 结果。重复相同动作会复用已有记录；新的物理设置应使用新的动作标识。本地目录是可读报告、图件与摘要镜像，完整数值证据仍在 gpulzh。

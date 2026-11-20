@@ -31,7 +31,7 @@
       }
     ],
     "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/A-weak-exchange-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/A-weak-exchange-report/report.md",
     "scientific_status": "usable_within_scope",
     "solver_runs": 4,
     "verdict": "accepted_within_scope"
@@ -68,7 +68,7 @@
       }
     ],
     "model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy-report/report.md",
     "scientific_status": "usable_within_scope",
     "solver_runs": 4,
     "verdict": "rejected"
@@ -105,7 +105,7 @@
       }
     ],
     "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level-report/report.md",
     "scientific_status": "usable_within_scope",
     "solver_runs": 4,
     "verdict": "accepted_within_scope"
@@ -180,7 +180,7 @@
       }
     ],
     "model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace-report/report.md",
     "scientific_status": "usable_within_scope",
     "solver_runs": 4,
     "verdict": "rejected"
@@ -217,7 +217,7 @@
       }
     ],
     "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/E-resume-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/E-resume-report/report.md",
     "scientific_status": "usable_within_scope",
     "solver_runs": 4,
     "verdict": "accepted_within_scope",
@@ -231,7 +231,7 @@
     "blocker": "solver-run-budget-exhausted",
     "metrics": null,
     "model_id": "ad008c1822c6d3f4126bc9614621338da8e834ad982080bdc4e69ef63b03edfa",
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget-report/report.md",
     "scientific_status": "inconclusive",
     "solver_runs": 0,
     "verdict": null

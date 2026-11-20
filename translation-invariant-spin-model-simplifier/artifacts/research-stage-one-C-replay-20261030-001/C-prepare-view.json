@@ -9,7 +9,7 @@
   },
   "compute_seconds": 0,
   "model": {
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0001",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0001",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -52,7 +52,7 @@
     "classical_ground_state",
     "harmonic_spectrum"
   ],
-  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document",
+  "run_dir": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document",
   "schema_version": "research-inspection/v1",
   "solver_runs": 0,
   "status": "needs_input",

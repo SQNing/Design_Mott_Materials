@@ -143,9 +143,9 @@ Julia resolution order (all Sunny/LSWT drivers and the research adapter share
 `scripts/common/julia_environment.py`):
 
 1. an explicit `julia_cmd` argument passed to the driver,
-2. `DESIGN_MOTT_JULIA_CMD` (see below),
+2. `SPINFORGE_JULIA_CMD` (see below),
 3. the repo-local wrapper `scripts/run_project_julia.sh`, but only when its
-   configured interpreter (`DESIGN_MOTT_JULIA_BIN`, default
+   configured interpreter (`SPINFORGE_JULIA_BIN`, default
    `/data/work/zhli/soft/julia-1.12.6/bin/julia`) is executable,
 4. `julia` on `PATH`.
 
@@ -155,7 +155,7 @@ silent fallback to the Python backends.
 
 Optional override:
 
-- `DESIGN_MOTT_JULIA_CMD`
+- `SPINFORGE_JULIA_CMD`
   Purpose:
   Lets the Python-side Sunny drivers use a specific Julia binary when `julia`
   on `PATH` is older than the expected 1.12.x line.
@@ -164,11 +164,15 @@ Optional override:
   - the Sunny pseudospin-orbital classical driver
   - the Sunny pseudospin-orbital thermodynamics driver
   - the Sunny SUN-GSWT Python driver
-- `DESIGN_MOTT_JULIA_BIN`
+- `SPINFORGE_JULIA_BIN`
   Purpose:
   Overrides the interpreter path used by `scripts/run_project_julia.sh`
   (default `/data/work/zhli/soft/julia-1.12.6/bin/julia`), so the wrapper works
   on machines where Julia 1.12.x lives elsewhere.
+
+Legacy aliases from the pre-rename checkout are still honored:
+`DESIGN_MOTT_JULIA_CMD`, `DESIGN_MOTT_JULIA_BIN`, `DESIGN_MOTT_JULIA_DEPOT`
+(the `SPINFORGE_*` names take precedence).
 
 Verification:
 
@@ -298,7 +302,7 @@ Before execution, inspect the following environment facts:
 - Is a Sunny-backed backend requested, and if so is `julia` plus the local
   Julia project already instantiated?
 - If LSWT needs a newer Julia than the default `julia` on `PATH`, what should
-  `DESIGN_MOTT_JULIA_CMD` point to?
+  `SPINFORGE_JULIA_CMD` point to?
 - Is PDF output required, and if so is `pdflatex` installed?
 - Are all required input files already present?
 ## Recommended Julia launcher
@@ -313,7 +317,7 @@ with `grantpt failed`.
 Recommended shell export:
 
 ```bash
-export DESIGN_MOTT_JULIA_CMD=/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh
+export SPINFORGE_JULIA_CMD=/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/run_project_julia.sh
 ```
 
 The wrapper currently applies:

@@ -83,7 +83,7 @@ Expected: all focused LSWT payload/driver tests pass.
 **Files:**
 - Read/Write: `/data/work/zhli/run/codex/spin-effective-Hamiltonian/FeI2/results/fei2_v2b_lswt_rerun_<timestamp>/`
 
-- [ ] **Step 1: Re-run the saved FeI2 `classical/solver_result.json` through `execute_downstream_stage(..., "lswt")` with `DESIGN_MOTT_JULIA_CMD` set to the repo wrapper**
+- [ ] **Step 1: Re-run the saved FeI2 `classical/solver_result.json` through `execute_downstream_stage(..., "lswt")` with `SPINFORGE_JULIA_CMD` set to the repo wrapper**
 
 - [ ] **Step 2: Save the route/result artifacts under a fresh rerun directory**
 
@@ -98,8 +98,8 @@ Expected: either a successful LSWT result or a new backend/model issue that is l
 ### Task 6: Final verification and checkpoint
 
 **Files:**
-- Modify if needed: `session-memory/sessions/design-mott-materials-2026-04-21-0342.md`
-- Modify if needed: `session-memory/index/design-mott-materials.md`
+- Modify if needed: `session-memory/sessions/spinforge-2026-04-21-0342.md`
+- Modify if needed: `session-memory/index/spinforge.md`
 
 - [ ] **Step 1: Run the focused LSWT regression slice**
 

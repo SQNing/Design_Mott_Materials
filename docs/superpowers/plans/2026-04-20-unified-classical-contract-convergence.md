@@ -25,23 +25,23 @@ This plan is therefore a forward-looking cleanup and convergence plan. It should
 ## File Structure
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/common/cpn_classical_state.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/output/render_report.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/output/render_plots.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/classical/decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/build_python_glswt_payload.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/single_q_z_harmonic_convergence_driver.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_output_classical_contract_rendering.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_classical_solver_layer_adapters.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_build_python_glswt_payload.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_single_q_z_harmonic_convergence.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-20-unified-classical-solver-layer-design.md`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/common/cpn_classical_state.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/output/render_report.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/output/render_plots.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/classical/decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lswt/build_python_glswt_payload.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lswt/single_q_z_harmonic_convergence_driver.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_output_classical_contract_rendering.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_classical_solver_layer_adapters.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_build_python_glswt_payload.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_single_q_z_harmonic_convergence.py`
+- Modify: `/data/work/zhli/soft/spinforge/docs/superpowers/specs/2026-04-20-unified-classical-solver-layer-design.md`
 
 **Responsibilities:**
 - `classical_contract_resolution.py`
@@ -66,8 +66,8 @@ Notes:
 ## Task 1: Create A Shared Classical Contract Resolver
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
 
 - [ ] **Step 1: Write the failing shared-resolver tests**
 
@@ -81,7 +81,7 @@ Cover:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest tests/test_classical_contract_resolution.py -q
 ```
 
@@ -108,7 +108,7 @@ Required behavior:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest tests/test_classical_contract_resolution.py -q
 ```
 
@@ -118,25 +118,25 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add shared classical contract resolver"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: add shared classical contract resolver"
 ```
 
 ## Task 2: Rebase Contract Consumers On The Shared Resolver
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/common/cpn_classical_state.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/output/render_report.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/output/render_plots.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/classical/decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_output_classical_contract_rendering.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decision_gates.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/common/cpn_classical_state.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/output/render_report.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/output/render_plots.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/classical/decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_output_classical_contract_rendering.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decision_gates.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py`
 
 - [ ] **Step 1: Write the failing consumer tests**
 
@@ -150,7 +150,7 @@ Cover:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_classical_contract_resolution.py \
   tests/test_write_results_bundle.py \
@@ -178,7 +178,7 @@ Required behavior:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_classical_contract_resolution.py \
   tests/test_write_results_bundle.py \
@@ -193,27 +193,27 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/common/cpn_classical_state.py \
   translation-invariant-spin-model-simplifier/scripts/cli/write_results_bundle.py \
   translation-invariant-spin-model-simplifier/scripts/output/render_report.py \
   translation-invariant-spin-model-simplifier/scripts/output/render_plots.py \
   translation-invariant-spin-model-simplifier/scripts/classical/decision_gates.py \
   translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_classical_contract_resolution.py \
   translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py \
   translation-invariant-spin-model-simplifier/tests/test_output_classical_contract_rendering.py \
   translation-invariant-spin-model-simplifier/tests/test_decision_gates.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "refactor: share classical contract resolution"
+git -C /data/work/zhli/soft/spinforge commit -m "refactor: share classical contract resolution"
 ```
 
 ## Task 3: Narrow The Pseudospin Bundle Compatibility Surface
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_classical_solver_layer_adapters.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_classical_solver_layer_adapters.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py`
 
 - [ ] **Step 1: Write the failing pseudospin bundle tests**
 
@@ -226,7 +226,7 @@ Cover:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_classical_solver_layer_adapters.py \
   tests/test_write_results_bundle.py \
@@ -252,7 +252,7 @@ Required behavior:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_classical_solver_layer_adapters.py \
   tests/test_write_results_bundle.py \
@@ -265,22 +265,22 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/cli/solve_pseudospin_orbital_pipeline.py \
   translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_classical_solver_layer_adapters.py \
   translation-invariant-spin-model-simplifier/tests/test_write_results_bundle.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "refactor: quarantine pseudospin classical compatibility fields"
+git -C /data/work/zhli/soft/spinforge commit -m "refactor: quarantine pseudospin classical compatibility fields"
 ```
 
 ## Task 4: Extend The Standardized Contract Into Auxiliary GLSWT Workflows
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/build_python_glswt_payload.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/lswt/single_q_z_harmonic_convergence_driver.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_build_python_glswt_payload.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_single_q_z_harmonic_convergence.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lswt/build_python_glswt_payload.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/lswt/single_q_z_harmonic_convergence_driver.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_build_python_glswt_payload.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_single_q_z_harmonic_convergence.py`
 
 - [ ] **Step 1: Write the failing auxiliary-workflow tests**
 
@@ -293,7 +293,7 @@ Cover:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_build_python_glswt_payload.py \
   tests/test_single_q_z_harmonic_convergence.py \
@@ -319,7 +319,7 @@ Required behavior:
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_build_python_glswt_payload.py \
   tests/test_single_q_z_harmonic_convergence.py \
@@ -332,26 +332,26 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/lswt/build_python_glswt_payload.py \
   translation-invariant-spin-model-simplifier/scripts/lswt/single_q_z_harmonic_convergence_driver.py \
   translation-invariant-spin-model-simplifier/scripts/common/classical_contract_resolution.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_build_python_glswt_payload.py \
   translation-invariant-spin-model-simplifier/tests/test_single_q_z_harmonic_convergence.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: extend classical contract into auxiliary glswt workflows"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: extend classical contract into auxiliary glswt workflows"
 ```
 
 ## Task 5: Regression Verification And Spec Refresh
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/docs/superpowers/specs/2026-04-20-unified-classical-solver-layer-design.md`
+- Modify: `/data/work/zhli/soft/spinforge/docs/superpowers/specs/2026-04-20-unified-classical-solver-layer-design.md`
 
 - [ ] **Step 1: Run the full targeted regression suite**
 
 Run:
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 python -m pytest \
   tests/test_classical_state_result.py \
   tests/test_classical_contract_resolution.py \
@@ -383,7 +383,7 @@ Document:
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   docs/superpowers/specs/2026-04-20-unified-classical-solver-layer-design.md
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "docs: refresh unified classical contract status"
+git -C /data/work/zhli/soft/spinforge commit -m "docs: refresh unified classical contract status"
 ```

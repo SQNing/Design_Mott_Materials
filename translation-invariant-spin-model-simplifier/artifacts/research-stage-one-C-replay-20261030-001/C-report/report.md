@@ -12,10 +12,10 @@ Find the requested finite reference and spectrum after clarifying operator norma
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/models/model-0002/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -37,7 +37,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 58d703c063d0393a07c9ff533efb3bd4bc8e5e80fb96aba600f5525dffe2904f
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/steps/host-ground/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/steps/host-ground/result.json)
 
 ```json
 {
@@ -70,7 +70,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 58d703c063d0393a07c9ff533efb3bd4bc8e5e80fb96aba600f5525dffe2904f
 - Task: spin_wave_spectrum
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/steps/host-spectrum/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document/steps/host-spectrum/result.json)
 
 Reference reused from: host-ground.
 
@@ -98,7 +98,7 @@ Reference reused from: host-ground.
 - Scope/limitation: For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).
 - Scope/limitation: Zero-point energy is a finite BZ quadrature, not an exact many-body energy.
 
-[Spectrum samples, primitive reciprocal coordinates](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/host-spectrum-spectrum.csv)
+[Spectrum samples, primitive reciprocal coordinates](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/host-spectrum-spectrum.csv)
 
 ## Agent assessment
 

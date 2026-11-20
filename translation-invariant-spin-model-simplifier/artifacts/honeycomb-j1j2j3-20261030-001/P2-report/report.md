@@ -12,10 +12,10 @@ Determine the finite-cell classical ground-state family and numerical robustness
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -47,7 +47,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Parent is current: True
 - Complexity: {"candidate_dimension": null, "candidate_terms": 9, "full_dimension": null, "full_terms": 12}
 - A prepared candidate is not yet a validated approximation.
-[Candidate and operator mapping](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/record.json)
+[Candidate and operator mapping](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/record.json)
 
 - Limitation: Coefficient norms alone do not bound the requested observables.
 
@@ -60,7 +60,7 @@ Are J2 or J3 negligible for the ground-state energy and selected state at P2?
 - Preparation: ready
 - Parent is current: True
 - Full-model control: control
-[Intervention plan and complete models](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/record.json)
+[Intervention plan and complete models](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/record.json)
 
 - J2: All six second-neighbour bonds per cell Terms: J2:0:0, J2:0:1, J2:0:2, J2:1:0, J2:1:1, J2:1:2
 - J3: All three third-neighbour bonds per cell Terms: J3:0:0, J3:0:1, J3:0:2
@@ -81,7 +81,7 @@ Are J2 or J3 negligible for the ground-state energy and selected state at P2?
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L4-seed31/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L4-seed31/result.json)
 
 ```json
 {
@@ -114,7 +114,7 @@ Are J2 or J3 negligible for the ground-state energy and selected state at P2?
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L4-seed97/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L4-seed97/result.json)
 
 ```json
 {
@@ -147,7 +147,7 @@ Are J2 or J3 negligible for the ground-state energy and selected state at P2?
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L6-seed53/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/ground-L6-seed53/result.json)
 
 ```json
 {
@@ -180,7 +180,7 @@ Are J2 or J3 negligible for the ground-state energy and selected state at P2?
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/result.json)
 
 - Simplification verdict: rejected
 - Candidate: drop-J3
@@ -312,19 +312,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json), reused: False
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json), reused: False
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json), reused: False
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json), reused: False
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json), reused: False
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json), reused: False
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json), reused: False
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json), reused: False
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/reference/candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3/evidence/modes/candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.
@@ -339,7 +339,7 @@ Tested scope:
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: mechanism_test
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/result.json)
 
 - Mechanism study: coupling-controls
 - New solver calls: 5
@@ -357,9 +357,9 @@ Within the recorded finite model, varying group 'J2' over [0.0, 0.5, 1.0] gives 
 
 Excluded confounded points: J3-off, J3-half
 
-- [J2-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json): value -1.3500000000000019; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
-- [J2-half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json): value -0.9000000000000008; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json): value -0.6500000000000006; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [J2-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json): value -1.3500000000000019; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [J2-half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json): value -0.9000000000000008; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json): value -0.6500000000000006; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
 
 ### J3-negligible
 
@@ -369,9 +369,9 @@ Within the recorded finite model, varying group 'J3' over [0.0, 0.5, 1.0] gives 
 
 Excluded confounded points: J2-off, J2-half
 
-- [J3-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json): value -0.5499999999999998; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
-- [J3-half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json): value -0.44999999999999996; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json): value -0.6500000000000006; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [J3-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json): value -0.5499999999999998; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [J3-half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json): value -0.44999999999999996; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json): value -0.6500000000000006; selector {"case_id": "ground", "kind": "energy_per_cell", "observable_id": "energy"}
 
 | Observable | Point | Value | Scientific usability |
 | --- | --- | --- | --- |
@@ -563,11 +563,11 @@ Tested scope:
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json", "reused": false, "role": "J2-off", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json", "reused": false, "role": "J2-half", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json", "reused": false, "role": "J3-off", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json", "reused": false, "role": "J3-half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json", "reused": false, "role": "J2-off", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json", "reused": false, "role": "J2-half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json", "reused": false, "role": "J3-off", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "ground", "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json", "reused": false, "role": "J3-half", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.
 - Scope/limitation: Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.
@@ -585,7 +585,7 @@ Tested scope:
 - Result model: d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/fourier-seeded-L2/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/fourier-seeded-L2/result.json)
 
 ```json
 {

@@ -13,7 +13,7 @@ Phase 2 should make the remaining Sunny-backed chains agree on:
 - the canonical repo-local Julia depot:
   `translation-invariant-spin-model-simplifier/scripts/.julia-depot`
 - the optional Python-side Julia binary override:
-  `DESIGN_MOTT_JULIA_CMD`
+  `SPINFORGE_JULIA_CMD`
 - consistent reference documentation and regression tests that lock this
   baseline in place
 
@@ -28,7 +28,7 @@ Phase 1 deliberately stopped after migrating the spin-only LSWT path. That was
 the correct scope boundary, and it succeeded:
 
 - `run_sunny_lswt.jl` now activates `.julia-env-v09`
-- `linear_spin_wave_driver.py` now respects `DESIGN_MOTT_JULIA_CMD`
+- `linear_spin_wave_driver.py` now respects `SPINFORGE_JULIA_CMD`
 - `reference/environment.md` describes `Sunny.jl 0.9.x`
 - the real FeI2 LSWT rerun moved from missing-package failure to a real Sunny
   instability
@@ -43,7 +43,7 @@ Current remaining drift:
 2. `run_sunny_sun_thermodynamics.jl` still points at the old `v06` location.
 3. `run_sunny_sun_gswt.jl` still points at the old `v06` location.
 4. `sunny_sun_classical_driver.py` still defaults directly to `"julia"` and
-   does not inherit the `DESIGN_MOTT_JULIA_CMD` override pattern.
+   does not inherit the `SPINFORGE_JULIA_CMD` override pattern.
 5. `sunny_sun_thermodynamics_driver.py` has the same problem.
 6. `sun_gswt_driver.py` has the same problem.
 
@@ -97,7 +97,7 @@ The desired steady state is:
 
 ```text
 Sunny-family Python drivers
-  -> optional DESIGN_MOTT_JULIA_CMD override
+  -> optional SPINFORGE_JULIA_CMD override
   -> repo-local Julia launchers
   -> repo-local .julia-env-v09 project
   -> repo-local scripts/.julia-depot
@@ -132,7 +132,7 @@ The remaining Python drivers should follow the same resolution order as
 `linear_spin_wave_driver.py`:
 
 1. explicit `julia_cmd` argument if provided
-2. `DESIGN_MOTT_JULIA_CMD` from the environment if set
+2. `SPINFORGE_JULIA_CMD` from the environment if set
 3. plain `"julia"` as the final fallback
 
 This behavior should apply both to library calls and to CLI entrypoints. That
@@ -158,7 +158,7 @@ For scripts under `scripts/classical/` or `scripts/lswt/`, that means:
 
 Phase 2 should add or extend tests that make future drift obvious:
 
-- driver tests that prove `DESIGN_MOTT_JULIA_CMD` overrides the default Julia
+- driver tests that prove `SPINFORGE_JULIA_CMD` overrides the default Julia
   binary
 - driver tests that prove plain `"julia"` remains the fallback when no override
   is present
@@ -226,7 +226,7 @@ Write failing tests for:
 Update the three Python drivers so they all respect:
 
 - explicit `julia_cmd`
-- `DESIGN_MOTT_JULIA_CMD`
+- `SPINFORGE_JULIA_CMD`
 - fallback to `"julia"`
 
 and ensure CLI entrypoints do not defeat that behavior.
@@ -254,7 +254,7 @@ After Phase 2:
 
 - every checked-in Sunny-family launcher uses `.julia-env-v09`
 - every checked-in Sunny-family Python adapter can honor
-  `DESIGN_MOTT_JULIA_CMD`
+  `SPINFORGE_JULIA_CMD`
 - `reference/environment.md` describes a single shared Sunny-family runtime
   story
 - future environment drift is caught by tests instead of rediscovered during a

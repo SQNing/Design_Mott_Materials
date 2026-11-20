@@ -12,10 +12,10 @@ Resolve finite-cell commensurability in the J3-half intervention.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -46,7 +46,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 5fdb0593496517616a3f5e2fe5b1feab3ca82119a6c956d423b95ea1e7b40d05
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/steps/fourier-seeded-L36/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2-J3-half-L36/steps/fourier-seeded-L36/result.json)
 
 ```json
 {

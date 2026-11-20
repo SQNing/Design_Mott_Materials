@@ -16,7 +16,7 @@
     "A successful plan does not establish any physical hypothesis."
   ],
   "mechanism_id": "levels",
-  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001",
+  "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001",
   "parent_model_id": "3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f",
   "points": [
     {
@@ -34,7 +34,7 @@
             "site_ref": "site:0"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/points/half/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/points/half/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null
@@ -163,7 +163,7 @@
             "site_ref": "site:0"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null
@@ -292,7 +292,7 @@
             "site_ref": "site:0"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/points/strong/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/points/strong/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null

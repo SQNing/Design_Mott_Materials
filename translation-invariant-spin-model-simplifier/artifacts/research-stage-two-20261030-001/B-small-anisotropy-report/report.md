@@ -12,10 +12,10 @@ Can the explicitly selected interaction be neglected for these observables?
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -39,7 +39,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Parent is current: True
 - Complexity: {"candidate_dimension": null, "candidate_terms": 3, "full_dimension": null, "full_terms": 4}
 - A prepared candidate is not yet a validated approximation.
-[Candidate and operator mapping](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/reductions/drop/record.json)
+[Candidate and operator mapping](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/reductions/drop/record.json)
 
 - Limitation: Coefficient norms alone do not bound the requested observables.
 
@@ -51,7 +51,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/result.json)
 
 - Simplification verdict: rejected
 - Candidate: drop
@@ -170,19 +170,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-full.json), reused: False
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-candidate.json), reused: False
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-full.json), reused: False
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-candidate.json), reused: False
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-full.json), reused: False
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-candidate.json), reused: False
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-full.json), reused: False
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-candidate.json), reused: False
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e66a23b2120fe0a105b03c160374f9a2754d4741a55331717f3a1ec72b028b40", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "8d5948c4a2bc6344e48347fe99ccba65ac3c8f2f8c3b21f02ff05dab1fe74196", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "c26ce040b95b0b4e64a90f1a2b2b78325cb3f81c03cb8274d118fecd72004918", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "265ad13a1f239213766374a81b2070ecdbae93e43ec8f4db3ad76e8892cdf258", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e66a23b2120fe0a105b03c160374f9a2754d4741a55331717f3a1ec72b028b40", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "8d5948c4a2bc6344e48347fe99ccba65ac3c8f2f8c3b21f02ff05dab1fe74196", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "c26ce040b95b0b4e64a90f1a2b2b78325cb3f81c03cb8274d118fecd72004918", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "265ad13a1f239213766374a81b2070ecdbae93e43ec8f4db3ad76e8892cdf258", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/B-small-anisotropy/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.

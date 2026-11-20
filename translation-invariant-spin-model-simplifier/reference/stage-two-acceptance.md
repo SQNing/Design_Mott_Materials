@@ -43,7 +43,7 @@ python -B -m pytest --disable-warnings -q -p no:cacheprovider \
 最终持久化结果：
 
 ~~~text
-/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/
+/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/
 ~~~
 
 | 案例 | 实际操作 | 结果 |

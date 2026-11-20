@@ -57,7 +57,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95.json",
         "case_id": "ground",
         "fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
         "inputs": {
@@ -1535,7 +1535,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0.json",
         "case_id": "ground",
         "fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0",
         "inputs": {
@@ -2941,7 +2941,7 @@
         "role": "J2-off"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8.json",
         "case_id": "ground",
         "fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8",
         "inputs": {
@@ -4347,7 +4347,7 @@
         "role": "J2-half"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd.json",
         "case_id": "ground",
         "fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd",
         "inputs": {
@@ -5753,7 +5753,7 @@
         "role": "J3-off"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae.json",
         "case_id": "ground",
         "fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae",
         "inputs": {
@@ -14022,7 +14022,7 @@
         "A successful plan does not establish any physical hypothesis."
       ],
       "mechanism_id": "coupling-controls",
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
       "parent_model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
       "points": [
         {
@@ -14049,7 +14049,7 @@
                 "site_ref": "site:1"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -15225,7 +15225,7 @@
                 "site_ref": "site:1"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J2-off/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J2-off/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -16401,7 +16401,7 @@
                 "site_ref": "site:1"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J2-half/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J2-half/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -17577,7 +17577,7 @@
                 "site_ref": "site:1"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J3-off/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J3-off/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -18753,7 +18753,7 @@
                 "site_ref": "site:1"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J3-half/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/points/J3-half/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -21386,5 +21386,5 @@
   },
   "task": "mechanism_test",
   "timeout": 480.51761531829834,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses"
 }

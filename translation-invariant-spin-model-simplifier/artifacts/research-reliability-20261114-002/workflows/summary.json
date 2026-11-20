@@ -29,7 +29,7 @@
     },
     "interrupted_charge_after_idle": 0.6081531047821045,
     "interrupted_charge_before": 0.6081531047821045,
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/A-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/A-report/report.md",
     "solver_runs": 2
   },
   "B": {
@@ -57,7 +57,7 @@
     },
     "initial_energy_per_cell": -0.42498789285113153,
     "initial_gap": 1.2107148868567563e-05,
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/B-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/B-report/report.md",
     "solver_runs": 1
   },
   "C": {
@@ -88,7 +88,7 @@
       "enabled": true,
       "reason": "No tested lowest Fourier mode satisfies every local length constraint and the energy bound."
     },
-    "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-report/report.md",
+    "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-report/report.md",
     "solver_runs": 1
   },
   "code_identity": {
@@ -105,6 +105,6 @@
   },
   "script_sha256": "6bcd6a0f5127bf2f74e1adc3bae993c7bad08c6241e42427424294741bfe5727",
   "solver_attempts": 4,
-  "source_model": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4-model.json",
+  "source_model": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4-model.json",
   "source_model_sha256": "ef73d578ca28a94b642664def274cec82cbe65ec3117dd6860ab8f92b7b5b634"
 }

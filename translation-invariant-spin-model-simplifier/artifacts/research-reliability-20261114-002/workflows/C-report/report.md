@@ -12,10 +12,10 @@ Distinguish an unattainable relaxed LT bound from a failed stationary search.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -40,7 +40,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Charged compute seconds: 0.5007928479462862
 - Time accounting: measured
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/steps/reference/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-reliability-20261114-002/workflows/C-loose-bound/steps/reference/result.json)
 
 ```json
 {

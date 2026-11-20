@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3, pytest, JSON, SHA-256, curl, pdftotext, unshare, strace, NumPy/SciPy, existing ED/GLT/TenPy helpers, Matplotlib.
 
-**Working Directory:** Run every relative path and command below from /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier. Git add and commit commands run from /data/work/zhli/soft/Design_Mott_Materials and therefore prefix paths with translation-invariant-spin-model-simplifier.
+**Working Directory:** Run every relative path and command below from /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier. Git add and commit commands run from /data/work/zhli/soft/spinforge and therefore prefix paths with translation-invariant-spin-model-simplifier.
 
 ---
 
@@ -108,7 +108,7 @@ one fresh implementer at a time. Every implementer follows
 followed first by spec-compliance review and then code-quality review.
 
 The repository root for every path below is
-`/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit`;
+`/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit`;
 commands that name `tests/`, `scripts/`, `reference/`, or `source-cache/` run
 from its `translation-invariant-spin-model-simplifier/` child unless stated
 otherwise. All subagents are explicitly configured as `gpt-5.6-sol` with
@@ -180,7 +180,7 @@ from pathlib import Path
 
 repo = Path.cwd().resolve()
 expected_repo = Path(
-    "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit"
+    "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit"
 )
 if repo != expected_repo:
     raise SystemExit(f"run from repository root {expected_repo}, got {repo}")

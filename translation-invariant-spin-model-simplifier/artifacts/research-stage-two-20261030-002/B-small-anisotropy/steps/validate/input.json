@@ -30,7 +30,7 @@
             "site_ref": "site:0"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/reductions/drop/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/reductions/drop/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null
@@ -155,7 +155,7 @@
       "limitations": [
         "Coefficient norms alone do not bound the requested observables."
       ],
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/models/model-0001",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/models/model-0001",
       "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
       "schema_version": "reduction-candidate/v1",
       "status": "ready",
@@ -273,7 +273,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/e0773522bc257975f9ecdaab9293e7d0c1c49fffdd2650bd5443c099cce63742.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/e0773522bc257975f9ecdaab9293e7d0c1c49fffdd2650bd5443c099cce63742.json",
         "case_id": "reference",
         "fingerprint": "e0773522bc257975f9ecdaab9293e7d0c1c49fffdd2650bd5443c099cce63742",
         "inputs": {
@@ -622,7 +622,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/3b6c6613f57c8aa96cb3358a3ee033ae1cfc37fdad452f703de97c4d92015539.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/3b6c6613f57c8aa96cb3358a3ee033ae1cfc37fdad452f703de97c4d92015539.json",
         "case_id": "reference",
         "fingerprint": "3b6c6613f57c8aa96cb3358a3ee033ae1cfc37fdad452f703de97c4d92015539",
         "inputs": {
@@ -921,7 +921,7 @@
         "role": "candidate"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/ce38cb56abc643aecb7ea3d6fe9ad14420907b2340780c33c13774d03cd44b5d.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/ce38cb56abc643aecb7ea3d6fe9ad14420907b2340780c33c13774d03cd44b5d.json",
         "case_id": "modes",
         "fingerprint": "ce38cb56abc643aecb7ea3d6fe9ad14420907b2340780c33c13774d03cd44b5d",
         "inputs": {
@@ -1275,7 +1275,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/83337bfc3a9b30e7d7da960cd355ff15c55ba29ebdb0ad34167dc99c5b68dd84.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/validation-cache/83337bfc3a9b30e7d7da960cd355ff15c55ba29ebdb0ad34167dc99c5b68dd84.json",
         "case_id": "modes",
         "fingerprint": "83337bfc3a9b30e7d7da960cd355ff15c55ba29ebdb0ad34167dc99c5b68dd84",
         "inputs": {
@@ -1927,5 +1927,5 @@
   },
   "task": "reduction_validation",
   "timeout": 180.0,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/steps/validate"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/B-small-anisotropy/steps/validate"
 }

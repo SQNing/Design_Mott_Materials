@@ -17,7 +17,7 @@
       "site_ref": "site:1"
     }
   ],
-  "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002",
+  "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002",
   "fidelity": {
     "assessment": "not_assessed",
     "reconstruction_error": null

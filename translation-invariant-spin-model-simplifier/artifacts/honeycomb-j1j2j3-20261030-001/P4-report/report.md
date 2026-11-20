@@ -12,10 +12,10 @@ Determine the finite-cell classical ground-state family and numerical robustness
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/models/model-0002/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -46,7 +46,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L4-seed31/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L4-seed31/result.json)
 
 ```json
 {
@@ -79,7 +79,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L4-seed97/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L4-seed97/result.json)
 
 ```json
 {
@@ -112,7 +112,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L6-seed53/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L6-seed53/result.json)
 
 ```json
 {
@@ -145,7 +145,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L8-seed71/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L8-seed71/result.json)
 
 ```json
 {
@@ -178,7 +178,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L12-seed83/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/ground-L12-seed83/result.json)
 
 ```json
 {
@@ -211,7 +211,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/fourier-seeded-L36/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/fourier-seeded-L36/result.json)
 
 ```json
 {
@@ -244,7 +244,7 @@ Units: {"energy": "J1 with J1=+1; each undirected bond counted once", "hbar": 1}
 - Result model: 8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/fourier-seeded-L12/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4/steps/fourier-seeded-L12/result.json)
 
 ```json
 {

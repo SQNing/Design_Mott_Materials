@@ -5,7 +5,7 @@
       "evidence": {
         "calculation_path": "calculation.energy_per_cell",
         "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
         "selector": {
           "case_id": "ground",
           "kind": "energy_per_cell",
@@ -22,7 +22,7 @@
       "evidence": {
         "calculation_path": "calculation.energy_per_cell",
         "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
         "selector": {
           "case_id": "ground",
           "kind": "energy_per_cell",
@@ -39,7 +39,7 @@
       "evidence": {
         "calculation_path": "calculation.energy_per_cell",
         "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
         "selector": {
           "case_id": "ground",
           "kind": "energy_per_cell",
@@ -56,7 +56,7 @@
       "evidence": {
         "calculation_path": "calculation.energy_per_cell",
         "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
         "selector": {
           "case_id": "ground",
           "kind": "energy_per_cell",
@@ -73,7 +73,7 @@
       "evidence": {
         "calculation_path": "calculation.energy_per_cell",
         "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
         "selector": {
           "case_id": "ground",
           "kind": "energy_per_cell",
@@ -94,7 +94,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "03dd61e7e0aa1b8c5c54c2b62d62dc83de06699470e6f016f5e129354c03baf0",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-off.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",
@@ -112,7 +112,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "3fa35deee6dceace90c1fc8838e31df6e17fdaf3d9efb39d64445360732385f8",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J2-half.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",
@@ -130,7 +130,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",
@@ -186,7 +186,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "dfe2f05f40855f3e6ee59d153dc689f20fdc941a28cb7bdb839fff62d8a236cd",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-off.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",
@@ -204,7 +204,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "2695d91b2baabddec7d500b99c0146743a6dc0bc6236a763680cd27c431718ae",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/J3-half.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",
@@ -222,7 +222,7 @@
           "evidence": {
             "calculation_path": "calculation.energy_per_cell",
             "job_fingerprint": "8698f635e5a3421af14b9c050f36a4c14f8763ae62b4f1f943d255f776bd6b95",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/coupling-responses/evidence/ground/control.json",
             "selector": {
               "case_id": "ground",
               "kind": "energy_per_cell",

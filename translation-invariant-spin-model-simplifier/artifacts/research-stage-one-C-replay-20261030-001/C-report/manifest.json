@@ -1,15 +1,15 @@
 {
   "answer_status": "answered_within_scope",
   "artifacts": [
-    "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/host-spectrum-spectrum.csv"
+    "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/host-spectrum-spectrum.csv"
   ],
   "calculations_started": 0,
   "model_id": "58d703c063d0393a07c9ff533efb3bd4bc8e5e80fb96aba600f5525dffe2904f",
-  "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/report.md",
+  "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-report/report.md",
   "results": [
     "host-ground",
     "host-spectrum"
   ],
-  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document",
+  "run_dir": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-C-replay-20261030-001/C-host-document",
   "schema_version": "research-report/v1"
 }

@@ -12,10 +12,10 @@ Obtain small finite-temperature samples and a finite quantum spectrum.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -37,7 +37,7 @@ Units: {"energy": "input coefficient units; absolute unit unspecified"}
 - Result model: 1dbef8e38db3a86e1458f843ca3360664e5c38caff592ae43843b25b67364b16
 - Task: classical_monte_carlo
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/steps/mc/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/steps/mc/result.json)
 
 ```json
 {
@@ -64,7 +64,7 @@ Units: {"energy": "input coefficient units; absolute unit unspecified"}
 - Scope/limitation: Classical, not quantum Monte Carlo; local updates can be slow near transitions.
 - Scope/limitation: Reported statistical errors do not establish equilibration or remove finite-size bias.
 
-[Finite-temperature samples and errors](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-report/mc-thermodynamics.json)
+[Finite-temperature samples and errors](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-report/mc-thermodynamics.json)
 
 ## quantum
 
@@ -74,7 +74,7 @@ Units: {"energy": "input coefficient units; absolute unit unspecified"}
 - Result model: 1dbef8e38db3a86e1458f843ca3360664e5c38caff592ae43843b25b67364b16
 - Task: quantum_low_energy
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/steps/quantum/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/E-mc-quantum/steps/quantum/result.json)
 
 ```json
 {

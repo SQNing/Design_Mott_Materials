@@ -5,7 +5,7 @@ Date: 2026-04-21
 ## Purpose
 
 This memo freezes the theory contract for the next LT/GLT implementation stage in
-`Design_Mott_Materials`. It has two jobs:
+`spinforge`. It has two jobs:
 
 1. lock the mathematical object that the spin-only LT/GLT code is allowed to
    diagonalize once anisotropic exchange, Dzyaloshinskii-Moriya (DM), and full

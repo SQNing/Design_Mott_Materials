@@ -44,7 +44,7 @@ python -B -m pytest --disable-warnings -q -p no:cacheprovider \
 结果根目录：
 
 ~~~text
-/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/
+/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/
 ~~~
 
 | 案例 | 实际研究与结果 | 求解次数 |

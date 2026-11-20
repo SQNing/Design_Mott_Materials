@@ -13,21 +13,21 @@
 ## File Structure
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/local_matrix_record.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_local_term_to_matrix.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_operator_bond_to_matrix.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_onsite_term_to_matrix.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/SKILL.md`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py`
-- Test: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/local_matrix_record.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_local_term_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_operator_bond_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_onsite_term_to_matrix.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/SKILL.md`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py`
+- Test: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
 
 ## Responsibility Map
 
@@ -60,8 +60,8 @@
 ### Task 1: Define The Local Matrix Record Schema
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/local_matrix_record.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/local_matrix_record.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -92,7 +92,7 @@ def test_build_two_body_local_matrix_record():
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py -q
 ```
 
 Expected:
@@ -110,7 +110,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py -q
 ```
 
 Expected:
@@ -119,11 +119,11 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/simplify/local_matrix_record.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add local matrix record schema"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: add local matrix record schema"
 ```
 
 ---
@@ -131,10 +131,10 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: add local mat
 ### Task 2: Add Onsite And Two-Body Matrix Compiler Entry Points
 
 **Files:**
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_local_term_to_matrix.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_operator_bond_to_matrix.py`
-- Create: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/compile_onsite_term_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_local_term_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_operator_bond_to_matrix.py`
+- Create: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/compile_onsite_term_to_matrix.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -159,7 +159,7 @@ def test_compile_family_resolved_operator_text_to_bond_matrix():
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py -q
 ```
 
 Expected:
@@ -177,7 +177,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py -q
 ```
 
 Expected:
@@ -186,13 +186,13 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/simplify/compile_local_term_to_matrix.py \
   translation-invariant-spin-model-simplifier/scripts/simplify/compile_operator_bond_to_matrix.py \
   translation-invariant-spin-model-simplifier/scripts/simplify/compile_onsite_term_to_matrix.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: compile onsite and bond terms to local matrices"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: compile onsite and bond terms to local matrices"
 ```
 
 ---
@@ -200,9 +200,9 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: compile onsit
 ### Task 3: Make Decomposition Matrix-First
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -226,8 +226,8 @@ def test_decompose_local_matrix_record_without_raw_operator():
 Run:
 ```bash
 python -m pytest \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
 ```
 
 Expected:
@@ -246,8 +246,8 @@ Implement:
 Run:
 ```bash
 python -m pytest \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
 ```
 
 Expected:
@@ -256,12 +256,12 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
   translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: make local-term decomposition matrix-first"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: make local-term decomposition matrix-first"
 ```
 
 ---
@@ -269,8 +269,8 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: make local-te
 ### Task 4: Preserve Matrix Metadata Through Canonicalization
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -291,7 +291,7 @@ def test_canonicalize_preserves_family_from_matrix_backbone():
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
 ```
 
 Expected:
@@ -307,7 +307,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py -q
 ```
 
 Expected:
@@ -316,11 +316,11 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: preserve matrix backbone metadata in canonical terms"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: preserve matrix backbone metadata in canonical terms"
 ```
 
 ---
@@ -328,8 +328,8 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: preserve matr
 ### Task 5: Extend Bilinear Interpretation To Exchange Tensor, DM, And Literature-Specific Forms
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -355,7 +355,7 @@ def test_identify_readable_blocks_reports_dm_vector_from_antisymmetric_exchange(
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
 ```
 
 Expected:
@@ -373,7 +373,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
 ```
 
 Expected:
@@ -382,11 +382,11 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: interpret bilinear matrices as tensor and DM physics"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: interpret bilinear matrices as tensor and DM physics"
 ```
 
 ---
@@ -394,8 +394,8 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: interpret bil
 ### Task 6: Route The Text Pipeline Through The Matrix Backbone
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -418,7 +418,7 @@ def test_pipeline_lands_fei2_operator_family_through_local_matrix_backbone():
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py -q
 ```
 
 Expected:
@@ -435,7 +435,7 @@ Implement:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py -q
 ```
 
 Expected:
@@ -444,11 +444,11 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: route text simplification through local matrix backbone"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: route text simplification through local matrix backbone"
 ```
 
 ---
@@ -456,8 +456,8 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: route text si
 ### Task 7: Update The Skill Contract And Run The Focused Verification Bundle
 
 **Files:**
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/SKILL.md`
-- Modify: `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/SKILL.md`
+- Modify: `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -471,7 +471,7 @@ Cover at least:
 
 Run:
 ```bash
-python -m pytest /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
+python -m pytest /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
 ```
 
 Expected:
@@ -490,12 +490,12 @@ Update `SKILL.md` so it matches the shipped backbone:
 Run:
 ```bash
 python -m pytest \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py \
-  /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_local_matrix_record.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_compile_local_term_to_matrix.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_decompose_local_term.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_spin_s_pipeline.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_simplify_text_input_pipeline.py \
+  /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py -q
 ```
 
 Expected:
@@ -504,11 +504,11 @@ Expected:
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/SKILL.md
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
+git -C /data/work/zhli/soft/spinforge add -f \
   translation-invariant-spin-model-simplifier/tests/test_skill_contracts.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "docs: finalize local matrix backbone contract"
+git -C /data/work/zhli/soft/spinforge commit -m "docs: finalize local matrix backbone contract"
 ```
 
 ---

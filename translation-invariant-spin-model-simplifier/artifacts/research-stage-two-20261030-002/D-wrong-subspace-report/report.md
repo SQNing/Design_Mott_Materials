@@ -12,10 +12,10 @@ Does the selected two-level projection preserve the tested low-energy sector?
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -37,7 +37,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Parent is current: True
 - Complexity: {"candidate_dimension": 2, "candidate_terms": 2, "full_dimension": 3, "full_terms": 2}
 - A prepared candidate is not yet a validated approximation.
-[Candidate and operator mapping](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/reductions/candidate/record.json)
+[Candidate and operator mapping](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/reductions/candidate/record.json)
 
 - Limitation: Direct subspace projection only; virtual-excitation corrections are not included.
 - Limitation: The projection is not certified by a small coupling norm alone.
@@ -50,7 +50,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/result.json)
 
 - Simplification verdict: rejected
 - Candidate: candidate
@@ -164,19 +164,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-full.json), reused: False
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-candidate.json), reused: False
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-full.json), reused: False
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-candidate.json), reused: False
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-full.json), reused: False
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-candidate.json), reused: False
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-full.json), reused: False
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-candidate.json), reused: False
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "2b303fae0cf1ea17bb37a9397d2f2b795f7d7e8c0e3834a58aa4456da4f7af0c", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "2d6e05ec503a730efb103ac8d61890a4477da3e707c1ad5614b25b47f8bb8a8d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "d9840cf93e6bed950cd52257dbcb23c6fc0a6914e19d8d92cb520cf07c479376", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "8f63ee72a4df5c8257fa8ea56acf4f1a8b9a2120937a0b1016048d519fd86a25", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "2b303fae0cf1ea17bb37a9397d2f2b795f7d7e8c0e3834a58aa4456da4f7af0c", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "2d6e05ec503a730efb103ac8d61890a4477da3e707c1ad5614b25b47f8bb8a8d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "d9840cf93e6bed950cd52257dbcb23c6fc0a6914e19d8d92cb520cf07c479376", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "8f63ee72a4df5c8257fa8ea56acf4f1a8b9a2120937a0b1016048d519fd86a25", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.

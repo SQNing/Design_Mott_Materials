@@ -44,8 +44,8 @@ Out of scope:
 **Modify**
 
 - `docs/superpowers/specs/2026-04-21-sunny-julia-phase-1-lswt-environment-design.md`
-- `session-memory/sessions/design-mott-materials-2026-04-21-0342.md`
-- `session-memory/index/design-mott-materials.md`
+- `session-memory/sessions/spinforge-2026-04-21-0342.md`
+- `session-memory/index/spinforge.md`
 - `translation-invariant-spin-model-simplifier/scripts/lswt/linear_spin_wave_driver.py`
 - `translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_lswt.jl`
 - `translation-invariant-spin-model-simplifier/reference/environment.md`
@@ -130,7 +130,7 @@ git commit -m "test: define sunny lswt environment contract"
 Add a test that sets:
 
 ```python
-os.environ["DESIGN_MOTT_JULIA_CMD"] = "/tmp/julia-1.12/bin/julia"
+os.environ["SPINFORGE_JULIA_CMD"] = "/tmp/julia-1.12/bin/julia"
 ```
 
 patches `subprocess.run`, and asserts the driver invokes:
@@ -206,7 +206,7 @@ Implement a small helper such as:
 def _resolve_julia_cmd(julia_cmd=None):
     if julia_cmd not in {None, ""}:
         return str(julia_cmd)
-    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    override = os.environ.get("SPINFORGE_JULIA_CMD")
     if override:
         return override
     return "julia"
@@ -257,7 +257,7 @@ Document the Phase 1 truth explicitly:
 - Sunny.jl 0.9.x expected
 - local project at `.julia-env-v09`
 - local depot at `scripts/.julia-depot`
-- `DESIGN_MOTT_JULIA_CMD` as the optional override for non-default Julia binaries
+- `SPINFORGE_JULIA_CMD` as the optional override for non-default Julia binaries
 
 - [ ] **Step 2: Add exact verification and instantiate commands**
 
@@ -265,7 +265,7 @@ Document commands in the form:
 
 ```bash
 cd /path/to/translation-invariant-spin-model-simplifier
-DESIGN_MOTT_JULIA_CMD=/path/to/julia \
+SPINFORGE_JULIA_CMD=/path/to/julia \
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
 /path/to/julia --project="$PWD/.julia-env-v09" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
@@ -327,7 +327,7 @@ Expected: `julia version 1.12.6`
 Run:
 
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
 JULIA_DEPOT_PATH="$PWD/scripts/.julia-depot" \
 /data/work/zhli/soft/julia-1.12.6/bin/julia --project="$PWD/.julia-env-v09" \
   -e 'using Pkg; Pkg.instantiate(); Pkg.precompile(); using JSON3, Sunny; println(Pkg.project().path)'
@@ -340,8 +340,8 @@ Expected: instantiate + precompile succeed and `using JSON3, Sunny` works from `
 Run:
 
 ```bash
-cd /data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier
-DESIGN_MOTT_JULIA_CMD=/data/work/zhli/soft/julia-1.12.6/bin/julia \
+cd /data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier
+SPINFORGE_JULIA_CMD=/data/work/zhli/soft/julia-1.12.6/bin/julia \
 python3 scripts/lswt/linear_spin_wave_driver.py scripts/plot_payload.json
 ```
 
@@ -382,7 +382,7 @@ Expected: PASS.
 Use the same real-input pattern as the earlier successful bridge run, but set:
 
 ```bash
-DESIGN_MOTT_JULIA_CMD=/data/work/zhli/soft/julia-1.12.6/bin/julia
+SPINFORGE_JULIA_CMD=/data/work/zhli/soft/julia-1.12.6/bin/julia
 ```
 
 Expected artifact checks:

@@ -104,7 +104,8 @@ def runtime_identity():
     executable = os.path.abspath(sys.executable) if sys.executable else sys.executable
     return {"python": sys.version.split()[0], "executable": executable,
             "packages": versions,
-            "backend_environment": {k: os.environ[k] for k in ("DESIGN_MOTT_JULIA_CMD",
+            "backend_environment": {k: os.environ[k] for k in ("SPINFORGE_JULIA_CMD",
+                "SPINFORGE_JULIA_BIN", "SPINFORGE_JULIA_DEPOT",
                 "DESIGN_MOTT_JULIA_BIN", "DESIGN_MOTT_JULIA_DEPOT") if k in os.environ}}
 
 

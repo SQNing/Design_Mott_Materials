@@ -12,10 +12,10 @@ Test onsite control without truncating any local levels.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -37,7 +37,7 @@ How do the local levels affect the sampled excitations and ground-state populati
 - Preparation: ready
 - Parent is current: True
 - Full-model control: control
-[Intervention plan and complete models](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/record.json)
+[Intervention plan and complete models](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/mechanisms/levels/record.json)
 
 - onsite: All onsite matrix elements. Terms: onsite:levels
 
@@ -55,7 +55,7 @@ How do the local levels affect the sampled excitations and ground-state populati
 - Result model: 3c13e01259005aa3ef80ecc3b1b864c0a8f2bd978601a156ba3f9d90d3bc843f
 - Task: mechanism_test
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/result.json)
 
 - Mechanism study: levels
 - New solver calls: 6
@@ -73,9 +73,9 @@ Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gi
 
 Excluded confounded points: 
 
-- [half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json): value 1.1199999999999997; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json): value 1.52; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
-- [strong, factor 1.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json): value 1.9199999999999995; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json): value 1.1199999999999997; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json): value 1.52; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
+- [strong, factor 1.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json): value 1.9199999999999995; selector {"band_index": 0, "case_id": "modes", "kind": "harmonic_frequency", "observable_id": "frequency", "q": [0, 0, 0]}
 
 ### population-preserved
 
@@ -85,9 +85,9 @@ Within the recorded finite model, varying group 'onsite' over [0.5, 1.0, 1.5] gi
 
 Excluded confounded points: 
 
-- [half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
-- [strong, factor 1.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
+- [half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
+- [strong, factor 1.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json): value 1.0; selector {"basis_index": 0, "case_id": "rays", "kind": "local_population", "observable_id": "population"}
 
 | Observable | Point | Value | Scientific usability |
 | --- | --- | --- | --- |
@@ -286,12 +286,12 @@ Tested scope:
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json", "reused": false, "role": "half", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json", "reused": false, "role": "strong", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json", "reused": false, "role": "half", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json", "reused": false, "role": "strong", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "9fb8d5ff189c593f4b95a4e62453b84487d58f0871a815f6dee107b3e3224c6c", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/half.json", "reused": false, "role": "half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "0dd13535f504dbe8bc76d46cdeb280a745c072a5c67536eea91ae07422e8e15a", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "rays", "job_fingerprint": "aa51e92c2ae81e41a75f009928543a5ddee6b53dd9554061b36918c3b0951e5d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/rays/strong.json", "reused": false, "role": "strong", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "b61006569631bc9939b3e515d357e6e4d592ddb53610cff13b6af2373463293a", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/half.json", "reused": false, "role": "half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "b76f0d1015be4d0511af58e5efcf07338690bc73051f71a9ee8ac6d7ee3dc5e5", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "f893c84c1035f234373977c6a70128348777255c0dcbd704a6ff91c7be4c8c52", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/B-retained-levels/steps/levels-response/evidence/modes/strong.json", "reused": false, "role": "strong", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.
 - Scope/limitation: Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.

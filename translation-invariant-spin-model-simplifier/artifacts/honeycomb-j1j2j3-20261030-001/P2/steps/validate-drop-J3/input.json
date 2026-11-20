@@ -38,7 +38,7 @@
             "site_ref": "site:1"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null
@@ -1198,7 +1198,7 @@
       "limitations": [
         "Coefficient norms alone do not bound the requested observables."
       ],
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
       "parent_model_id": "d6f73977d3efcccb76626173af54baf882875bab0436b1a6ae2333076ca94e35",
       "schema_version": "reduction-candidate/v1",
       "status": "ready",
@@ -1509,7 +1509,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7.json",
         "case_id": "reference",
         "fingerprint": "cb734150e75dbd77a0a84a386cec8c96a0ac7b11ccea780a79e09325003822d7",
         "inputs": {
@@ -2987,7 +2987,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467.json",
         "case_id": "reference",
         "fingerprint": "b474b33ee8c9bc842c03658d266fd9c13c9bef72e2af1a71cec689ea1ebdb467",
         "inputs": {
@@ -4243,7 +4243,7 @@
         "role": "candidate"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5.json",
         "case_id": "modes",
         "fingerprint": "50b83b1ab912708e916b31d7691d749cabfe1bbdfc7a09a5861a1f81616ee9e5",
         "inputs": {
@@ -5735,7 +5735,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/validation-cache/3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9.json",
         "case_id": "modes",
         "fingerprint": "3a4c5726a3d0fd303c46926a2b4c2d52c2fdd3f2ef959683c70b53cf72bd33c9",
         "inputs": {
@@ -8493,5 +8493,5 @@
   },
   "task": "reduction_validation",
   "timeout": 488.26926708221436,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/steps/validate-drop-J3"
 }

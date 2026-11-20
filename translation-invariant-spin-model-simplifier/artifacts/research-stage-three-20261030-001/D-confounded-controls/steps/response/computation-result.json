@@ -64,7 +64,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -110,7 +110,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -156,7 +156,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -201,7 +201,7 @@
             "evidence": {
               "calculation_path": "calculation.dispersion",
               "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
               "selector": {
                 "band_index": 0,
                 "case_id": "modes",
@@ -246,7 +246,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -269,7 +269,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -292,7 +292,7 @@
         "evidence": {
           "calculation_path": "calculation.dispersion",
           "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
           "selector": {
             "band_index": 0,
             "case_id": "modes",
@@ -509,7 +509,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -518,7 +518,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
       "reused": false,
       "role": "joint-half",
       "scientific_status": "usable_within_scope"
@@ -527,7 +527,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
       "reused": false,
       "role": "joint-quarter",
       "scientific_status": "usable_within_scope"
@@ -536,7 +536,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -545,7 +545,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
       "reused": false,
       "role": "joint-half",
       "scientific_status": "usable_within_scope"
@@ -554,7 +554,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
       "reused": false,
       "role": "joint-quarter",
       "scientific_status": "usable_within_scope"
@@ -621,7 +621,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -630,7 +630,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-half.json",
       "reused": false,
       "role": "joint-half",
       "scientific_status": "usable_within_scope"
@@ -639,7 +639,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/reference/joint-quarter.json",
       "reused": false,
       "role": "joint-quarter",
       "scientific_status": "usable_within_scope"
@@ -648,7 +648,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -657,7 +657,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
       "reused": false,
       "role": "joint-half",
       "scientific_status": "usable_within_scope"
@@ -666,7 +666,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
       "reused": false,
       "role": "joint-quarter",
       "scientific_status": "usable_within_scope"
@@ -682,7 +682,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -728,7 +728,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -774,7 +774,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -819,7 +819,7 @@
           "evidence": {
             "calculation_path": "calculation.dispersion",
             "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
             "selector": {
               "band_index": 0,
               "case_id": "modes",
@@ -866,7 +866,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/control.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -889,7 +889,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-half.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",
@@ -912,7 +912,7 @@
       "evidence": {
         "calculation_path": "calculation.dispersion",
         "job_fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response/evidence/modes/joint-quarter.json",
         "selector": {
           "band_index": 0,
           "case_id": "modes",

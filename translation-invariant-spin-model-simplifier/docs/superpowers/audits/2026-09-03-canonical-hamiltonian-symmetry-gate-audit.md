@@ -190,9 +190,9 @@ rather than cited as final evidence.
 Authoritative comparison jobs use separate detached worktrees:
 
 - baseline `12e2726`:
-  `/data/work/zhli/soft/Design_Mott_Materials/.worktrees/symmetry-baseline-12e2726`;
+  `/data/work/zhli/soft/spinforge/.worktrees/symmetry-baseline-12e2726`;
 - feature `d26f7e0`:
-  `/data/work/zhli/soft/Design_Mott_Materials/.worktrees/symmetry-final-d26f7e0`.
+  `/data/work/zhli/soft/spinforge/.worktrees/symmetry-final-d26f7e0`.
 
 The monolithic baseline job `479242` finished with Slurm state `FAILED`, exit
 code `1:0`, and the complete pytest summary

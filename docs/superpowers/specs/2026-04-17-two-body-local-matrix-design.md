@@ -326,26 +326,26 @@ Required behavior:
 
 ### Modules To Keep As Extraction / Orchestration
 
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/input/normalize_input.py`
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/input/normalize_input.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/cli/simplify_text_input.py`
 
 ### Modules To Reposition As Compiler Helpers
 
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_parser.py`
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_normalizer.py`
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_sparse_expand.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_parser.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_normalizer.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/operator_expression_sparse_expand.py`
 
 These should be treated as front-end helpers for compiling supported operator text into matrices, not as the final backbone.
 
 ### Module To Recenter Around Matrix Decomposition
 
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/decompose_local_term.py`
 
 ### Modules To Keep As Downstream Consumers
 
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
-- `/data/work/zhli/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier/scripts/simplify/assemble_effective_model.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/canonicalize_terms.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/identify_readable_blocks.py`
+- `/data/work/zhli/soft/spinforge/translation-invariant-spin-model-simplifier/scripts/simplify/assemble_effective_model.py`
 
 ## Acceptance Criteria
 

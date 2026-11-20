@@ -12,10 +12,10 @@ Test a specified finite-cluster level spacing.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -39,7 +39,7 @@ Which interaction controls the frequency at the selected momentum?
 - Preparation: ready
 - Parent is current: True
 - Full-model control: control
-[Intervention plan and complete models](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/mechanisms/couplings/record.json)
+[Intervention plan and complete models](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/mechanisms/couplings/record.json)
 
 - anisotropy: Uniaxial exchange anisotropy. Terms: small
 
@@ -57,7 +57,7 @@ Which interaction controls the frequency at the selected momentum?
 - Result model: ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf
 - Task: mechanism_test
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/result.json)
 
 - Mechanism study: couplings
 - New solver calls: 3
@@ -74,9 +74,9 @@ Within the recorded finite model, varying group 'anisotropy' over [0.0, 0.5, 1.0
 
 Excluded confounded points: 
 
-- [anisotropy-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json): value 8.881784197001252e-16; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
-- [anisotropy-half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json): value 0.009999999999999787; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json): value 0.02000000000000135; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
+- [anisotropy-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json): value 8.881784197001252e-16; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
+- [anisotropy-half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json): value 0.009999999999999787; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json): value 0.02000000000000135; selector {"case_id": "levels", "kind": "quantum_gap", "level": 2, "observable_id": "frequency"}
 
 | Observable | Point | Value | Scientific usability |
 | --- | --- | --- | --- |
@@ -203,9 +203,9 @@ Tested scope:
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json", "reused": false, "role": "control", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "levels", "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.
 - Scope/limitation: Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.

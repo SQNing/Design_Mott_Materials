@@ -87,13 +87,13 @@ amend the approved design and this plan before touching it.
 Unless a step says otherwise, run Git commands from the worktree root:
 
 ```text
-/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit
+/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit
 ```
 
 Run Python commands from:
 
 ```text
-/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier
+/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier
 ```
 
 Every pytest invocation must use `PYTHONDONTWRITEBYTECODE=1` and

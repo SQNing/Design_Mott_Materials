@@ -90,8 +90,8 @@ Expected: PASS
 ### Task 6: Final verification and checkpoint
 
 **Files:**
-- Modify if needed: `session-memory/sessions/design-mott-materials-2026-04-21-0342.md`
-- Modify if needed: `session-memory/index/design-mott-materials.md`
+- Modify if needed: `session-memory/sessions/spinforge-2026-04-21-0342.md`
+- Modify if needed: `session-memory/index/spinforge.md`
 
 - [ ] **Step 1: Run the focused LSWT regression slice**
 

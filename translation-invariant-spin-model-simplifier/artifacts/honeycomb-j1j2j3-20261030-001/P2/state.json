@@ -44,7 +44,7 @@
   },
   "mechanisms": {
     "coupling-controls": {
-      "record": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/record.json"
+      "record": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/mechanisms/coupling-controls/record.json"
     }
   },
   "model": {
@@ -66,7 +66,7 @@
         "site_ref": "site:1"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/models/model-0002",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -1218,7 +1218,7 @@
   },
   "reductions": {
     "drop-J3": {
-      "record": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/record.json"
+      "record": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P2/reductions/drop-J3/record.json"
     }
   },
   "request": {

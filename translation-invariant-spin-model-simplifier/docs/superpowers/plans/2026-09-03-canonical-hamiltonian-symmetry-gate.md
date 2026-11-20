@@ -26,7 +26,7 @@
 Use this exact pattern for every red/green verification, replacing the job name and pytest selector. The commands are executed from the development host, but pytest itself runs only inside the submitted Slurm job.
 
 ```bash
-symmetry_worktree=/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier
+symmetry_worktree=/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier
 symmetry_log_root=/data/work/zhli/job-logs/canonical-hamiltonian-symmetry
 ssh login002 "mkdir -p '$symmetry_log_root'"
 symmetry_job_id=$(ssh login002 "sbatch --parsable --account=hmt03 --partition=regular --nodes=1 --ntasks=1 --cpus-per-task=2 --mem=4G --time=00:15:00 --job-name=<JOB_NAME> --chdir='$symmetry_worktree' --output='$symmetry_log_root/<JOB_NAME>-%j.out' --wrap='PYTHONPATH=scripts python3 -m pytest <PYTEST_SELECTOR> -v'")

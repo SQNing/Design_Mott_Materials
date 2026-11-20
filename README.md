@@ -1,6 +1,6 @@
-# Design_Mott_Materials
+# spinforge
 
-This repository currently includes the Codex skill [`translation-invariant-spin-model-simplifier`](/Users/sqning/soft/Design_Mott_Materials/translation-invariant-spin-model-simplifier), which simplifies periodic spin Hamiltonians and prepares them for classical and linear-spin-wave analysis.
+This repository currently includes the Codex skill [`translation-invariant-spin-model-simplifier`](translation-invariant-spin-model-simplifier), which simplifies periodic spin Hamiltonians and prepares them for classical and linear-spin-wave analysis.
 
 Current classical-stage highlights:
 
@@ -34,7 +34,7 @@ If you already have Codex and the built-in `$skill-installer` skill available, u
 $skill-installer
 
 Install from GitHub:
-https://github.com/SQNing/Design_Mott_Materials/tree/main/translation-invariant-spin-model-simplifier
+https://github.com/correlated-insulator-lab/spinforge/tree/main/translation-invariant-spin-model-simplifier
 ```
 
 After installation, restart Codex so the new skill is discovered.
@@ -44,9 +44,9 @@ After installation, restart Codex so the new skill is discovered.
 Clone the repository and copy the skill into your local Codex skills directory:
 
 ```bash
-git clone git@github.com:SQNing/Design_Mott_Materials.git
+git clone git@github.com:correlated-insulator-lab/spinforge.git
 mkdir -p ~/.codex/skills
-cp -R Design_Mott_Materials/translation-invariant-spin-model-simplifier ~/.codex/skills/
+cp -R spinforge/translation-invariant-spin-model-simplifier ~/.codex/skills/
 ```
 
 Optional validation:

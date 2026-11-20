@@ -48,7 +48,7 @@
         "site_ref": "site:0"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/C-host-document/models/model-0002",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/C-host-document/models/model-0002",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -2294,7 +2294,7 @@
     ],
     "source": {
       "kind": "document",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/scripts/research/fixtures/host-document-C.txt"
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/scripts/research/fixtures/host-document-C.txt"
     }
   },
   "schema_version": "research-state/v1",

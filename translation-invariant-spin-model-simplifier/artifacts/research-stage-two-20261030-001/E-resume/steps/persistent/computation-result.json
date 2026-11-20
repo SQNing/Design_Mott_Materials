@@ -153,7 +153,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "c4b5357ec3ddad7d34f71ff32f26a3757efccf54203fd72bc398156c5f2789b8",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-full.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-full.json",
       "reused": false,
       "role": "full",
       "scientific_status": "usable_within_scope"
@@ -162,7 +162,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "8d5948c4a2bc6344e48347fe99ccba65ac3c8f2f8c3b21f02ff05dab1fe74196",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-candidate.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-candidate.json",
       "reused": false,
       "role": "candidate",
       "scientific_status": "usable_within_scope"
@@ -171,7 +171,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "62a2fb41a95796ca6d077c83e64ad6d38be9cbcb63bf848d25b5afcb3863cc15",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-full.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-full.json",
       "reused": false,
       "role": "full",
       "scientific_status": "usable_within_scope"
@@ -180,7 +180,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "265ad13a1f239213766374a81b2070ecdbae93e43ec8f4db3ad76e8892cdf258",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-candidate.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-candidate.json",
       "reused": false,
       "role": "candidate",
       "scientific_status": "usable_within_scope"
@@ -191,7 +191,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "c4b5357ec3ddad7d34f71ff32f26a3757efccf54203fd72bc398156c5f2789b8",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-full.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-full.json",
       "reused": false,
       "role": "full",
       "scientific_status": "usable_within_scope"
@@ -200,7 +200,7 @@
       "blocker": null,
       "case_id": "reference",
       "job_fingerprint": "8d5948c4a2bc6344e48347fe99ccba65ac3c8f2f8c3b21f02ff05dab1fe74196",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-candidate.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/reference-candidate.json",
       "reused": false,
       "role": "candidate",
       "scientific_status": "usable_within_scope"
@@ -209,7 +209,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "62a2fb41a95796ca6d077c83e64ad6d38be9cbcb63bf848d25b5afcb3863cc15",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-full.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-full.json",
       "reused": false,
       "role": "full",
       "scientific_status": "usable_within_scope"
@@ -218,7 +218,7 @@
       "blocker": null,
       "case_id": "modes",
       "job_fingerprint": "265ad13a1f239213766374a81b2070ecdbae93e43ec8f4db3ad76e8892cdf258",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-candidate.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/E-resume/steps/persistent/evidence/modes-candidate.json",
       "reused": false,
       "role": "candidate",
       "scientific_status": "usable_within_scope"

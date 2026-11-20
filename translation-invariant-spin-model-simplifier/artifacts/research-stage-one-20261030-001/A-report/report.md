@@ -12,10 +12,10 @@ Find and check a finite periodic reference for this four-sublattice triclinic mo
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -52,7 +52,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 10b544492b6eb3bc5d92f8063e2aacf6a852bab00455cff4956b78a872e01e78
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/initial/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/initial/result.json)
 
 ```json
 {
@@ -85,7 +85,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 10b544492b6eb3bc5d92f8063e2aacf6a852bab00455cff4956b78a872e01e78
 - Task: classical_ground_state
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/refine/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/refine/result.json)
 
 ```json
 {
@@ -118,7 +118,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 10b544492b6eb3bc5d92f8063e2aacf6a852bab00455cff4956b78a872e01e78
 - Task: spin_wave_spectrum
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/spectrum/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-multisublattice/steps/spectrum/result.json)
 
 Reference reused from: refine.
 
@@ -146,7 +146,7 @@ Reference reused from: refine.
 - Scope/limitation: For S > 1/2 all 2S local excited modes are retained (GSWT, not a one-mode LSWT truncation).
 - Scope/limitation: Zero-point energy is a finite BZ quadrature, not an exact many-body energy.
 
-[Spectrum samples, primitive reciprocal coordinates](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-report/spectrum-spectrum.csv)
+[Spectrum samples, primitive reciprocal coordinates](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-one-20261030-001/A-report/spectrum-spectrum.csv)
 
 ## Agent assessment
 

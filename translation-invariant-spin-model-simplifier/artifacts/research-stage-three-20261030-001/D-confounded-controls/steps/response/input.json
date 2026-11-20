@@ -96,7 +96,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4.json",
         "case_id": "reference",
         "fingerprint": "836043a70e66e80aeed237ec0f05b2b87c1d3a46483730586da537482b160ee4",
         "inputs": {
@@ -445,7 +445,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85.json",
         "case_id": "reference",
         "fingerprint": "4a0fc6b8a618ce283d52a1889a98d53d19ba5b6d264f616e04d4bfd31d44cf85",
         "inputs": {
@@ -794,7 +794,7 @@
         "role": "joint-half"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be.json",
         "case_id": "reference",
         "fingerprint": "9b148aca8a87e86ff55f06b9e8a6a9868390ee692b1c8445367e99d58c01e6be",
         "inputs": {
@@ -1143,7 +1143,7 @@
         "role": "joint-quarter"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45.json",
         "case_id": "modes",
         "fingerprint": "a7eeba6262f86d2b94850df047cc9baad078b18b42dbed1a59523b262d462a45",
         "inputs": {
@@ -1497,7 +1497,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa.json",
         "case_id": "modes",
         "fingerprint": "21f840afd5f0ecbd338f9fa4aa47d68a307d29436093c3f124953d33b60162aa",
         "inputs": {
@@ -1851,7 +1851,7 @@
         "role": "joint-half"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/validation-cache/ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85.json",
         "case_id": "modes",
         "fingerprint": "ed582a39ba7cdb861d5299e7b9dd584e0f6c50335d33c390530a1896117f3f85",
         "inputs": {
@@ -3132,7 +3132,7 @@
         "A successful plan does not establish any physical hypothesis."
       ],
       "mechanism_id": "couplings",
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/models/model-0001",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/models/model-0001",
       "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
       "points": [
         {
@@ -3151,7 +3151,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3284,7 +3284,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/mechanisms/couplings/points/joint-half/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/mechanisms/couplings/points/joint-half/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3417,7 +3417,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/mechanisms/couplings/points/joint-quarter/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/mechanisms/couplings/points/joint-quarter/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -3933,5 +3933,5 @@
   },
   "task": "mechanism_test",
   "timeout": 180.0,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/D-confounded-controls/steps/response"
 }

@@ -12,10 +12,10 @@ Assess the scientific usability of short thermal samples.
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -39,7 +39,7 @@ Which interaction controls the frequency at the selected momentum?
 - Preparation: ready
 - Parent is current: True
 - Full-model control: control
-[Intervention plan and complete models](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/record.json)
+[Intervention plan and complete models](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/record.json)
 
 - anisotropy: Uniaxial exchange anisotropy. Terms: small
 
@@ -57,7 +57,7 @@ Which interaction controls the frequency at the selected momentum?
 - Result model: ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf
 - Task: mechanism_test
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/result.json)
 
 - Mechanism study: couplings
 - New solver calls: 3
@@ -74,9 +74,9 @@ A required control or response is scientifically inconclusive.
 
 Excluded confounded points: 
 
-- [anisotropy-off, factor 0.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
-- [anisotropy-half, factor 0.5](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
-- [control, factor 1.0](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
+- [anisotropy-off, factor 0.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
+- [anisotropy-half, factor 0.5](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
+- [control, factor 1.0](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json): value None; selector {"case_id": "thermal", "kind": "mc_energy_per_site", "observable_id": "frequency", "temperature": 0.7}
 
 | Observable | Point | Value | Scientific usability |
 | --- | --- | --- | --- |
@@ -207,9 +207,9 @@ Tested scope:
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json", "reused": false, "role": "control", "scientific_status": "inconclusive"}
-- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "inconclusive"}
-- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "inconclusive"}
+- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/control.json", "reused": false, "role": "control", "scientific_status": "inconclusive"}
+- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-off.json", "reused": false, "role": "anisotropy-off", "scientific_status": "inconclusive"}
+- Diagnostic: {"blocker": null, "case_id": "thermal", "job_fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response/evidence/thermal/anisotropy-half.json", "reused": false, "role": "anisotropy-half", "scientific_status": "inconclusive"}
 
 - Scope/limitation: Mechanism tests concern only the explicit Hamiltonian interventions, sampled coupling points and observables.
 - Scope/limitation: Other groups stay at their full-model values for each one-group hypothesis; confounded points are excluded explicitly.

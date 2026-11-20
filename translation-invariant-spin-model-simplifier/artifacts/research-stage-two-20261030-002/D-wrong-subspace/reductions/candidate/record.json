@@ -11,7 +11,7 @@
         "site_ref": "site:0"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/reductions/candidate/models/model-0001",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/reductions/candidate/models/model-0001",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -133,7 +133,7 @@
     "Direct subspace projection only; virtual-excitation corrections are not included.",
     "The projection is not certified by a small coupling norm alone."
   ],
-  "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001",
+  "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/D-wrong-subspace/models/model-0001",
   "parent_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
   "schema_version": "reduction-candidate/v1",
   "status": "ready",

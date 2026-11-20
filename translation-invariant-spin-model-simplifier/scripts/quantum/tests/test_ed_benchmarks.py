@@ -1,7 +1,7 @@
 """Benchmark wall: sector ED against exact Bethe-ansatz and literature values.
 
 These tests are slower than unit tests (N=24 sector solves) and run in the
-authoritative acceptance pass; they are skipped unless DMM_BENCHMARK=1.
+authoritative acceptance pass; they are skipped unless SPINFORGE_BENCHMARK=1.
 """
 
 import os
@@ -17,8 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import chain_model, honeycomb_model
 from three_dimensional.workflow import run_three_dimensional_workflow
 
-pytestmark = pytest.mark.skipif(os.environ.get("DMM_BENCHMARK") != "1",
-                                reason="benchmark wall; run with DMM_BENCHMARK=1")
+_BENCHMARK_ON = (os.environ.get("SPINFORGE_BENCHMARK") == "1"
+                 or os.environ.get("DMM_BENCHMARK") == "1")  # legacy flag
+pytestmark = pytest.mark.skipif(not _BENCHMARK_ON,
+                                reason="benchmark wall; run with SPINFORGE_BENCHMARK=1")
 
 
 def bethe_ground_state_energy(n_sites, exchange=1.0, iterations=2000, damping=0.5):

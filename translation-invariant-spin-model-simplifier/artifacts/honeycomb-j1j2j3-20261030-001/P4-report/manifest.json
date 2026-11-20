@@ -3,7 +3,7 @@
   "artifacts": [],
   "calculations_started": 0,
   "model_id": "8a1f43603a41ba426648e039b8d5b2a3889be217920c0f970c5403105419c7b2",
-  "report": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4-report/report.md",
+  "report": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4-report/report.md",
   "results": [
     "ground-L4-seed31",
     "ground-L4-seed97",
@@ -13,6 +13,6 @@
     "fourier-seeded-L36",
     "fourier-seeded-L12"
   ],
-  "run_dir": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4",
+  "run_dir": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/honeycomb-j1j2j3-20261030-001/P4",
   "schema_version": "research-report/v1"
 }

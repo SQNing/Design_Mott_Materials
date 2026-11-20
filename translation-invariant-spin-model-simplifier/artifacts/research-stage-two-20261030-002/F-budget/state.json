@@ -15,7 +15,7 @@
         "site_ref": "site:0"
       }
     ],
-    "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget/models/model-0001",
+    "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget/models/model-0001",
     "fidelity": {
       "assessment": "not_assessed",
       "reconstruction_error": null
@@ -132,7 +132,7 @@
   },
   "reductions": {
     "drop": {
-      "record": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget/reductions/drop/record.json"
+      "record": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/F-budget/reductions/drop/record.json"
     }
   },
   "request": {

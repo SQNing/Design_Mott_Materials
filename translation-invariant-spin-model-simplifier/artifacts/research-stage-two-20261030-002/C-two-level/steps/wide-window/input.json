@@ -30,7 +30,7 @@
             "site_ref": "site:0"
           }
         ],
-        "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/reductions/candidate/models/model-0001",
+        "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/reductions/candidate/models/model-0001",
         "fidelity": {
           "assessment": "not_assessed",
           "reconstruction_error": null
@@ -152,7 +152,7 @@
         "Direct subspace projection only; virtual-excitation corrections are not included.",
         "The projection is not certified by a small coupling norm alone."
       ],
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/models/model-0001",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/models/model-0001",
       "parent_model_id": "8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d",
       "schema_version": "reduction-candidate/v1",
       "status": "ready",
@@ -282,7 +282,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/2b303fae0cf1ea17bb37a9397d2f2b795f7d7e8c0e3834a58aa4456da4f7af0c.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/2b303fae0cf1ea17bb37a9397d2f2b795f7d7e8c0e3834a58aa4456da4f7af0c.json",
         "case_id": "reference",
         "fingerprint": "2b303fae0cf1ea17bb37a9397d2f2b795f7d7e8c0e3834a58aa4456da4f7af0c",
         "inputs": {
@@ -714,7 +714,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/2ec44d6030458d1848c3bdbcd764dbcbd7d62314a6c8660d478964877eefd9f3.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/2ec44d6030458d1848c3bdbcd764dbcbd7d62314a6c8660d478964877eefd9f3.json",
         "case_id": "reference",
         "fingerprint": "2ec44d6030458d1848c3bdbcd764dbcbd7d62314a6c8660d478964877eefd9f3",
         "inputs": {
@@ -1124,7 +1124,7 @@
         "role": "candidate"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/d9840cf93e6bed950cd52257dbcb23c6fc0a6914e19d8d92cb520cf07c479376.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/d9840cf93e6bed950cd52257dbcb23c6fc0a6914e19d8d92cb520cf07c479376.json",
         "case_id": "modes",
         "fingerprint": "d9840cf93e6bed950cd52257dbcb23c6fc0a6914e19d8d92cb520cf07c479376",
         "inputs": {
@@ -1564,7 +1564,7 @@
         "role": "full"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/d95667b60e52cf196ae3f8451f76ff69bdf52b2ef2eb28215b684ac820a421c4.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/validation-cache/d95667b60e52cf196ae3f8451f76ff69bdf52b2ef2eb28215b684ac820a421c4.json",
         "case_id": "modes",
         "fingerprint": "d95667b60e52cf196ae3f8451f76ff69bdf52b2ef2eb28215b684ac820a421c4",
         "inputs": {
@@ -2417,5 +2417,5 @@
   },
   "task": "reduction_validation",
   "timeout": 179.31106066703796,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/steps/wide-window"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-002/C-two-level/steps/wide-window"
 }

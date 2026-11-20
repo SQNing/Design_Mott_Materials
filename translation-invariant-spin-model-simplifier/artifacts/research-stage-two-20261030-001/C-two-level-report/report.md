@@ -12,10 +12,10 @@ Does the selected two-level projection preserve the tested low-energy sector?
 
 ## Model and conventions
 
-[Original source](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/source.json)
-[Model interpretation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/interpretation.json)
+[Original source](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/source.json)
+[Model interpretation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/interpretation.json)
 
-[Faithful term representation](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/readable.json)
+[Faithful term representation](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/models/model-0001/readable.json)
 
 All canonical terms remain in the solver Hamiltonian; no small-term deletion was performed.
 
@@ -37,7 +37,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Parent is current: True
 - Complexity: {"candidate_dimension": 2, "candidate_terms": 2, "full_dimension": 3, "full_terms": 2}
 - A prepared candidate is not yet a validated approximation.
-[Candidate and operator mapping](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/reductions/candidate/record.json)
+[Candidate and operator mapping](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/reductions/candidate/record.json)
 
 - Limitation: Direct subspace projection only; virtual-excitation corrections are not included.
 - Limitation: The projection is not certified by a small coupling norm alone.
@@ -50,7 +50,7 @@ Units: {"energy": "dimensionless model units", "hbar": 1}
 - Result model: 8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/result.json)
 
 - Simplification verdict: accepted_within_scope
 - Candidate: candidate
@@ -164,19 +164,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json), reused: False
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json), reused: False
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json), reused: False
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json), reused: False
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json), reused: False
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json), reused: False
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json), reused: False
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json), reused: False
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/reference-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-full.json", "reused": false, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/validate/evidence/modes-candidate.json", "reused": false, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.
@@ -191,7 +191,7 @@ Tested scope:
 - Result model: 8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/result.json)
 
 - Simplification verdict: accepted_within_scope
 - Candidate: candidate
@@ -305,19 +305,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-full.json), reused: True
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-candidate.json), reused: True
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-full.json), reused: True
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-candidate.json), reused: True
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-full.json), reused: True
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-candidate.json), reused: True
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-full.json), reused: True
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-candidate.json), reused: True
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/reference-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/tighter/evidence/modes-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.
@@ -332,7 +332,7 @@ Tested scope:
 - Result model: 8fc12f64aaa15fbbd02da47ae5faa7b8ee58a0a5915eebe3f137a4dc4314c24d
 - Task: reduction_validation
 
-[Recorded evidence](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/result.json)
+[Recorded evidence](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/result.json)
 
 - Simplification verdict: rejected
 - Candidate: candidate
@@ -446,19 +446,19 @@ Tested scope:
 }
 ```
 
-- [reference / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-full.json), reused: True
-- [reference / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-candidate.json), reused: True
-- [modes / full](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-full.json), reused: True
-- [modes / candidate](/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-candidate.json), reused: True
+- [reference / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-full.json), reused: True
+- [reference / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-candidate.json), reused: True
+- [modes / full](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-full.json), reused: True
+- [modes / candidate](/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-candidate.json), reused: True
 
 ```json
 {}
 ```
 
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
-- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "b2094e50a523afea0c8f5d3dfe97543b65a93a4fc2a4aa850dd2ef7570722802", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "reference", "job_fingerprint": "e6f6480bce9f3802f97db3935c582e2d6c87bde1f68d1eb0d44ab037f9e20025", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/reference-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "9b0875e0be7381cdab31e5079692f8663e81c325c192a7e17ad8784b4abbaf77", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-full.json", "reused": true, "role": "full", "scientific_status": "usable_within_scope"}
+- Diagnostic: {"blocker": null, "case_id": "modes", "job_fingerprint": "851e6c26ea571e3c273e8b22a528685c8cccd464f5cba839a116ed6591f75361", "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-two-20261030-001/C-two-level/steps/wide-window/evidence/modes-candidate.json", "reused": true, "role": "candidate", "scientific_status": "usable_within_scope"}
 
 - Scope/limitation: Only this parameter point, the recorded finite cells, sampled momenta and selected observables were compared.
 - Scope/limitation: Stationary variational states are not proofs of global or infinite-lattice ground states.

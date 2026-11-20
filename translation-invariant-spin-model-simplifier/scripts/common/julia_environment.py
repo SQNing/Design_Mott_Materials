@@ -29,17 +29,18 @@ def probe_julia_environment():
     """Return {"command", "available", "source", "detail"} for the Julia route.
 
     Resolution priority matches the driver contract: explicit
-    ``DESIGN_MOTT_JULIA_CMD`` override, then the project wrapper (only when its
+    ``SPINFORGE_JULIA_CMD`` override, then the project wrapper (only when its
     interpreter actually exists), then ``julia`` from PATH. ``command`` is the
     command the driver should invoke even when ``available`` is False, so the
     backend fails through its explicit missing-julia error path.
     """
-    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    override = os.environ.get("SPINFORGE_JULIA_CMD") or os.environ.get("DESIGN_MOTT_JULIA_CMD")
     if override:
         return {"command": override, "available": _command_looks_runnable(override),
-                "source": "DESIGN_MOTT_JULIA_CMD",
+                "source": "SPINFORGE_JULIA_CMD",
                 "detail": "explicit override"}
-    wrapper_bin = os.environ.get("DESIGN_MOTT_JULIA_BIN", WRAPPER_DEFAULT_JULIA_BIN)
+    wrapper_bin = (os.environ.get("SPINFORGE_JULIA_BIN")
+                   or os.environ.get("DESIGN_MOTT_JULIA_BIN", WRAPPER_DEFAULT_JULIA_BIN))
     if PROJECT_JULIA_WRAPPER.is_file():
         if os.access(wrapper_bin, os.X_OK):
             return {"command": str(PROJECT_JULIA_WRAPPER), "available": True,

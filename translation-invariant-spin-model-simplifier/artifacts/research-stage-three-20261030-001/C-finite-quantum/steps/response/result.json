@@ -9,7 +9,7 @@
             "evidence": {
               "calculation_path": "calculation.eigenvalues",
               "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
               "selector": {
                 "case_id": "levels",
                 "kind": "quantum_gap",
@@ -28,7 +28,7 @@
             "evidence": {
               "calculation_path": "calculation.eigenvalues",
               "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
               "selector": {
                 "case_id": "levels",
                 "kind": "quantum_gap",
@@ -47,7 +47,7 @@
             "evidence": {
               "calculation_path": "calculation.eigenvalues",
               "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-              "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+              "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
               "selector": {
                 "case_id": "levels",
                 "kind": "quantum_gap",
@@ -102,7 +102,7 @@
         "evidence": {
           "calculation_path": "calculation.eigenvalues",
           "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
           "selector": {
             "case_id": "levels",
             "kind": "quantum_gap",
@@ -120,7 +120,7 @@
         "evidence": {
           "calculation_path": "calculation.eigenvalues",
           "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
           "selector": {
             "case_id": "levels",
             "kind": "quantum_gap",
@@ -138,7 +138,7 @@
         "evidence": {
           "calculation_path": "calculation.eigenvalues",
           "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-          "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+          "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
           "selector": {
             "case_id": "levels",
             "kind": "quantum_gap",
@@ -277,7 +277,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -286,7 +286,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
       "reused": false,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -295,7 +295,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
       "reused": false,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -307,7 +307,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
       "reused": false,
       "role": "control",
       "scientific_status": "usable_within_scope"
@@ -316,7 +316,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
       "reused": false,
       "role": "anisotropy-off",
       "scientific_status": "usable_within_scope"
@@ -325,7 +325,7 @@
       "blocker": null,
       "case_id": "levels",
       "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-      "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+      "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
       "reused": false,
       "role": "anisotropy-half",
       "scientific_status": "usable_within_scope"
@@ -341,7 +341,7 @@
           "evidence": {
             "calculation_path": "calculation.eigenvalues",
             "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
             "selector": {
               "case_id": "levels",
               "kind": "quantum_gap",
@@ -360,7 +360,7 @@
           "evidence": {
             "calculation_path": "calculation.eigenvalues",
             "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
             "selector": {
               "case_id": "levels",
               "kind": "quantum_gap",
@@ -379,7 +379,7 @@
           "evidence": {
             "calculation_path": "calculation.eigenvalues",
             "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-            "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+            "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
             "selector": {
               "case_id": "levels",
               "kind": "quantum_gap",
@@ -436,7 +436,7 @@
       "evidence": {
         "calculation_path": "calculation.eigenvalues",
         "job_fingerprint": "c9b72911abfe8ff92789f7b70b6e3886da82a94cd1a2133c7f0d91b6c8633c8d",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/control.json",
         "selector": {
           "case_id": "levels",
           "kind": "quantum_gap",
@@ -454,7 +454,7 @@
       "evidence": {
         "calculation_path": "calculation.eigenvalues",
         "job_fingerprint": "7148604ba19e7928eba1feed3dbd2a253a51458666e5bd6f26f5c306b373e505",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-off.json",
         "selector": {
           "case_id": "levels",
           "kind": "quantum_gap",
@@ -472,7 +472,7 @@
       "evidence": {
         "calculation_path": "calculation.eigenvalues",
         "job_fingerprint": "e603ff1f5f3b4e6522cd32ae67e9e8c1e1a07e62c8bb43a66ee64bbbb3476315",
-        "path": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
+        "path": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/C-finite-quantum/steps/response/evidence/levels/anisotropy-half.json",
         "selector": {
           "case_id": "levels",
           "kind": "quantum_gap",

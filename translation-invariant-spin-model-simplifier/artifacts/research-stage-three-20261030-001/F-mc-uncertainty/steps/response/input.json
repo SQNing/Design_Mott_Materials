@@ -51,7 +51,7 @@
     ],
     "jobs": [
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d.json",
         "case_id": "thermal",
         "fingerprint": "e88877e02c42e659dfc7c5f20efb0f409d4dbaf119abc6810ad747081b91432d",
         "inputs": {
@@ -404,7 +404,7 @@
         "role": "control"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61.json",
         "case_id": "thermal",
         "fingerprint": "7e128f052804de5641c26a89d8552af062653a1a5af7d2a42e54647fe78eaa61",
         "inputs": {
@@ -757,7 +757,7 @@
         "role": "anisotropy-off"
       },
       {
-        "cache": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d.json",
+        "cache": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/validation-cache/143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d.json",
         "case_id": "thermal",
         "fingerprint": "143b2c0f87402905b847745c85024140a9f6da7687a7f691d14eec68c35f2f1d",
         "inputs": {
@@ -2023,7 +2023,7 @@
         "A successful plan does not establish any physical hypothesis."
       ],
       "mechanism_id": "couplings",
-      "parent_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001",
+      "parent_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001",
       "parent_model_id": "ceff8be5ef317e92f82a3148f25f25ff394c7c9c503f0367d86d6012522978bf",
       "points": [
         {
@@ -2041,7 +2041,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -2173,7 +2173,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/points/anisotropy-off/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/points/anisotropy-off/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -2305,7 +2305,7 @@
                 "site_ref": "site:0"
               }
             ],
-            "directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/points/anisotropy-half/models/model-0001",
+            "directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/mechanisms/couplings/points/anisotropy-half/models/model-0001",
             "fidelity": {
               "assessment": "not_assessed",
               "reconstruction_error": null
@@ -2771,5 +2771,5 @@
   },
   "task": "mechanism_test",
   "timeout": 180.0,
-  "work_directory": "/data/work/zhli/soft/Design_Mott_Materials/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response"
+  "work_directory": "/data/work/zhli/soft/spinforge/.worktrees/literature-evidence-audit/translation-invariant-spin-model-simplifier/artifacts/research-stage-three-20261030-001/F-mc-uncertainty/steps/response"
 }

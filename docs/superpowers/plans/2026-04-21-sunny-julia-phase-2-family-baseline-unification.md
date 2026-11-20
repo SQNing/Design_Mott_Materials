@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Unify the remaining Sunny-family classical, thermodynamics, and SUN-GSWT launchers onto the canonical `.julia-env-v09` / `scripts/.julia-depot` / `DESIGN_MOTT_JULIA_CMD` baseline already established by Phase 1.
+**Goal:** Unify the remaining Sunny-family classical, thermodynamics, and SUN-GSWT launchers onto the canonical `.julia-env-v09` / `scripts/.julia-depot` / `SPINFORGE_JULIA_CMD` baseline already established by Phase 1.
 
 **Architecture:** Keep scope narrow and reuse the existing runtime surfaces. The three remaining Python adapters should mirror the Phase 1 LSWT Julia-command resolution order, and the three remaining Julia launchers should activate the same repo-local environment as `run_sunny_lswt.jl`. Focused contract tests should lock both behaviors so future drift is caught before downstream runs.
 
@@ -22,7 +22,7 @@
 
 ```python
 def test_driver_prefers_environment_julia_override(self):
-    with patch.dict("os.environ", {"DESIGN_MOTT_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
+    with patch.dict("os.environ", {"SPINFORGE_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
         result = run_sunny_sun_classical(payload)
     self.assertEqual(result["status"], "ok")
 
@@ -37,13 +37,13 @@ def test_driver_falls_back_to_plain_julia_without_override(self):
 
 Run: `python -m pytest translation-invariant-spin-model-simplifier/tests/test_sunny_sun_classical_driver.py -q`
 
-Expected: FAIL because the current driver hardcodes `"julia"` and ignores `DESIGN_MOTT_JULIA_CMD`.
+Expected: FAIL because the current driver hardcodes `"julia"` and ignores `SPINFORGE_JULIA_CMD`.
 
 - [ ] **Step 3: Write the failing thermodynamics-driver override tests**
 
 ```python
 def test_driver_prefers_environment_julia_override(self):
-    with patch.dict("os.environ", {"DESIGN_MOTT_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
+    with patch.dict("os.environ", {"SPINFORGE_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
         result = run_sunny_sun_thermodynamics(payload)
     self.assertEqual(result["status"], "ok")
 ```
@@ -52,13 +52,13 @@ def test_driver_prefers_environment_julia_override(self):
 
 Run: `python -m pytest translation-invariant-spin-model-simplifier/tests/test_sunny_sun_thermodynamics_driver.py -q`
 
-Expected: FAIL because the current driver hardcodes `"julia"` and ignores `DESIGN_MOTT_JULIA_CMD`.
+Expected: FAIL because the current driver hardcodes `"julia"` and ignores `SPINFORGE_JULIA_CMD`.
 
 - [ ] **Step 5: Extend the existing GSWT driver tests with the same override contract**
 
 ```python
 def test_driver_prefers_environment_julia_override(self):
-    with patch.dict("os.environ", {"DESIGN_MOTT_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
+    with patch.dict("os.environ", {"SPINFORGE_JULIA_CMD": "/tmp/julia-1.12/bin/julia"}, clear=False):
         result = run_sun_gswt(payload)
     self.assertEqual(result["status"], "ok")
 ```
@@ -72,11 +72,11 @@ Expected: FAIL because the current driver still uses `"julia"` directly.
 - [ ] **Step 7: Commit the red test slice once all three failures are demonstrated**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/tests/test_sunny_sun_classical_driver.py \
   translation-invariant-spin-model-simplifier/tests/test_sunny_sun_thermodynamics_driver.py \
   translation-invariant-spin-model-simplifier/tests/test_run_sun_gswt_driver.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "test: lock sunny family julia command resolution"
+git -C /data/work/zhli/soft/spinforge commit -m "test: lock sunny family julia command resolution"
 ```
 
 ### Task 2: Rewire The Remaining Python Drivers To Match Phase 1
@@ -92,7 +92,7 @@ git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "test: lock sunny fa
 def _resolve_julia_cmd(julia_cmd=None):
     if julia_cmd not in {None, ""}:
         return str(julia_cmd)
-    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
+    override = os.environ.get("SPINFORGE_JULIA_CMD")
     if override:
         return override
     return "julia"
@@ -135,11 +135,11 @@ Expected: PASS
 - [ ] **Step 7: Commit the Python driver unification**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/classical/sunny_sun_classical_driver.py \
   translation-invariant-spin-model-simplifier/scripts/classical/sunny_sun_thermodynamics_driver.py \
   translation-invariant-spin-model-simplifier/scripts/lswt/sun_gswt_driver.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: unify sunny family julia command resolution"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: unify sunny family julia command resolution"
 ```
 
 ### Task 3: Lock The Remaining Julia Launcher Paths In Tests
@@ -182,10 +182,10 @@ Expected: FAIL because the launcher paths are still stale.
 - [ ] **Step 5: Commit the red launcher-path tests**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/tests/test_sunny_family_environment_contract.py \
   translation-invariant-spin-model-simplifier/tests/test_run_sunny_sun_gswt_script.py
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "test: lock sunny family launcher environment paths"
+git -C /data/work/zhli/soft/spinforge commit -m "test: lock sunny family launcher environment paths"
 ```
 
 ### Task 4: Rewire The Remaining Julia Launchers To `.julia-env-v09`
@@ -222,26 +222,26 @@ Expected: PASS
 - [ ] **Step 5: Commit the launcher-path migration**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/scripts/classical/run_sunny_sun_classical.jl \
   translation-invariant-spin-model-simplifier/scripts/classical/run_sunny_sun_thermodynamics.jl \
   translation-invariant-spin-model-simplifier/scripts/lswt/run_sunny_sun_gswt.jl
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "feat: migrate remaining sunny launchers to v09 env"
+git -C /data/work/zhli/soft/spinforge commit -m "feat: migrate remaining sunny launchers to v09 env"
 ```
 
 ### Task 5: Refresh Docs, Re-run Focused Verification, And Record The Result
 
 **Files:**
 - Modify: `translation-invariant-spin-model-simplifier/reference/environment.md`
-- Modify: `session-memory/sessions/design-mott-materials-2026-04-21-0342.md`
-- Modify: `session-memory/index/design-mott-materials.md`
+- Modify: `session-memory/sessions/spinforge-2026-04-21-0342.md`
+- Modify: `session-memory/index/spinforge.md`
 
 - [ ] **Step 1: Update the environment reference to describe the shared Sunny-family baseline explicitly**
 
 ```markdown
 - All checked-in Sunny-family launchers now share the same repo-local
   `.julia-env-v09` project and `scripts/.julia-depot` depot.
-- `DESIGN_MOTT_JULIA_CMD` applies to the spin-only LSWT driver and the
+- `SPINFORGE_JULIA_CMD` applies to the spin-only LSWT driver and the
   Sunny-family pseudospin-orbital drivers.
 ```
 
@@ -255,16 +255,16 @@ Expected: PASS
 
 ```text
 Record that the remaining Sunny-family launchers and drivers now share the
-Phase 1 `.julia-env-v09` / `DESIGN_MOTT_JULIA_CMD` baseline.
+Phase 1 `.julia-env-v09` / `SPINFORGE_JULIA_CMD` baseline.
 ```
 
 - [ ] **Step 4: Commit docs + session-memory state**
 
 ```bash
-git -C /data/work/zhli/soft/Design_Mott_Materials add \
+git -C /data/work/zhli/soft/spinforge add \
   translation-invariant-spin-model-simplifier/reference/environment.md
-git -C /data/work/zhli/soft/Design_Mott_Materials add -f \
-  session-memory/sessions/design-mott-materials-2026-04-21-0342.md \
-  session-memory/index/design-mott-materials.md
-git -C /data/work/zhli/soft/Design_Mott_Materials commit -m "docs: record sunny phase2 family baseline"
+git -C /data/work/zhli/soft/spinforge add -f \
+  session-memory/sessions/spinforge-2026-04-21-0342.md \
+  session-memory/index/spinforge.md
+git -C /data/work/zhli/soft/spinforge commit -m "docs: record sunny phase2 family baseline"
 ```
