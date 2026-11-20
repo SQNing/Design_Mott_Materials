@@ -5,6 +5,7 @@ import json
 import math
 import os
 import socket
+import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -49,7 +50,10 @@ def event(root, value):
         stream.write(json.dumps(json_safe({"time": time.time(), **value}), sort_keys=True) + "\n")
 
 
-def process_identity(pid):
+_PROC_AVAILABLE = Path("/proc").is_dir()
+
+
+def _proc_identity(pid):
     try:
         stat = Path("/proc/%s/stat" % pid).read_text()
         tail = stat[stat.rfind(")") + 2:].split()
@@ -58,6 +62,61 @@ def process_identity(pid):
         return {"host": socket.gethostname(), "pid": int(pid), "start_ticks": tail[19]}
     except (OSError, IndexError):
         return None
+
+
+def _psutil_identity(pid):
+    """ps(1) can be sandbox-blocked; psutil's create_time is equally stable."""
+    try:
+        import psutil
+    except ImportError:
+        return "unavailable"
+    try:
+        process = psutil.Process(int(pid))
+    except (psutil.NoSuchProcess, ValueError):
+        return None
+    try:
+        if process.status() == psutil.STATUS_ZOMBIE:
+            return None
+        start = process.create_time()
+    except psutil.Error:
+        return None
+    return {"host": socket.gethostname(), "pid": int(pid),
+            "start": "%.6f" % float(start)}
+
+
+def _ps_identity(pid):
+    """ps(1) fallback: its start time is fixed for a process's lifetime."""
+    try:
+        completed = subprocess.run(
+            ["ps", "-o", "pid=,stat=,lstart=", "-p", str(int(pid))],
+            check=False, capture_output=True, text=True, timeout=10)
+    except Exception:
+        # ps unavailable (sandbox, missing binary, or monkeypatched subprocess):
+        # identity unknown is safer than crashing supervision.
+        return None
+    if completed.returncode != 0:
+        return None
+    lines = [line.split(None, 2) for line in completed.stdout.splitlines() if line.strip()]
+    if len(lines) != 1 or len(lines[0]) != 3:
+        return None
+    field_pid, field_stat, field_start = lines[0]
+    try:
+        if int(field_pid) != int(pid):
+            return None
+    except ValueError:
+        return None
+    if field_stat.startswith("Z"):
+        return None
+    return {"host": socket.gethostname(), "pid": int(pid), "start": field_start.strip()}
+
+
+def process_identity(pid):
+    if _PROC_AVAILABLE:
+        return _proc_identity(pid)
+    identity = _psutil_identity(pid)
+    if identity != "unavailable":
+        return identity
+    return _ps_identity(pid)
 
 
 def process_state(identity):

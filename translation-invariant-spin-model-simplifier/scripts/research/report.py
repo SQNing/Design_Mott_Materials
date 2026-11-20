@@ -11,8 +11,37 @@ def _summary(calculation):
               "spin", "spin_length", "local_dimension", "onsite_term_count", "pair_term_count",
               "stationarity_max_norm", "stationarity", "finite_cell_bound_gap",
               "infinite_lattice_certified", "ground_state_evidence", "convergence", "stability",
-              "eigenvalues", "residual_norms", "hilbert_dimension", "sampling", "cutoff_comparison")
+              "eigenvalues", "residual_norms", "hilbert_dimension", "sampling", "cutoff_comparison",
+              "sector")
     result = {key: calculation[key] for key in fields if key in calculation}
+    if "compare_sectors" in calculation:
+        result["compare_sectors"] = [
+            {"sector": entry["sector"], "eigenvalues": entry["eigenvalues"],
+             "converged": entry["converged"]}
+            for entry in calculation["compare_sectors"]]
+    observables = calculation.get("observables")
+    if observables:
+        static = observables.get("static", {})
+        compact = {"schema_version": observables.get("schema_version")}
+        if "gaps" in static:
+            compact["gaps"] = static["gaps"]
+        if "structure_factor" in static:
+            factor = static["structure_factor"]
+            compact["structure_factor"] = {
+                "ordering_q": factor.get("ordering_q"),
+                "m2_ordering": factor.get("m2_ordering"),
+                "m2_definition": factor.get("m2_definition"),
+                "point_count": len(factor.get("points", []))}
+        if "entanglement" in static:
+            compact["entanglement"] = static["entanglement"]
+        if "level_statistics" in static:
+            compact["level_statistics"] = static["level_statistics"]
+        if "correlations" in static:
+            compact["correlations"] = {
+                "definition": static["correlations"].get("definition"),
+                "site_count": len(static["correlations"].get("matrix", [])),
+                "note": "full matrix in the result JSON, not duplicated in the report"}
+        result["observables"] = compact
     if "initial_search" in calculation:
         initial = calculation["initial_search"]
         result["initial_search"] = {key: initial[key] for key in

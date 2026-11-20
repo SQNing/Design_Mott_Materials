@@ -169,7 +169,10 @@ answered_within_scope 必须有覆盖 requested_tasks 的当前模型结果、�
 | 保留 N 能级 | 同一局域维数、完整 Hermitian onsite 矩阵和一般 pair matrix；CP 局域射线优化与 Python GSWT，保留全部 N-1 激发 |
 | 单独偶极任务 | model.kind=dipolar_geometry，显式 lattice_vectors、fractional_positions、moments；task=dipolar_ewald |
 | 不支持项 | 完整模型含当前求解器不支持的项时停止，保存原项；不截断为双线性模型 |
-| 显式指定其它后端 | 当前 Research 适配层不自动替换后端。Sunny 等既有单独命令保留；未连接到此入口的请求返回 backend-not-connected |
+| Sunny（CPN） | settings.backend=sunny 时接通 `sunny-cpn-minimize`（task=classical_ground_state）与 Sunny 有限温采样（task=classical_monte_carlo，temperatures/pt_temperatures/wl_bounds）。仅限保留 N 能级 CPN 模型；Julia 环境探测失败时返回 `backend-not-connected: julia-unavailable`，不回退到 Python 后端 |
+| 量子任务 | task=quantum_low_energy 走 matrix-free ARPACK。路由前做 Hilbert 维数估计：缺 spin/local_dim 或超胞定义时返回 needs_input（quantum_cluster）；维数超上限（默认 262144，硬上限 4194304）时返回 `quantum-ed-dimension-exceeded` 并列出替代路线；保留多能级模型的量子路线尚未接通（显式 blocker） |
+| 声明未接通后端 | quantum-dmrg-itensor 与 quantum-vmc-netket 已在注册表声明；task=quantum_ground_state_dmrg/quantum_ground_state_vmc 或 settings.backend=dmrg/itensor/vmc/netket 一律返回 `backend-not-connected: <solver_id>` |
+| 显式指定其它后端 | 除上述已接通路由外，未连接到此入口的请求返回 backend-not-connected，适配层不自动替换后端 |
 
 矩阵单位基的对称作用用 dimension² × dimension² 的显式 symmetry_actions 表示；它对局域算符矩阵按 row-major 的 (bra,ket) 索引作用。pair_matrix 存储为 (left_bra,right_bra;left_ket,right_ket)，换端是交换两个 Hilbert 因子，不是 Hermitian 转置。
 
@@ -194,7 +197,7 @@ RUN 保留 request.json、source-provenance.json、state.json、decisions.jsonl�
 models/model-NNNN 的原始/规范/可读模型，以及 steps/ACTION 的动作、输入、执行记录、日志与结果。
 状态索引原子写入，输入和完成结果可独立读取。状态检查不启动新 worker。
 
-同一 action_id 的相同提交幂等；同 ID 不同内容拒绝。不同 ID 但完整模型、设置、参考结果和代码/环境身份均相同的已完成计算会被复用。模型或单位/基底标签改变、相关代码或环境改变，旧参考不能当作兼容参考。活动 worker 的 PID、主机和进程开始时间一起检查，不能只靠 PID 判断。
+同一 action_id 的相同提交幂等；同 ID 不同内容拒绝。不同 ID 但完整模型、设置、参考结果和代码/环境身份均相同的已完成计算会被复用。模型或单位/基底标签改变、相关代码或环境改变，旧参考不能当作兼容参考。代码身份按任务作用域分组哈希（`research/contracts.py` 的 TASK_CODE_GROUPS）：改动与本任务无关的后端代码不会使缓存和参考链失效；2026-11-18 之前的旧记录按全树身份比较。活动 worker 的 PID、主机和进程开始时间一起检查，不能只靠 PID 判断；无 /proc 的平台（如 macOS）优先用 psutil 的 create_time，psutil 不可用时退回 ps 的启动时间；两者都不可用时记为身份未知，不臆断存活。
 
 每个新 worker 定期将单调时钟测得的耗时写入 `timing.json`，完成或受控失败时保存终止耗时。监督进程丢失而计算子进程已有完整结果时，耗时仍可从子结果恢复。确认进程已中断后，按最后计时检查点固定记账，不把之后的闲置时间计入预算；未观测到的故障尾段用 `time_accounting.uncertain=true` 保留，不伪装成精确耗时。旧的中断记录若无计时检查点，则保守计入原先已分配的 `timeout_seconds`，这个固定预留不是实测运行时间。原始执行记录不重写，报告展示每步记账来源。这里的进程预算适用于当前本地 worker，并非 Slurm 的 TimeLimit 设置。
 

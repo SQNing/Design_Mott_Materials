@@ -9,6 +9,7 @@ OBSERVABLE_TASKS = {
     "local_population": "classical_ground_state",
     "harmonic_frequency": "spin_wave_spectrum",
     "quantum_gap": "quantum_low_energy",
+    "spin_correlation": "quantum_low_energy",
     "mc_energy_per_site": "classical_monte_carlo",
 }
 
@@ -47,6 +48,19 @@ def validate_observables(observables, experiments, model):
             _index(spec.get("level"), "level", minimum=1)
             if spec["level"] >= experiments[case]["settings"].get("eigenvalues", 0):
                 raise ValueError("quantum level must lie in the requested eigenvalue list")
+        if kind == "spin_correlation":
+            allowed |= {"site_i", "site_j"}
+            _index(spec.get("site_i"), "site_i")
+            _index(spec.get("site_j"), "site_j")
+            settings = experiments[case]["settings"]
+            if "correlations" not in (settings.get("observables") or []):
+                raise ValueError("spin_correlation requires 'correlations' in the experiment's observables")
+            shape = settings.get("supercell_shape", [1, 1, 1])
+            site_total = len(model["lattice_structure"]["basis_sites"])
+            for key in shape:
+                site_total *= int(key)
+            if spec["site_i"] >= site_total or spec["site_j"] >= site_total:
+                raise ValueError("correlation site index is outside the finite cluster")
         if kind == "local_population":
             allowed |= {"basis_index", "site"}
             _index(spec.get("basis_index"), "basis_index")
@@ -172,6 +186,10 @@ def read_observable(spec, result, evidence, blocker=None):
             energies = np.sort(calculation["eigenvalues"])
             value = energies[spec["level"]] - energies[0]
             record["evidence"]["calculation_path"] = "calculation.eigenvalues"
+        elif kind == "spin_correlation":
+            correlations = calculation["observables"]["static"]["correlations"]["matrix"]
+            value = correlations[spec["site_i"]][spec["site_j"]]
+            record["evidence"]["calculation_path"] = "calculation.observables.static.correlations"
         elif kind == "local_population":
             rays = _rays(calculation)
             if "site" in spec:

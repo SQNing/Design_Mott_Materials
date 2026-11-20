@@ -27,24 +27,32 @@ def compute(directory, inputs):
     # alive to record failure even if the numerical process runs out of memory.
     import resource
     memory = int(inputs["max_memory_mb"] * 1024 ** 2)
-    resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
+    memory_enforcement = "RLIMIT_AS"
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
+    except (OSError, ValueError) as exc:
+        # macOS rejects RLIMIT_AS outright (the kernel does not enforce it).
+        # The supervisor still bounds wall time; record the degradation
+        # instead of pretending the memory limit is enforced.
+        memory_enforcement = "unavailable: " + str(exc)
     origin = time.monotonic()
     origin_wall = time.time()
     execution = read_json(directory / "execution.json")
     startup = max(0., origin_wall - execution["started_at"])
     try:
-        from research.contracts import code_identity
-        if code_identity() != inputs["code_identity"]:
+        from research.contracts import same_code_identity
+        if not same_code_identity(inputs["code_identity"]):
             raise RuntimeError("implementation/environment changed before calculation")
         from research.adapters import run_calculation
         result = run_calculation(inputs)
-        if code_identity() != inputs["code_identity"]:
+        if not same_code_identity(inputs["code_identity"]):
             raise RuntimeError("implementation/environment changed during calculation")
         result["calculation_fingerprint"] = inputs["calculation_fingerprint"]
         result["finished_at"] = time.time()
     except Exception as exc:
         traceback.print_exc()
         result = failure(inputs, type(exc).__name__ + ": " + str(exc))
+    result["memory_limit_enforcement"] = memory_enforcement
     result["compute_seconds"] = startup + time.monotonic() - origin
     write_json(directory / "computation-result.json", result)
 
@@ -65,7 +73,11 @@ def supervise(directory, inputs):
 
     checkpoint()
     with (directory / "calculation.log").open("ab") as stream:
-        child = subprocess.Popen([sys.executable, "-B", "-m", "research.worker",
+        # Normalize the interpreter path (but keep virtualenv symlinks: a
+        # realpath would select the base interpreter and lose site-packages)
+        # so a relative sys.executable cannot break the child.
+        executable = os.path.abspath(sys.executable) if sys.executable else sys.executable
+        child = subprocess.Popen([executable, "-B", "-m", "research.worker",
                                   str(directory), "--compute"],
                                  stdin=subprocess.DEVNULL, stdout=stream,
                                  stderr=subprocess.STDOUT, start_new_session=True)

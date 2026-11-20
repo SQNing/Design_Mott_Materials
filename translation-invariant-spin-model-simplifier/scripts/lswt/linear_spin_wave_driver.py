@@ -20,16 +20,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 SUNNY_LSWT_SCRIPT = SCRIPT_DIR / "run_sunny_lswt.jl"
 PROJECT_JULIA_WRAPPER = SCRIPT_DIR.parent / "run_project_julia.sh"
 
+from common.julia_environment import probe_julia_environment
+
 
 def _resolve_julia_cmd(julia_cmd=None):
     if julia_cmd not in {None, ""}:
         return str(julia_cmd)
-    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
-    if override:
-        return override
-    if PROJECT_JULIA_WRAPPER.is_file():
-        return str(PROJECT_JULIA_WRAPPER)
-    return "julia"
+    return probe_julia_environment()["command"]
 
 
 def _resolve_exchange(model):

@@ -41,15 +41,13 @@ _PAULI_Z = (
 _SPIN_HALF_PAULIS = (_PAULI_X, _PAULI_Y, _PAULI_Z)
 
 
+from common.julia_environment import probe_julia_environment
+
+
 def _resolve_julia_cmd(julia_cmd=None):
     if julia_cmd not in {None, ""}:
         return str(julia_cmd)
-    override = os.environ.get("DESIGN_MOTT_JULIA_CMD")
-    if override:
-        return override
-    if PROJECT_JULIA_WRAPPER.is_file():
-        return str(PROJECT_JULIA_WRAPPER)
-    return "julia"
+    return probe_julia_environment()["command"]
 
 
 def _error(code, message, *, payload_kind=None, backend=None):

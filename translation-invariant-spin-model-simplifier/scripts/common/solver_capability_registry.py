@@ -91,9 +91,14 @@ def registered_research_solver_capabilities():
 
     Keep the legacy classical pipeline's registry unchanged: its retained-local
     bridge currently has a narrower term contract than the research bridge.
+
+    Entries with ``connection: declared-not-connected`` are never selected by
+    automatic routing; they exist so that an explicit request fails closed with
+    ``backend-not-connected`` instead of an opaque no-capability error.
     """
     return [
         {"solver_id": "periodic-spin-python", "backend": "python",
+         "connection": "connected",
          "tasks": ["classical_ground_state", "spin_wave_spectrum",
                    "classical_monte_carlo", "classical_finite_size",
                    "quantum_low_energy", "fourier_exchange_spectrum"],
@@ -101,12 +106,40 @@ def registered_research_solver_capabilities():
          "term_families": ["bilinear_exchange_tensor", "bilinear_exchange_matrix"],
          "max_body_order": 2, "reference_kind": "spin_frame"},
         {"solver_id": "retained-local-python", "backend": "python",
+         "connection": "connected",
          "tasks": ["classical_ground_state", "spin_wave_spectrum"],
          "classical_spaces": ["complex_projective_space"],
          "term_families": ["pair_matrix", "local_operator_matrix"],
          "max_body_order": 2, "reference_kind": "local_rays"},
         {"solver_id": "geometry-ewald-python", "backend": "python",
+         "connection": "connected",
          "tasks": ["dipolar_ewald"], "input_kind": "dipolar_geometry"},
+        {"solver_id": "sunny-sun-classical", "backend": "julia-sunny",
+         "connection": "environment-gated",
+         "tasks": ["classical_ground_state"],
+         "classical_spaces": ["complex_projective_space"],
+         "term_families": ["pair_matrix", "local_operator_matrix"],
+         "max_body_order": 2, "reference_kind": "local_rays"},
+        {"solver_id": "sunny-sun-thermodynamics", "backend": "julia-sunny",
+         "connection": "environment-gated",
+         "tasks": ["classical_monte_carlo"],
+         "classical_spaces": ["complex_projective_space"],
+         "term_families": ["pair_matrix", "local_operator_matrix"],
+         "max_body_order": 2, "reference_kind": "local_rays"},
+        {"solver_id": "quantum-dmrg-itensor", "backend": "julia-itensor",
+         "connection": "declared-not-connected",
+         "tasks": ["quantum_ground_state", "quantum_ground_state_dmrg"],
+         "classical_spaces": ["unit_vector_sphere", "complex_projective_space"],
+         "term_families": ["bilinear_exchange_tensor", "bilinear_exchange_matrix",
+                           "pair_matrix", "local_operator_matrix"],
+         "max_body_order": 2},
+        {"solver_id": "quantum-vmc-netket", "backend": "python-netket",
+         "connection": "declared-not-connected",
+         "tasks": ["quantum_ground_state", "quantum_ground_state_vmc"],
+         "classical_spaces": ["unit_vector_sphere", "complex_projective_space"],
+         "term_families": ["bilinear_exchange_tensor", "bilinear_exchange_matrix",
+                           "pair_matrix", "local_operator_matrix"],
+         "max_body_order": 2},
     ]
 
 

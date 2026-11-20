@@ -175,11 +175,23 @@ def linear_spin_wave_stage_decision(model, run_lswt=None, q_path_mode=None):
 def exact_diagonalization_stage_decision(model, run_exact_diagonalization=None):
     if "cluster_size" not in model or "local_dim" not in model:
         return {"status": "ok", "enabled": False, "available": False}
+    from common.quantum_method_routing import quantum_method_stage_decision
+    decision = quantum_method_stage_decision(model, {"quantum_method": "ed"})
+    if decision["status"] == "unsupported":
+        return {"status": "blocked", "enabled": False, "available": False,
+                "reason": decision.get("blocker"),
+                "hilbert_dimension": decision.get("hilbert_dimension"),
+                "alternatives": decision.get("alternatives", [])}
+    if decision["status"] != "ok":
+        return {"status": "ok", "enabled": False, "available": False}
     if run_exact_diagonalization is None:
         return _needs_input(
             "run_exact_diagonalization",
-            "A small-cluster exact-diagonalization branch is available for this payload. Run it after LSWT?",
+            ("A small-cluster exact-diagonalization branch is available "
+             "(Hilbert dimension %s). Run it after LSWT?"
+             % decision.get("hilbert_dimension")),
             recommended=False,
             options=[False, True],
         )
-    return {"status": "ok", "enabled": bool(run_exact_diagonalization), "available": True}
+    return {"status": "ok", "enabled": bool(run_exact_diagonalization),
+            "available": True, "hilbert_dimension": decision["hilbert_dimension"]}

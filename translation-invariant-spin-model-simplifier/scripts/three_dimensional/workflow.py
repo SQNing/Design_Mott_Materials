@@ -18,7 +18,7 @@ from three_dimensional.spin_system import PeriodicSpinSystem, minimize_fixed_len
 from three_dimensional.spin_waves import spin_wave_spectrum
 from three_dimensional.ewald import dipolar_ewald
 from three_dimensional.monte_carlo import classical_monte_carlo, classical_finite_size
-from three_dimensional.quantum import quantum_low_energy
+from quantum.ed_solver import solve_quantum_low_energy as quantum_low_energy
 from three_dimensional.spin_payload import global_spin_payload
 
 

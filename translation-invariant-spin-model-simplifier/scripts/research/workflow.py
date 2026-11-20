@@ -7,7 +7,8 @@ import sys
 import time
 
 from research.contracts import (SCRIPTS, budget_for, code_identity, digest,
-                                task_name, validate_id)
+                                same_code_identity, task_code_groups, task_name,
+                                validate_id)
 from research.models import load_source, merge_patch, prepare_model
 from research.state import (collect_steps, compute_seconds, event, locked,
                             new_state, process_identity, read_json, write_json)
@@ -227,7 +228,9 @@ def _launch(root, state, action):
                         scientific_status=state["model"]["status"])
     model = read_json(Path(state["model"]["directory"]) / "solver_model.json")
     task = task_name(action.get("task"))
-    identity = code_identity()
+    # Scope the identity to the code groups this task actually executes so
+    # caches and references survive edits to unrelated solver backends.
+    identity = code_identity(groups=task_code_groups(task))
     comparison = None
     if task == "reduction_validation":
         from research.reduction_validation import prepare_validation
@@ -251,7 +254,7 @@ def _launch(root, state, action):
         reference = read_json(path)
         if reference["model_id"] != state["model"]["model_id"]:
             raise ValueError("reference belongs to a different model")
-        if reference.get("code_identity") != identity:
+        if not same_code_identity(reference.get("code_identity")):
             raise ValueError("reference code/runtime differs; recompute or explicitly import with provenance")
         if reference.get("task") != "classical_ground_state":
             raise ValueError("reference must be a classical ground-state result")

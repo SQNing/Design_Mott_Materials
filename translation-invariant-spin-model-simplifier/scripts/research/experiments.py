@@ -8,10 +8,13 @@ from research.state import read_json, write_json
 
 
 def cached_result(path, fingerprint, identity):
+    from research.contracts import same_code_identity
     if not Path(path).exists():
         return None
     record = read_json(path)
-    if (record.get("job_fingerprint") != fingerprint or record.get("code_identity") != identity or
+    if record.get("code_identity") != identity and not same_code_identity(record.get("code_identity")):
+        raise ValueError("invalid or incompatible comparison cache: " + str(path))
+    if (record.get("job_fingerprint") != fingerprint or
             record.get("execution_status") != "succeeded" or
             record.get("evidence_digest") != digest({k: v for k, v in record.items() if k != "evidence_digest"})):
         raise ValueError("invalid or incompatible comparison cache: " + str(path))
@@ -42,7 +45,7 @@ def make_job(root, case, role, model, task, settings, identity, memory, referenc
 
 def execute_jobs(inputs, jobs):
     from research.adapters import run_calculation
-    from research.contracts import code_identity
+    from research.contracts import same_code_identity
     directory = Path(inputs["work_directory"])
     completed, results, evidence, runs = {}, {}, [], 0
     for job in jobs:
@@ -59,7 +62,7 @@ def execute_jobs(inputs, jobs):
                           "scientific_status": "inconclusive", "calculation": {},
                           "blocker": "reference is not scientifically usable"}
             else:
-                if code_identity() != inputs["code_identity"]:
+                if not same_code_identity(inputs["code_identity"]):
                     raise RuntimeError("implementation changed during comparison")
                 runs += 1
                 write_json(directory / "comparison-progress.json", {"solver_runs": runs})
@@ -71,7 +74,7 @@ def execute_jobs(inputs, jobs):
                               "task": child["task"], "execution_status": "failed",
                               "scientific_status": "inconclusive", "calculation": {},
                               "blocker": type(exc).__name__ + ": " + str(exc)}
-                if code_identity() != inputs["code_identity"]:
+                if not same_code_identity(inputs["code_identity"]):
                     raise RuntimeError("implementation changed during comparison")
                 if result["execution_status"] == "succeeded":
                     result = {**result, "job_fingerprint": fingerprint, "finished_at": time.time()}

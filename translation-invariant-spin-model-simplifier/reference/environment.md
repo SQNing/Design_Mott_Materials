@@ -46,6 +46,15 @@ python3 --version
   Purpose:
   Used by optimization and linear-algebra paths in classical and certified-GLT
   solvers.
+- `spglib`
+  Purpose:
+  Lattice symmetry detection for `build_symmetry_record` and the spin-only
+  solver payload. Without it, symmetry falls back to identity only, which
+  silently weakens the symmetry gate — treat it as required, not optional.
+- `matplotlib`
+  Purpose:
+  Plot rendering (`scripts/output/render_plots.py`); CLI pipelines import it
+  eagerly, so its absence breaks collection of several test modules.
 
 Verification:
 
@@ -53,8 +62,10 @@ Verification:
 python3 - <<'PY'
 import numpy
 import scipy
+import spglib
 print("numpy", numpy.__version__)
 print("scipy", scipy.__version__)
+print("spglib", spglib.__version__)
 PY
 ```
 
@@ -128,6 +139,20 @@ Current expected Sunny line:
 
 - `Sunny.jl 0.9.x`
 
+Julia resolution order (all Sunny/LSWT drivers and the research adapter share
+`scripts/common/julia_environment.py`):
+
+1. an explicit `julia_cmd` argument passed to the driver,
+2. `DESIGN_MOTT_JULIA_CMD` (see below),
+3. the repo-local wrapper `scripts/run_project_julia.sh`, but only when its
+   configured interpreter (`DESIGN_MOTT_JULIA_BIN`, default
+   `/data/work/zhli/soft/julia-1.12.6/bin/julia`) is executable,
+4. `julia` on `PATH`.
+
+When none is available, research-workflow `calculate` actions for Sunny
+backends stop with `backend-not-connected: julia-unavailable` — there is no
+silent fallback to the Python backends.
+
 Optional override:
 
 - `DESIGN_MOTT_JULIA_CMD`
@@ -139,6 +164,11 @@ Optional override:
   - the Sunny pseudospin-orbital classical driver
   - the Sunny pseudospin-orbital thermodynamics driver
   - the Sunny SUN-GSWT Python driver
+- `DESIGN_MOTT_JULIA_BIN`
+  Purpose:
+  Overrides the interpreter path used by `scripts/run_project_julia.sh`
+  (default `/data/work/zhli/soft/julia-1.12.6/bin/julia`), so the wrapper works
+  on machines where Julia 1.12.x lives elsewhere.
 
 Verification:
 
