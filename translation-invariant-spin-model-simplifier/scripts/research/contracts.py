@@ -121,6 +121,7 @@ TASK_CODE_GROUPS = {
     "classical_monte_carlo": ("common", "three_dimensional", "research"),
     "classical_finite_size": ("common", "three_dimensional", "research"),
     "quantum_low_energy": ("common", "three_dimensional", "quantum", "research"),
+    "quantum_thermodynamics": ("common", "three_dimensional", "quantum", "research"),
     "fourier_exchange_spectrum": ("common", "three_dimensional", "research"),
     "dipolar_ewald": ("common", "three_dimensional", "research"),
     # Comparison tasks touch every registered solver backend plus the full

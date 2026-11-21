@@ -42,22 +42,26 @@ def classical_monte_carlo(system, request):
     if q.shape != (3,) or not np.all(np.isfinite(q)):
         raise ValueError("order_momentum must be a finite 3-vector in primitive reciprocal units")
     phases = np.exp(2j * math.pi * (positions @ q))
-    grid = []
-    for temperature in temperatures:
-        spins = rng.normal(size=(site_count, 3))
+    certify = bool(request.get("certify_equilibration", True))
+    z_limit = float(request.get("equilibration_z_limit", 3.0))
+    min_tau_lengths = float(request.get("equilibration_min_tau_lengths", 20.0))
+    min_effective = float(request.get("equilibration_min_effective_samples", 50.0))
+
+    def run_chain(chain_rng, temperature):
+        spins = chain_rng.normal(size=(site_count, 3))
         spins *= spin_length / np.linalg.norm(spins, axis=1, keepdims=True)
         samples, uniform_means = [], []
         accepts = 0
         for sweep in range(burn + sweeps):
-            for site in rng.permutation(site_count):
+            for site in chain_rng.permutation(site_count):
                 forward, backward = outgoing[site], incoming[site]
                 field = np.einsum("bij,bj->i", system.matrices[forward], spins[system.target[forward]])
                 field += np.einsum("bji,bj->i", system.matrices[backward], spins[system.source[backward]])
-                proposed = rng.normal(size=3)
+                proposed = chain_rng.normal(size=3)
                 proposed *= spin_length / np.linalg.norm(proposed)
                 delta = proposed - spins[site]
                 change = float(delta @ field + delta @ self_tensors[site] @ delta)
-                if change <= 0 or rng.random() < math.exp(-change / temperature):
+                if change <= 0 or chain_rng.random() < math.exp(-change / temperature):
                     spins[site] = proposed
                     if sweep >= burn:
                         accepts += 1
@@ -66,7 +70,11 @@ def classical_monte_carlo(system, request):
                 order = np.sum(phases[:, None] * spins, axis=0) / site_count
                 samples.append([energy, float(np.vdot(order, order).real)])
                 uniform_means.append(np.mean(spins, axis=0))
-        samples = np.array(samples)
+        return np.array(samples), np.array(uniform_means), accepts
+
+    grid = []
+    for t_index, temperature in enumerate(temperatures):
+        samples, uniform_means, accepts = run_chain(rng, temperature)
         energy, squared = samples[:, 0], samples[:, 1]
         energy_error, energy_tau, effective = _uncertainty(energy / site_count)
         order_error, order_tau, order_effective = _uncertainty(squared)
@@ -82,7 +90,44 @@ def classical_monte_carlo(system, request):
             fluctuation_errors = (np.std(leave_one_out, axis=0, ddof=0) * math.sqrt(blocks - 1)).tolist()
         uniform = np.array(uniform_means)
         susceptibility = site_count / (3 * temperature) * float(np.sum(np.var(uniform, axis=0)))
-        grid.append({
+        equilibration = None
+        if certify:
+            # Second independent chain (fresh initialization, independent seed):
+            # equilibration requires the two chains' energy and order samples to
+            # be statistically indistinguishable, long enough measured span in
+            # units of the autocorrelation time, and enough effective samples.
+            seed2 = int(request.get("seed", 0)) + 104729 * (t_index + 1) + 1
+            rng2 = np.random.default_rng(seed2)
+            samples2, _uniform2, _accepts2 = run_chain(rng2, temperature)
+            e2, o2 = samples2[:, 0] / site_count, samples2[:, 1]
+            e1, o1 = energy / site_count, squared
+            err2_e, tau2_e, _eff2e = _uncertainty(e2)
+            err2_o, tau2_o, _eff2o = _uncertainty(o2)
+            z_energy = abs(float(np.mean(e1)) - float(np.mean(e2))) / max(
+                math.sqrt(energy_error ** 2 + err2_e ** 2), 1e-300)
+            z_order = abs(float(np.mean(o1)) - float(np.mean(o2))) / max(
+                math.sqrt(order_error ** 2 + err2_o ** 2), 1e-300)
+            tau_max = max(energy_tau, order_tau, tau2_e, tau2_o)
+            span_tau = (sweeps // interval) / max(tau_max, 1e-300)
+            reasons = []
+            if z_energy > z_limit:
+                reasons.append("energy distributions differ between independent chains (z=%.2f)" % z_energy)
+            if z_order > z_limit:
+                reasons.append("order-parameter distributions differ between independent chains (z=%.2f)" % z_order)
+            if span_tau < min_tau_lengths:
+                reasons.append("measured span %.1f tau_int below required %.1f" % (span_tau, min_tau_lengths))
+            if min(effective, order_effective) < min_effective:
+                reasons.append("effective samples %.1f below required %.1f"
+                               % (min(effective, order_effective), min_effective))
+            equilibration = {"certified": not reasons,
+                             "z_limit": z_limit,
+                             "z_energy": float(z_energy), "z_order": float(z_order),
+                             "tau_int_sweeps": float(tau_max),
+                             "span_tau_lengths": float(span_tau),
+                             "min_tau_lengths": min_tau_lengths,
+                             "second_chain_seed": seed2,
+                             "failure_reasons": reasons}
+        row = {
             "temperature": temperature, "energy_per_site": float(np.mean(energy)) / site_count,
             "energy_stderr": energy_error, "energy_tau_int_samples": energy_tau,
             "energy_effective_samples": effective, "samples": len(samples),
@@ -94,8 +139,13 @@ def classical_monte_carlo(system, request):
             "acceptance_rate": accepts / (sweeps * site_count),
             "jackknife_block_size": block_size, "jackknife_blocks": blocks,
             "effective_sample_warning": min(effective, order_effective) < 50 or blocks < 8,
-        })
-    return {
+        }
+        if equilibration is not None:
+            row["equilibration"] = equilibration
+        grid.append(row)
+    all_certified = bool(grid) and all(row.get("equilibration", {}).get("certified", False)
+                                       for row in grid)
+    result = {
         "status": "ok", "method": "classical-periodic-sphere-Metropolis",
         "grid": grid, "site_count": site_count, "supercell_shape": list(system.shape),
         "spin_length": spin_length, "order_momentum": q.tolist(),
@@ -107,10 +157,31 @@ def classical_monte_carlo(system, request):
         "sampling": {"burn_in_sweeps": burn, "measurement_sweeps": sweeps,
                      "measurement_interval": interval, "seed": int(request.get("seed", 0)),
                      "independent_initialization_each_temperature": True,
-                     "equilibration_verified": False},
+                     "equilibration_verified": all_certified,
+                     "equilibration_check": ("dual-chain z-test + tau_int span + effective samples"
+                                             if certify else "disabled")},
         "limitations": ["Classical, not quantum Monte Carlo; local updates can be slow near transitions.",
                         "Reported statistical errors do not establish equilibration or remove finite-size bias."],
     }
+    if certify and not all_certified:
+        result["equilibration_status"] = "equilibration_not_certified"
+    result["thermodynamics_v1"] = {
+        "schema_version": "thermodynamics/v1", "source": "classical_mc",
+        "grid": [{"temperature": row["temperature"],
+                  "energy_per_site": {"value": row["energy_per_site"],
+                                      "stderr": row["energy_stderr"]},
+                  "heat_capacity_per_site": {"value": row["heat_capacity_per_site"],
+                                             "stderr": row["heat_capacity_stderr"]},
+                  "entropy_per_site": {"value": None,
+                                       "note": "not available from Metropolis sampling"},
+                  "uniform_susceptibility_per_site": {
+                      "value": row["uniform_susceptibility_per_component"] * 3.0,
+                      "stderr": None,
+                      "note": "isotropic sum (3x per-component value)"}}
+                 for row in grid],
+        "equilibration_certified": all_certified,
+    }
+    return result
 
 
 def classical_finite_size(payload, request):

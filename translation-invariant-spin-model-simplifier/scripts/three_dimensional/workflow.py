@@ -19,6 +19,7 @@ from three_dimensional.spin_waves import spin_wave_spectrum
 from three_dimensional.ewald import dipolar_ewald
 from three_dimensional.monte_carlo import classical_monte_carlo, classical_finite_size
 from quantum.ed_solver import solve_quantum_low_energy as quantum_low_energy
+from quantum.ftlm import solve_quantum_thermodynamics
 from three_dimensional.spin_payload import global_spin_payload
 
 
@@ -47,13 +48,15 @@ def _run_workflow(model, request):
         calculation["eigenvector_coordinate_frame"] = "input spin-component basis at each site"
     elif task == "classical_finite_size":
         calculation = classical_finite_size(global_spin_payload(gate), request)
-    elif task in {"classical_ground_state", "spin_wave_spectrum", "classical_monte_carlo", "quantum_low_energy"}:
+    elif task in {"classical_ground_state", "spin_wave_spectrum", "classical_monte_carlo",
+                  "quantum_low_energy", "quantum_thermodynamics"}:
         payload = global_spin_payload(gate)
         system = PeriodicSpinSystem(payload, request["supercell_shape"])
         solver = {"classical_ground_state": minimize_fixed_length,
                   "spin_wave_spectrum": spin_wave_spectrum,
                   "classical_monte_carlo": classical_monte_carlo,
-                  "quantum_low_energy": quantum_low_energy}[task]
+                  "quantum_low_energy": quantum_low_energy,
+                  "quantum_thermodynamics": solve_quantum_thermodynamics}[task]
         calculation = solver(system, request)
         calculation["spin_coordinate_frame"] = "global Cartesian (crystallographic axes)"
         calculation["bridge_metadata"] = payload["bridge_metadata"]

@@ -217,6 +217,35 @@ def render_research_report(run_dir, output_dir):
                 write_json(grid_path, calculation["grid"])
                 artifacts.append(str(grid_path))
                 lines.extend(["[Finite-temperature samples and errors](%s)" % grid_path, ""])
+                # Flattened CSV (same columns for classical MC and quantum
+                # thermodynamics grids, so the two can be compared directly).
+                def _flat(row):
+                    out = {}
+                    for key, value in row.items():
+                        if isinstance(value, dict) and "value" in value:
+                            out[key] = value["value"]
+                            if value.get("stderr") is not None:
+                                out[key + "_stderr"] = value["stderr"]
+                        elif not isinstance(value, (dict, list)):
+                            out[key] = value
+                    return out
+                flat_rows = [_flat(r) for r in calculation["grid"]
+                             if isinstance(r, dict) and "temperature" in r]
+                if flat_rows:
+                    columns = list(dict.fromkeys(k for r in flat_rows for k in r))
+                    csv_path = output / (action_id + "-thermodynamics.csv")
+                    with csv_path.open("w", newline="") as stream:
+                        writer = csv.writer(stream)
+                        writer.writerow(columns)
+                        for r in flat_rows:
+                            writer.writerow([r.get(c) for c in columns])
+                    artifacts.append(str(csv_path))
+                    lines.extend(["[Thermodynamics grid (CSV)](%s)" % csv_path, ""])
+                if calculation.get("field_scans"):
+                    scan_path = output / (action_id + "-magnetization.json")
+                    write_json(scan_path, calculation["field_scans"])
+                    artifacts.append(str(scan_path))
+                    lines.extend(["[M(T,H) field scans](%s)" % scan_path, ""])
     lines.extend(["## Agent assessment", ""])
     if not state["assessments"]:
         lines.append("No explicit evidence-based assessment recorded. Successful execution does not complete the research question.")

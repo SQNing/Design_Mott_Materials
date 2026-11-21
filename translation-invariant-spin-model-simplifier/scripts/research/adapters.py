@@ -7,7 +7,7 @@ from common.quantum_method_routing import quantum_method_stage_decision
 from common.solver_capability_registry import registered_research_solver_capabilities
 from research.contracts import restore_complex, runtime_identity
 
-_QUANTUM_TASKS = {"quantum_low_energy"}
+_QUANTUM_TASKS = {"quantum_low_energy", "quantum_thermodynamics"}
 _NOT_CONNECTED = {
     "quantum-dmrg-itensor": "quantum-dmrg-itensor",
     "dmrg": "quantum-dmrg-itensor", "itensor": "quantum-dmrg-itensor",
@@ -413,12 +413,32 @@ def run_calculation(inputs):
         grids = [calculation.get("grid", [])] if task == "classical_monte_carlo" else [
             size["grid"] for size in calculation.get("sizes", [])]
         warning = any(row.get("effective_sample_warning", True) for grid in grids for row in grid)
-        scientific = "inconclusive"  # existing MC explicitly does not verify equilibration
+        verified = bool(calculation.get("sampling", {}).get("equilibration_verified", False))
+        scientific = "inconclusive" if not verified else status
         diagnostics.extend([{"kind": "effective_samples", "satisfied": not warning},
-                            {"kind": "equilibration", "satisfied": False,
-                             "note": "Statistics alone do not certify equilibration."}])
+                            {"kind": "equilibration", "satisfied": verified,
+                             "note": ("Dual-chain z-test, tau_int span and effective-sample "
+                                      "thresholds all passed."
+                                      if verified else
+                                      "Equilibration not certified: see per-temperature "
+                                      "equilibration block and rerun with longer sampling.")}])
         suggestions.append({"type": "calculate", "task": task,
                             "reason": "Compare independent seeds and longer burn-in/sampling; inspect finite-size effects.",
+                            "requires_agent_choice": True})
+    if task == "quantum_thermodynamics" and calculation:
+        grid = calculation.get("grid", [])
+        consistency = calculation.get("consistency")
+        diagnostics.append({"kind": "ftlm_tpq_consistency",
+                            "satisfied": (consistency is None or
+                                          consistency.get("consistent") is not False),
+                            "details": consistency})
+        diagnostics.append({"kind": "sampling_metadata",
+                            "satisfied": bool(calculation.get("sampling")),
+                            "details": calculation.get("sampling")})
+        scopes.append("Finite-cluster quantum thermodynamics (FTLM/TPQ); no "
+                      "thermodynamic-limit claim; T->0 reflects the finite-size gap.")
+        suggestions.append({"type": "calculate", "task": "classical_monte_carlo",
+                            "reason": "Cross-check the same finite cluster against the classical limit at high T.",
                             "requires_agent_choice": True})
     if task == "quantum_low_energy" and calculation:
         from research.contracts import validate_observables_block
