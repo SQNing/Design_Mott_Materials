@@ -149,7 +149,13 @@ function main()
     delta_e = length(energies) > 1 ? abs(energies[end] - energies[end - 1]) : Inf
     psi_trunc = truncate(psi; cutoff=cutoff)
     trunc_discard = 1.0 - abs(inner(psi, psi_trunc))
-    converged = (variance < var_tol) && (delta_e < e_tol) && (trunc_discard < trunc_tol)
+    # Extensive diagnostics are compared per site: an absolute total
+    # variance/|ΔE| tolerance is unreachable for large N even when E/N is
+    # already converged (N=40 chain: total variance 1.6e-6 with accurate E/N).
+    variance_per_site = variance / nsite
+    delta_e_per_site = delta_e / nsite
+    converged = (variance_per_site < var_tol) && (delta_e_per_site < e_tol) &&
+                (trunc_discard < trunc_tol)
 
     entropies = Float64[]
     sz_sz = nothing
@@ -172,9 +178,12 @@ function main()
             "sweep_energies" => _json_safe(energies),
             "sweep_maxlinkdim" => maxdims,
             "variance" => _json_safe(variance),
+            "variance_per_site" => _json_safe(variance_per_site),
             "delta_e_last_sweep" => _json_safe(delta_e),
+            "delta_e_per_site" => _json_safe(delta_e_per_site),
             "truncation_discard" => _json_safe(trunc_discard),
-            "criteria" => Dict("energy_tol" => e_tol, "variance_tol" => var_tol,
+            "criteria" => Dict("energy_tol_per_site" => e_tol,
+                               "variance_tol_per_site" => var_tol,
                                "truncation_tol" => trunc_tol),
         ),
         "entanglement" => Dict("bond_entropies" => entropies),

@@ -213,6 +213,59 @@ simplification route instead, but that is an explicit alternative backend path
 rather than the same Sunny-backed workflow.
 ```
 
+### Optional: ITensor DMRG backend
+
+Required when the user asks for `quantum_ground_state_dmrg` (1D chains or 2D
+strip geometry beyond ED reach).
+
+Required tools:
+
+- `julia` (same resolution order as the Sunny backends above)
+- local Julia project at `.julia-env-dmrg` with `Manifest.toml`
+- Julia packages in that project: `ITensors`, `ITensorMPS`, `JSON3`
+
+Verification:
+
+```bash
+cd /path/to/translation-invariant-spin-model-simplifier
+/path/to/julia --project="$PWD/.julia-env-dmrg" \
+  --startup-file=no --history-file=no --compiled-modules=no --pkgimages=no \
+  -e 'using JSON3, ITensors, ITensorMPS; println("OK")'
+```
+
+If the project is not instantiated:
+
+```bash
+cd /path/to/translation-invariant-spin-model-simplifier
+/path/to/julia --project="$PWD/.julia-env-dmrg" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+```
+
+If missing: return `backend-not-connected` for the DMRG task. Do not fall back
+to ED or VMC silently.
+
+### Optional: netket VMC backend
+
+Required when the user asks for `quantum_ground_state_vmc`.
+
+Required tools:
+
+- repository-local virtualenv at `.venv-netket`
+- Python packages in that venv: `netket`, `jax`, `numpy`
+
+Verification:
+
+```bash
+cd /path/to/translation-invariant-spin-model-simplifier
+.venv-netket/bin/python - <<'PY'
+import jax
+import netket
+print("netket", netket.__version__, "jax", jax.__version__)
+PY
+```
+
+If missing: return `backend-not-connected` for the VMC task. Do not fall back
+to ED or DMRG silently.
+
 ### Optional: Python GSWT backend
 
 Required when the user asks for the Python-only GSWT path rather than Sunny.

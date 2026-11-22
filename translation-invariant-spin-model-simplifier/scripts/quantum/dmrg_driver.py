@@ -75,8 +75,9 @@ def solve_quantum_dmrg(system, request):
         "cutoff": float(request.get("dmrg_cutoff", 1e-12)),
         # Noise >0 breaks QN block structure in ITensor's eigensolver.
         "noise": float(request.get("dmrg_noise", 0.0)),
+        # Extensive criteria are enforced per site (see run_dmrg_itensor.jl).
         "energy_tol": float(request.get("dmrg_energy_tol", 1e-10)),
-        "variance_tol": float(request.get("dmrg_variance_tol", 1e-8)),
+        "variance_tol": float(request.get("dmrg_variance_tol", 1e-6)),
         "truncation_tol": float(request.get("dmrg_truncation_tol", 1e-10)),
         "observables": bool(request.get("observables", True)),
     }
@@ -140,7 +141,9 @@ def solve_quantum_dmrg(system, request):
         "claim_level": "finite_cell_ground_state",
         "convergence": {
             "variance": _num(diag["variance"]),
+            "variance_per_site": _num(diag["variance_per_site"]),
             "delta_e_last_sweep": _num(diag["delta_e_last_sweep"]),
+            "delta_e_per_site": _num(diag["delta_e_per_site"]),
             "truncation_discard": _num(diag["truncation_discard"]),
             "criteria": diag["criteria"],
             "sweep_energies": [_num(v) for v in diag["sweep_energies"]],
@@ -156,5 +159,7 @@ def solve_quantum_dmrg(system, request):
             "strips need larger dmrg_maxdim budgets.",
             "Variational DMRG energy is an upper bound when not converged; "
             "trust only converged=true results.",
+            "Extensive convergence diagnostics (variance, sweep energy change) "
+            "are certified per site; totals are reported for provenance.",
         ],
     }

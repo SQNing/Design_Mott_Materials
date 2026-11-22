@@ -194,7 +194,10 @@ def test_dmrg_strip_geometry_runs():
 @pytest.mark.skipif(not BENCHMARK,
                     reason="benchmark wall; run with SPINFORGE_BENCHMARK=1")
 def test_dmrg_chain_n100_bethe_anchor():
-    # Periodic Heisenberg chain N=100, E/N vs Bethe 1/4 - ln 2 (rel < 1e-6).
+    # Periodic Heisenberg chain N=100. Compare against the finite-N Bethe
+    # reference, not the thermodynamic 1/4 - ln2: the O(1/N^2) finite-size
+    # shift at N=100 is ~1.9e-4 relative, far larger than the DMRG tolerance.
+    from test_ed_benchmarks import bethe_ground_state_energy
     result = run_dmrg(chain_model(1.0), supercell_shape=[100, 1, 1], spin=0.5,
                       dmrg_sweeps=14, dmrg_maxdim=500, dmrg_noise=0.0,
                       dmrg_cutoff=1e-14, observables=False,
@@ -202,5 +205,5 @@ def test_dmrg_chain_n100_bethe_anchor():
     calc = result["calculation"]
     assert result["status"] == "ok", result.get("blocker") or calc.get("blocker")
     assert calc["converged"] is True
-    bethe = 0.25 - np.log(2.0)
-    assert calc["energy_per_site"] == pytest.approx(bethe, rel=1e-6)
+    reference = bethe_ground_state_energy(100)
+    assert calc["energy"] == pytest.approx(reference, rel=1e-6)
