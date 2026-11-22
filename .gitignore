@@ -61,3 +61,4 @@ translation-invariant-spin-model-simplifier/tmp/
 !translation-invariant-spin-model-simplifier/tests/test_code_identity_groups.py
 !translation-invariant-spin-model-simplifier/tests/test_process_identity.py
 !translation-invariant-spin-model-simplifier/tests/test_sunny_research_adapter.py
+.venv-netket/

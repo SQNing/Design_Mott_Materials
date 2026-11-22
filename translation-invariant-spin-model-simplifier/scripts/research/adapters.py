@@ -8,14 +8,13 @@ from common.solver_capability_registry import registered_research_solver_capabil
 from research.contracts import restore_complex, runtime_identity
 
 _QUANTUM_TASKS = {"quantum_low_energy", "quantum_thermodynamics"}
-_NOT_CONNECTED = {
-    "quantum-dmrg-itensor": "quantum-dmrg-itensor",
-    "dmrg": "quantum-dmrg-itensor", "itensor": "quantum-dmrg-itensor",
-    "julia-itensor": "quantum-dmrg-itensor", "mps": "quantum-dmrg-itensor",
-    "quantum-vmc-netket": "quantum-vmc-netket",
-    "vmc": "quantum-vmc-netket", "netket": "quantum-vmc-netket",
-    "python-netket": "quantum-vmc-netket",
+_DMRG_BACKENDS = {
+    "quantum-dmrg-itensor", "dmrg", "itensor", "julia-itensor", "mps",
 }
+_VMC_BACKENDS = {
+    "quantum-vmc-netket", "vmc", "netket", "python-netket",
+}
+_NOT_CONNECTED = {}
 _SUNNY_BACKENDS = {"sunny", "julia-sunny", "sunny.jl"}
 _SUNNY_TASKS = {"classical_ground_state": "sunny-sun-classical",
                 "classical_monte_carlo": "sunny-sun-thermodynamics"}
@@ -43,18 +42,53 @@ def _sunny_capability(model, task):
     return {"status": "supported", **capability, "julia_probe": probe}
 
 
+def _dmrg_capability():
+    """Environment-gated ITensor DMRG route; explicit unavailability, never fallback."""
+    from pathlib import Path
+    probe = probe_julia_environment()
+    if not probe["available"]:
+        return {"status": "unsupported",
+                "blocker": "backend-not-connected: julia-unavailable (%s)" % probe["detail"],
+                "julia_probe": probe}
+    manifest = Path(__file__).resolve().parents[2] / ".julia-env-dmrg" / "Manifest.toml"
+    if not manifest.is_file():
+        return {"status": "unsupported",
+                "blocker": ("backend-not-connected: itensor-environment-not-instantiated "
+                            "(%s missing; run Pkg.instantiate for .julia-env-dmrg)" % manifest),
+                "julia_probe": probe}
+    capability = next(cap for cap in registered_research_solver_capabilities()
+                      if cap["solver_id"] == "quantum-dmrg-itensor")
+    return {"status": "supported", **capability, "julia_probe": probe}
+
+
+def _vmc_capability():
+    """Environment-gated netket VMC route; explicit unavailability, never fallback."""
+    from quantum.vmc_driver import _probe_netket
+    python_path, netket_ok, detail = _probe_netket()
+    if not netket_ok:
+        return {"status": "unsupported",
+                "blocker": "backend-not-connected: netket-unavailable (%s)" % detail}
+    capability = next(cap for cap in registered_research_solver_capabilities()
+                      if cap["solver_id"] == "quantum-vmc-netket")
+    return {"status": "supported", **capability, "netket_probe": detail}
+
+
 def capability_for(model, task, settings):
     from common.canonical_hamiltonian import pair_coefficient_representation
     settings = settings if isinstance(settings, dict) else {}
     backend = str(settings.get("backend", "python"))
+    # Stage D: the DMRG route is connected (environment-gated) for explicit
+    # requests.
+    if backend in _DMRG_BACKENDS or task == "quantum_ground_state_dmrg":
+        return _dmrg_capability()
+    if backend in _VMC_BACKENDS or task == "quantum_ground_state_vmc":
+        return _vmc_capability()
     # Explicit requests for declared-but-not-connected backends fail closed.
     requested = _NOT_CONNECTED.get(backend)
-    if requested or task in {"quantum_ground_state_dmrg", "quantum_ground_state_vmc"}:
-        solver_id = requested or ("quantum-dmrg-itensor" if "dmrg" in task
-                                  else "quantum-vmc-netket")
+    if requested:
         return {"status": "unsupported",
-                "blocker": "backend-not-connected: " + solver_id,
-                "declared_backend": solver_id}
+                "blocker": "backend-not-connected: " + requested,
+                "declared_backend": requested}
     if backend in _SUNNY_BACKENDS:
         if task not in _SUNNY_TASKS:
             return {"status": "unsupported",
