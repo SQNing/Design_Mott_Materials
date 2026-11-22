@@ -77,6 +77,32 @@ def prepare_model(source, request, root, version):
                 kwargs["agent_normalized_document"] = request["agent_normalized_document"]
                 landed = run_document_normalization_with_agent(source["text"], **kwargs)
                 model = landed.get("normalized_model", landed)
+        elif model.get("schema_version") == "effective-model/v1":
+            # Inter-chain contract (stage F1): canonical-hamiltonian/v1 superset
+            # plus upstream provenance and uncertainty. Until the upstream DFT
+            # fields are explicitly aligned, missing provenance is a question,
+            # never something to infer.
+            missing = [field for field in ("model", "provenance", "uncertainty")
+                       if not model.get(field)]
+            provenance = model.get("provenance") or {}
+            for field in ("dft_code", "functional", "u_j", "projection_window",
+                          "wannier_basis", "date"):
+                if not provenance.get(field):
+                    missing.append("provenance." + field)
+            if missing:
+                record.update(status="needs_input", questions=[{
+                    "field": field,
+                    "question": "Supply effective-model/v1 %s; the upstream contract is not aligned." % field,
+                } for field in missing])
+                write_json(directory / "normalized.json", model, exclusive=True)
+                record.setdefault("model_id", digest(source))
+                write_json(directory / "interpretation.json", record, exclusive=True)
+                return json_safe(record)
+            effective_provenance = deepcopy(model["provenance"])
+            effective_uncertainty = deepcopy(model["uncertainty"])
+            model = deepcopy(model["model"])
+            model["effective_model_provenance"] = effective_provenance
+            model["effective_model_uncertainty"] = effective_uncertainty
         elif model.get("schema_version") not in {"lattice-term-contract/v1", "canonical-hamiltonian/v1"}:
             from input.normalize_input import normalize_input
             model = normalize_input(model)
@@ -102,7 +128,8 @@ def prepare_model(source, request, root, version):
                          else compile_canonical_hamiltonian(restore_complex(model)))
             # Preserve basis names and units as interpretation metadata; no basis
             # rotation, rescaling or inferred spin representation is performed.
-            for field in ("local_basis_labels", "units"):
+            for field in ("local_basis_labels", "units", "effective_model_provenance",
+                          "effective_model_uncertainty"):
                 if field in model:
                     canonical[field] = deepcopy(model[field])
             gate = run_hamiltonian_symmetry_gate(canonical, SymmetryGateRequest(
@@ -132,6 +159,9 @@ def prepare_model(source, request, root, version):
                               basis_sites=solver["lattice_structure"].get("basis_sites"),
                               symmetry_validation=gate["symmetry_validation"],
                               warnings=gate.get("warnings", []))
+                for field in ("effective_model_provenance", "effective_model_uncertainty"):
+                    if field in model:
+                        record[field] = deepcopy(model[field])
                 # A faithful matrix/tensor representation is meaningful even when
                 # no specialized human-readable block exists for a local operator.
                 from research.readable import faithful_view

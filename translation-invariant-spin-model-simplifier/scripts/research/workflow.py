@@ -218,6 +218,66 @@ def _blocked(root, state, action, blocker, *, scientific_status="inconclusive"):
     return result
 
 
+def _registry_path(root):
+    override = os.environ.get("SPINFORGE_RESEARCH_REGISTRY")
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path(root).expanduser().resolve().parent / "registry.jsonl"
+
+
+def _record_registry_best_effort(root):
+    try:
+        from research.registry import record_run
+        record_run(root, _registry_path(root))
+    except Exception:
+        # Registry sync must never change the scientific outcome of a run.
+        pass
+
+
+def _reuse_result(root, state, action, result, *, source):
+    directory = root / "steps" / action["action_id"]
+    directory.mkdir(parents=True, exist_ok=False)
+    reused = {**result, "result_id": action["action_id"],
+              "reused_from": result["result_id"], "execution_status": "reused",
+              "finished_at": time.time()}
+    if source != "local":
+        reused["reused_from_run_dir"] = str(source)
+    if "solver_runs" in reused:
+        reused["solver_runs"] = 0
+    write_json(directory / "action.json", action, exclusive=True)
+    write_json(directory / "execution.json", {"status": "reused", "counted": False}, exclusive=True)
+    write_json(directory / "result.json", reused, exclusive=True)
+    state["steps"].append(action["action_id"])
+    state["answer_status"] = "pending"
+    write_json(root / "state.json", state)
+    event(root, {"type": "reuse", "action": action,
+                 "reused_from": result["result_id"], "source": str(source)})
+    return reused
+
+
+def _registry_fingerprint_candidate(root, fingerprint):
+    try:
+        from research.registry import find_fingerprint
+        candidate = find_fingerprint(_registry_path(root), fingerprint)
+    except Exception:
+        return None
+    if not candidate:
+        return None
+    candidate_run = Path(candidate["run_dir"]).expanduser().resolve()
+    if candidate_run == Path(root).expanduser().resolve():
+        return None
+    path = candidate_run / "steps" / candidate["result_id"] / "result.json"
+    if not path.is_file():
+        return None
+    result = read_json(path)
+    if (result.get("calculation_fingerprint") == fingerprint and
+            result.get("execution_status") in {"succeeded", "reused"} and
+            result.get("reusable", True) and
+            same_code_identity(result.get("code_identity"))):
+        return result, candidate_run
+    return None
+
+
 def _launch(root, state, action):
     from research.adapters import capability_for
     view = _view(root, state)
@@ -272,21 +332,11 @@ def _launch(root, state, action):
         if (result and result.get("calculation_fingerprint") == fingerprint and
                 result.get("execution_status") in {"succeeded", "reused"} and
                 result.get("reusable", True)):
-            directory = root / "steps" / action["action_id"]
-            directory.mkdir(parents=True, exist_ok=False)
-            reused = {**result, "result_id": action["action_id"],
-                      "reused_from": result["result_id"], "execution_status": "reused",
-                      "finished_at": time.time()}
-            if "solver_runs" in reused:
-                reused["solver_runs"] = 0
-            write_json(directory / "action.json", action, exclusive=True)
-            write_json(directory / "execution.json", {"status": "reused", "counted": False}, exclusive=True)
-            write_json(directory / "result.json", reused, exclusive=True)
-            state["steps"].append(action["action_id"])
-            state["answer_status"] = "pending"
-            write_json(root / "state.json", state)
-            event(root, {"type": "reuse", "action": action, "reused_from": result["result_id"]})
-            return reused
+            return _reuse_result(root, state, action, result, source="local")
+    registry_candidate = _registry_fingerprint_candidate(root, fingerprint)
+    if registry_candidate:
+        result, source_run = registry_candidate
+        return _reuse_result(root, state, action, result, source=source_run)
     budget = view["budget"]
     planned_runs = comparison["planned_solver_runs"] if comparison else 1
     if view["solver_runs"] + planned_runs > budget["max_solver_runs"]:
@@ -379,13 +429,17 @@ def execute_research_action(run_dir, action, *, wait=False):
             if action.get("type") != "calculate" or not action.get("task"):
                 raise ValueError("action must be provide_input, propose_reduction, propose_mechanism, calculate with task, or assess")
             outcome = _launch(root, state, action)
+    if outcome.get("execution_status") in {"succeeded", "reused"}:
+        _record_registry_best_effort(root)
     if wait and outcome["execution_status"] in {"running", "pending"}:
         while True:
             view = inspect_research_task(root)
             step = next(s for s in view["steps"] if s["action_id"] == action["action_id"])
             if step["result"]:
+                _record_registry_best_effort(root)
                 return step["result"]
             if step["execution"]["status"] not in {"running", "pending"}:
+                _record_registry_best_effort(root)
                 return {"result_id": action["action_id"], "execution_status": step["execution"]["status"],
                         "scientific_status": "inconclusive", "blocker": "worker-state-needs-inspection"}
             time.sleep(.1)
