@@ -125,6 +125,7 @@ Use the repository reference docs to choose the current supported route:
 - `reference/natural-language-input-protocol.md`
 - `reference/fallback-rules.md`
 - `reference/environment.md`
+- `reference/independent-research-handbook.md`
 
 Treat those references as the detailed routing, schema, fallback, and
 environment companions for this top-level contract.

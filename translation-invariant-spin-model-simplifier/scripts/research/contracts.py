@@ -14,6 +14,11 @@ TASK_ALIASES = {"harmonic_spectrum": "spin_wave_spectrum",
 DEFAULT_BUDGET = {"max_solver_runs": 16, "max_wall_time_seconds": 1800,
                   "max_memory_mb": 4096}
 OBSERVABLES_SCHEMA_VERSION = "observables/v1"
+# Stage G5 (deferred): folded-spectrum weights and eigenvector continuity are
+# reserved observables/v1 extensions. Backends must not invent ad-hoc fields;
+# when implemented they belong under observables.dynamic with explicit
+# status="deferred" until validated.
+DEFERRED_OBSERVABLE_FEATURES = ("spectral_weights", "eigenvector_continuous_tracking")
 
 
 def validate_observables_block(block, backend=None):

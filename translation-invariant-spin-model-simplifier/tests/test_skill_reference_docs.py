@@ -19,9 +19,22 @@ EXPECTED_REFERENCE_FILES = {
     "cpn-workflow-readiness-checklist.md",
     "environment.md",
     "fallback-rules.md",
+    "independent-research-handbook.md",
     "input-schema.md",
     "lattice-structure-and-term-attachment.md",
+    "mechanism-workflow.md",
     "natural-language-input-protocol.md",
+    "physical-reductions.md",
+    "research-reliability-acceptance.md",
+    "research-workflow.md",
+    "stage-one-acceptance.md",
+    "stage-three-acceptance.md",
+    "stage-three-design.md",
+    "stage-two-acceptance.md",
+    "stage-two-design.md",
+    "three-dimensional-implementation-plan.md",
+    "three-dimensional-validation-record.md",
+    "three-dimensional-workflow.md",
 }
 
 EXPECTED_SKILL_REFERENCES = {
@@ -29,7 +42,11 @@ EXPECTED_SKILL_REFERENCES = {
     "reference/environment.md",
     "reference/fallback-rules.md",
     "reference/input-schema.md",
+    "reference/independent-research-handbook.md",
+    "reference/mechanism-workflow.md",
     "reference/natural-language-input-protocol.md",
+    "reference/physical-reductions.md",
+    "reference/research-workflow.md",
 }
 
 

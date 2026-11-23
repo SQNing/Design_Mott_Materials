@@ -36,6 +36,29 @@ The retained reference files are:
 - `cpn-workflow-readiness-checklist.md`
   User-facing smoke checklist for deciding whether a `CP^(N-1)` workflow result
   is ready to trust or needs further validation.
+- `independent-research-handbook.md`
+  End-to-end recipe for running an independent research workflow: model
+  descriptions through solver routing to thermodynamic curves, common
+  `needs_input` remedies, and evidence-level interpretation.
+
+The research-workflow reference set documents the research layer that later
+stages added on top of the core skill contracts:
+
+- `research-workflow.md`
+- `mechanism-workflow.md`
+- `physical-reductions.md`
+- `research-reliability-acceptance.md`
+
+The acceptance and design records kept for provenance are:
+
+- `stage-one-acceptance.md`
+- `stage-two-acceptance.md`
+- `stage-two-design.md`
+- `stage-three-acceptance.md`
+- `stage-three-design.md`
+- `three-dimensional-implementation-plan.md`
+- `three-dimensional-validation-record.md`
+- `three-dimensional-workflow.md`
 
 ## Scope
 
