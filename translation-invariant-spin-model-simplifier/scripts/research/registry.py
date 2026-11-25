@@ -42,6 +42,7 @@ def _append(registry_path, value):
 def _small_result(result):
     calculation = result.get("calculation") or {}
     static = (calculation.get("observables") or {}).get("static") or {}
+    factor = static.get("structure_factor") or {}
     return {
         "result_id": result.get("result_id"),
         "task": result.get("task"),
@@ -50,8 +51,8 @@ def _small_result(result):
         "claim_level": result.get("claim_level"),
         "energy": calculation.get("energy", static.get("energy")),
         "energy_per_site": calculation.get("energy_per_site"),
-        "ordering_q": static.get("ordering_q"),
-        "m2_ordering": static.get("m2_ordering"),
+        "ordering_q": static.get("ordering_q", factor.get("ordering_q")),
+        "m2_ordering": static.get("m2_ordering", factor.get("m2_ordering")),
         "gaps": static.get("gaps"),
     }
 

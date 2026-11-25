@@ -1068,7 +1068,7 @@ def _build_cpn_local_ray_plot_state(
 
     plot_options = payload.get("plot_options", {})
     render_mode = "chain" if spatial_dimension <= 1 else "plane" if spatial_dimension == 2 else "structure"
-    return {
+    result = {
         "site_frames": [],
         "state_kind": resolved_cpn_state.get("state_kind"),
         "manifold": resolved_cpn_state.get("manifold"),
