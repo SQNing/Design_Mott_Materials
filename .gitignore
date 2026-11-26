@@ -40,6 +40,7 @@ translation-invariant-spin-model-simplifier/tests/*
 !translation-invariant-spin-model-simplifier/tests/test_skill_reference_docs.py
 !translation-invariant-spin-model-simplifier/tests/test_classical_family_metadata_cleanup.py
 !translation-invariant-spin-model-simplifier/tests/test_cpn_pair_model_fei2_bridge.py
+!translation-invariant-spin-model-simplifier/tests/test_cpn_pair_model_lattice_contract.py
 !translation-invariant-spin-model-simplifier/tests/test_cpn_magnetic_supercell.py
 !translation-invariant-spin-model-simplifier/tests/test_cpn_magnetic_supercell_refinement.py
 !translation-invariant-spin-model-simplifier/tests/test_cpn_glt_refinement_bounds.py
