@@ -58,37 +58,61 @@ class AdapterContractError(ValueError):
     """Raised when an adapter definition or JSON value is not closed and valid."""
 
 
+def _frozen_json_object_from_items(items):
+    """Construct a FrozenJsonObject without routing through any
+    class-level attribute, so tampering with the public classmethod
+    cannot interfere with internal freezing."""
+    instance = object.__new__(FrozenJsonObject)
+    dict.__setitem__(
+        object.__getattribute__(instance, "__dict__"), "_items", items
+    )
+    return instance
+
+
 @dataclass(frozen=True, init=False, eq=False)
 class FrozenJsonObject(Mapping[str, object]):
     """A recursively immutable and hashable JSON object."""
 
     _items: tuple[tuple[str, object], ...]
 
+    @staticmethod
+    def _exact_items(value: "FrozenJsonObject"):
+        # Read the item tuple through the instance namespace so that a
+        # tamper-detection descriptor installed at class level cannot
+        # intercept or replace validated data.
+        return dict.__getitem__(
+            object.__getattribute__(value, "__dict__"), "_items"
+        )
+
     def __init__(self, value: Mapping[str, object]):
         frozen = freeze_json(value)
         if type(frozen) is not FrozenJsonObject:
             raise AdapterContractError("FrozenJsonObject value must be a mapping")
-        object.__setattr__(self, "_items", frozen._items)
+        dict.__setitem__(
+            object.__getattribute__(self, "__dict__"), "_items", FrozenJsonObject._exact_items(frozen)
+        )
 
     @classmethod
     def _from_frozen_items(
         cls, items: tuple[tuple[str, object], ...]
     ) -> "FrozenJsonObject":
-        instance = object.__new__(cls)
-        object.__setattr__(instance, "_items", items)
-        return instance
+        if cls is not FrozenJsonObject:
+            raise AdapterContractError(
+                "FrozenJsonObject does not support subclass construction"
+            )
+        return _frozen_json_object_from_items(items)
 
     def __getitem__(self, key: str) -> object:
-        for item_key, value in self._items:
+        for item_key, value in FrozenJsonObject._exact_items(self):
             if item_key == key:
                 return value
         raise KeyError(key)
 
     def __iter__(self) -> Iterator[str]:
-        return (key for key, _ in self._items)
+        return (key for key, _ in FrozenJsonObject._exact_items(self))
 
     def __len__(self) -> int:
-        return len(self._items)
+        return len(FrozenJsonObject._exact_items(self))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Mapping):
@@ -103,7 +127,7 @@ class FrozenJsonObject(Mapping[str, object]):
         return -2 if digest_prefix == -1 else digest_prefix
 
     def __repr__(self) -> str:
-        return f"FrozenJsonObject({dict(self._items)!r})"
+        return f"FrozenJsonObject({dict(FrozenJsonObject._exact_items(self))!r})"
 
 
 def _require_utf8_string(value: str, field_name: str) -> str:
@@ -142,7 +166,7 @@ def _validate_frozen_json_placement(
     if callable(value):
         raise AdapterContractError(f"{field_name} contains a callable value")
     if type(value) is FrozenJsonObject:
-        if type(value._items) is not tuple:
+        if type(FrozenJsonObject._exact_items(value)) is not tuple:
             raise AdapterContractError(
                 f"{field_name} frozen mapping storage must be an immutable tuple"
             )
@@ -152,7 +176,7 @@ def _validate_frozen_json_placement(
         active_container_ids.add(container_id)
         seen_keys = set()
         try:
-            for pair in value._items:
+            for pair in FrozenJsonObject._exact_items(value):
                 if type(pair) is not tuple or len(pair) != 2:
                     raise AdapterContractError(
                         f"{field_name} contains a malformed frozen mapping item"
@@ -295,7 +319,7 @@ def _freeze_json(
         finally:
             active_container_ids.remove(container_id)
         frozen_items.sort(key=lambda item: item[0])
-        return FrozenJsonObject._from_frozen_items(tuple(frozen_items))
+        return _frozen_json_object_from_items(tuple(frozen_items))
     if isinstance(value, (list, tuple)):
         container_id = id(value)
         if container_id in active_container_ids:
@@ -365,7 +389,7 @@ def _thaw_json(value: object, field_name: str, depth: int) -> object:
     if type(value) is FrozenJsonObject:
         return {
             key: _thaw_json(item, f"{field_name}.{key}", depth + 1)
-            for key, item in value._items
+            for key, item in FrozenJsonObject._exact_items(value)
         }
     if isinstance(value, FrozenJsonObject):
         raise AdapterContractError(
@@ -648,7 +672,7 @@ def _validate_authored_json(
     allow_numerical_control: bool = False,
 ) -> None:
     if type(value) is FrozenJsonObject:
-        for key, item in value._items:
+        for key, item in FrozenJsonObject._exact_items(value):
             _validate_authored_string(
                 key,
                 f"{field_name} mapping key",
@@ -4395,7 +4419,7 @@ def _value_schema_from_frozen_json(
                     child, f"{field_name}.properties.{name}"
                 ),
             )
-            for name, child in properties._items
+            for name, child in FrozenJsonObject._exact_items(properties)
         ),
         units=record["units"],
     )
@@ -4428,7 +4452,7 @@ def _output_schema_from_frozen_json(value: object) -> OutputSchema:
         record["fields"], "output_schema.fields"
     )
     fields_payload = []
-    for selector, raw_binding in fields_value._items:
+    for selector, raw_binding in FrozenJsonObject._exact_items(fields_value):
         require_identifier(selector, f"output_schema.fields.{selector}")
         binding = require_exact_keys(
             raw_binding,
@@ -4849,7 +4873,7 @@ def _require_sha256(value: object, field_name: str) -> str:
 
 def _reject_local_result_claims(value: object, field_name: str) -> None:
     if type(value) is FrozenJsonObject:
-        for key, item in value._items:
+        for key, item in FrozenJsonObject._exact_items(value):
             tokens = _metadata_tokens(key, f"{field_name} mapping key")
             joined = "".join(tokens)
             if joined in _LOCAL_RESULT_FORBIDDEN_TOKENS or any(
@@ -4996,7 +5020,7 @@ def _require_numeric_sequence(value: object, field_name: str) -> None:
 
 def _validate_operation_counts(value: object) -> FrozenJsonObject:
     counts = _snapshot_json_mapping(value, "operation_counts")
-    for key, count in counts._items:
+    for key, count in FrozenJsonObject._exact_items(counts):
         try:
             require_identifier(key, "operation_counts key")
         except AdapterContractError as error:
@@ -5064,7 +5088,7 @@ def _validate_operation_counts_and_problem_size(
         "problem_size.values",
     )
     sequence_dimensions = []
-    for dimension, allowed in policy.allowed_sizes._items:
+    for dimension, allowed in FrozenJsonObject._exact_items(policy.allowed_sizes):
         selected = values[dimension]
         if type(allowed) is tuple:
             sequence_dimensions.append((dimension, allowed))
@@ -5320,7 +5344,7 @@ def _validate_backend_diagnostics(
             expected_names,
             f"backend_diagnostics.{field_name}",
         )
-        for name, identity in identities._items:
+        for name, identity in FrozenJsonObject._exact_items(identities):
             _validate_backend_identity_record(
                 identity, f"backend_diagnostics.{field_name}.{name}"
             )
@@ -5359,7 +5383,7 @@ def _validate_backend_diagnostics(
         definition.runtime_requirements.backend_resources,
         "backend_diagnostics.backend_resources",
     )
-    for name, resource in resources._items:
+    for name, resource in FrozenJsonObject._exact_items(resources):
         record = require_exact_keys(
             resource,
             ("applicability",),

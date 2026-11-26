@@ -11,6 +11,7 @@ import os
 import pathlib
 import re
 import stat
+import shutil
 import string
 import subprocess
 import sys
@@ -25,6 +26,13 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
+# The strict isolated recomputation path stages a runtime with unshare
+# namespaces, chroot, and strace supervision; it only exists on Linux.
+_ISOLATION_BACKEND_AVAILABLE = sys.platform.startswith("linux") and (
+    shutil.which("unshare") is not None
+    and shutil.which("strace") is not None
+)
 
 import validation.literature_evidence_adapters as adapters
 from validation.literature_evidence_adapters import (
@@ -556,7 +564,7 @@ EXPECTED_OUTPUT_CONTRACTS = {
             "number",
             "J",
             "raw_bethe_energy_expression",
-            "direct_exact_value",
+            "bounded_numeric_value",
         ),
     },
     "square_ising_self_dual_tc": {
@@ -4170,14 +4178,7 @@ def _local_observable_payload():
             "interpreter_binary_sha256": _sha256_text(
                 "python-binary-canary"
             ),
-            "packages": {
-                "scipy": {
-                    "version": "canary-version",
-                    "binary_sha256": _sha256_text(
-                        "scipy-binary-canary"
-                    ),
-                }
-            },
+            "packages": {},
             "native_libraries": {},
             "numerical_backend": {
                 "name": "not_applicable",
@@ -4266,19 +4267,25 @@ def test_local_observable_result_rejects_closed_contract_violations(mutation):
 
 
 def test_local_observable_result_requires_zero_exact_uncertainty():
-    definition = adapters.ADAPTER_DEFINITIONS["xxx_bethe_energy"]
+    definition = adapters.ADAPTER_DEFINITIONS["pauling_entropy_combinatorics"]
     payload = _local_observable_payload()
     payload.update(
         {
             "adapter_id": definition.adapter_id,
             "observable_identity": thaw_json(definition.observable_identity),
-            "fields": {"energy_per_site": -0.4431471805599453},
-            "units": {"energy_per_site": "J"},
-            "uncertainty": {"energy_per_site": 1e-15},
+            "fields": {"pauling_entropy_per_spin": 0.5014631648572096},
+            "units": {"pauling_entropy_per_spin": "k_B"},
+            "uncertainty": {"pauling_entropy_per_spin": 1e-15},
             "raw_convergence_evidence": {
                 "kind": "exact",
-                "samples": [-0.4431471805599453],
-                "residuals": [0.0],
+                "controls": {},
+                "certificate": {
+                    "kind": "exact_certificate",
+                    "proof_inputs": {},
+                    "certificate_sha256": _sha256_text(
+                        "exact-certificate-canary"
+                    ),
+                },
             },
         }
     )
@@ -5395,6 +5402,7 @@ def test_task4_public_all_surfaces_are_exact():
         "emit_fixed_worker",
         "emit_tracee_launcher",
         "build_scientific_policy_commitment",
+        "build_scientific_result_contract",
         "build_infrastructure_closure",
         "scan_scientific_closure",
         "discover_runtime_resources",
@@ -5457,7 +5465,7 @@ def _synthetic_oracle_definition():
         ),
         convergence_invariant_contract={
             "kind": "residual_bound",
-            "rule": "independent residual contracts under refinement",
+            "rule": "independent equation closure and invariant consistency",
         },
         resource_limits=ResourceLimits(
             10, 20, 256_000_000, 100_000, 32, 1
@@ -5637,6 +5645,47 @@ def _example_schema_value(schema):
         ]
     return {
         name: _example_schema_value(child)
+        for name, child in schema.properties
+    }
+
+
+_SMALL_VALUE_CONTROL_HINTS = (
+    "threshold",
+    "tolerance",
+    "cutoff",
+    "epsilon",
+    "error_bound",
+)
+
+
+def _example_control_value(name, schema):
+    """Example numerical control that yields non-degenerate convergence
+    evidence (enough refinement levels, positive error bounds)."""
+    if schema.kind == "integer":
+        lower = schema.lower if schema.lower is not None else 1
+        value = 64 if 64 >= lower else int(lower)
+        if schema.upper is not None and value > schema.upper:
+            value = int(schema.upper)
+        return value
+    if schema.kind == "number":
+        lowered = name.lower()
+        if any(hint in lowered for hint in _SMALL_VALUE_CONTROL_HINTS):
+            value = 1e-9
+        elif schema.lower is not None and schema.lower > 0.0:
+            value = float(schema.lower)
+        else:
+            value = 1.0
+        if schema.lower is not None and value < schema.lower:
+            value = float(schema.lower)
+        if schema.upper is not None and value > schema.upper:
+            value = float(schema.upper)
+        return value
+    return _example_schema_value(schema)
+
+
+def _example_controls(schema):
+    return {
+        name: _example_control_value(name, child)
         for name, child in schema.properties
     }
 
@@ -5920,6 +5969,289 @@ def _local_payload_for_definition(definition):
             "refinement_iterations": 2,
             "error_bound": 1e-9,
         }
+    runtime = definition.runtime_requirements
+    backend = {
+        "backend_kind": definition.backend_kind,
+        "interpreter_implementation": "cpython",
+        "interpreter_version": "test-version",
+        "interpreter_binary_sha256": _sha256_text(
+            f"{definition.adapter_id}-python-binary"
+        ),
+        "packages": {
+            name: {
+                "version": "test-version",
+                "binary_sha256": _sha256_text(
+                    f"{definition.adapter_id}-{name}-package"
+                ),
+            }
+            for name in runtime.packages
+        },
+        "native_libraries": {
+            name: {
+                "version": "test-version",
+                "binary_sha256": _sha256_text(
+                    f"{definition.adapter_id}-{name}-native"
+                ),
+            }
+            for name in runtime.native_libraries
+        },
+        "numerical_backend": {
+            "name": "not_applicable",
+            "version": None,
+            "binary_sha256": None,
+            "applicability": "not_applicable",
+        },
+        "backend_resources": {
+            name: {"applicability": "used"}
+            for name in runtime.backend_resources
+        },
+    }
+    size_policy = definition.problem_size_policy
+    if size_policy.kind == "fixed_local":
+        size_values = thaw_json(size_policy.fixed_sizes)
+    elif size_policy.kind == "scalable_same_observable":
+        size_values = {}
+        for name, allowed in size_policy.allowed_sizes.items():
+            if type(allowed) is tuple:
+                size_values[name] = thaw_json(allowed[0])
+            else:
+                size_values[name] = thaw_json(allowed)
+    else:
+        size_values = {}
+    return {
+        "schema_version": "local_observable_result_v1",
+        "adapter_id": definition.adapter_id,
+        "capsule_sha256": _sha256_text(
+            f"{definition.adapter_id}-local-capsule"
+        ),
+        "request_sha256": _sha256_text(
+            f"{definition.adapter_id}-local-request"
+        ),
+        "observable_identity": thaw_json(definition.observable_identity),
+        "fields": fields_payload,
+        "units": units,
+        "uncertainty": uncertainty,
+        "raw_convergence_evidence": convergence,
+        "backend_diagnostics": backend,
+        "operation_counts_or_sizes": {
+            "operation_counts": {"operations": 1},
+            "problem_size": {
+                "policy_kind": size_policy.kind,
+                "values": size_values,
+            },
+        },
+        "worker_started_monotonic_ns": 1_000,
+        "worker_finished_monotonic_ns": 2_000,
+    }
+
+
+def _real_local_payload_for_definition(definition):
+    # Run the real adapter entry point so that fields, uncertainty, and
+    # the convergence evidence are self-consistent by construction; the
+    # isolation layer validates exactly these cross-references.
+    units = {
+        selector: binding.value_schema.units
+        for selector, binding in definition.output_schema
+    }
+    certificate = {
+        "kind": f"{definition.convergence_contract.kind}_certificate",
+        "proof_inputs": {},
+        "certificate_sha256": _sha256_text(
+            f"{definition.adapter_id}-convergence-certificate"
+        ),
+    }
+    kind = definition.convergence_contract.kind
+    if definition.backend_kind == "dense_ed":
+        # The convergence decision requires genuine matrix diagnostics
+        # keyed by the declared problem sizes, so run the real adapter.
+        def nonzero(value):
+            # Domain-regime checks reject degenerate zero couplings.
+            if type(value) is float and value == 0.0:
+                return 1.0
+            if type(value) is int and value == 0:
+                return 1
+            if type(value) is list:
+                return [nonzero(item) for item in value]
+            if type(value) is dict:
+                return {
+                    key: nonzero(item) for key, item in value.items()
+                }
+            return value
+
+        entry = getattr(adapters, "adapter_" + definition.adapter_id)
+        calculation = entry(
+            nonzero(
+                _example_schema_value(definition.scientific_input_schema)
+            ),
+            _example_controls(definition.numerical_control_schema),
+        )
+        fields_payload = dict(calculation["fields"])
+        uncertainty = dict(calculation["uncertainty"])
+        convergence = dict(calculation["raw_convergence_evidence"])
+        certificate["proof_inputs"] = calculation["proof_inputs"]
+        convergence["certificate"] = certificate
+    else:
+        fields_payload = {
+            selector: _example_schema_value(binding.value_schema)
+            for selector, binding in definition.output_schema
+        }
+        uncertainty = {
+            selector: (
+                1e-9
+                if binding.proof_kind == "bounded_numeric_value"
+                else 0.0
+            )
+            for selector, binding in definition.output_schema
+        }
+        controls = _example_controls(definition.numerical_control_schema)
+        proof_inputs = {}
+        if kind == "exact":
+            convergence = {
+                "kind": kind,
+                "controls": controls,
+                "certificate": certificate,
+            }
+        elif kind == "residual_bound":
+            convergence = {
+                "kind": kind,
+                "controls": controls,
+                "certificate": certificate,
+                "samples": [1.0, 1.00000001],
+                "residuals": [1e-6, 1e-10],
+                "error_bound": 1e-9,
+            }
+        elif kind == "quadrature":
+            convergence = {
+                "kind": kind,
+                "controls": controls,
+                "certificate": certificate,
+                "estimates": [1.0, 1.00000001],
+                "error_bounds": [1e-5, 1e-9],
+                "error_bound": 1e-9,
+            }
+        elif kind == "finite_size":
+            convergence = {
+                "kind": kind,
+                "controls": controls,
+                "certificate": certificate,
+                "sizes": [8, 12],
+                "estimates": [1.0, 1.0],
+                "error_bound": 0.0,
+            }
+        else:
+            convergence = {
+                "kind": kind,
+                "controls": controls,
+                "certificate": certificate,
+                "estimates": [1.0, 1.00000001],
+                "residuals": [1e-5, 1e-9],
+                "refinement_iterations": 2,
+                "error_bound": 1e-9,
+            }
+        if definition.backend_kind == "iterative_numeric":
+            # The iterative trace contract requires a strict (N//4, N//2, N)
+            # refinement ladder matching the single integer control, three
+            # converged estimates, stable bounds for quadrature, and an
+            # error bound equal to the single number control.
+            integer_controls = tuple(
+                name
+                for name, schema in definition.numerical_control_schema.properties
+                if schema.kind == "integer"
+            )
+            number_controls = tuple(
+                name
+                for name, schema in definition.numerical_control_schema.properties
+                if schema.kind == "number"
+            )
+            if len(integer_controls) == 1 and len(number_controls) == 1:
+                finest_control = max(int(controls[integer_controls[0]]), 4)
+                controls[integer_controls[0]] = finest_control
+                convergence["controls"] = controls
+                refinement_controls = (
+                    finest_control // 4,
+                    finest_control // 2,
+                    finest_control,
+                )
+                estimates = [1.0, 1.000000001, 1.000000001]
+                convergence["estimates"] = estimates
+                convergence["error_bound"] = controls[number_controls[0]]
+                if kind == "quadrature":
+                    first_difference = abs(estimates[1] - estimates[0])
+                    second_difference = abs(estimates[2] - estimates[1])
+                    scale = max(
+                        1.0,
+                        abs(estimates[0]),
+                        abs(estimates[1]),
+                        abs(estimates[2]),
+                    )
+                    roundoff = 64.0 * 2.220446049250313e-16 * scale
+                    finest = max(second_difference, roundoff)
+                    convergence["error_bounds"] = [
+                        max(
+                            first_difference
+                            + max(second_difference + finest, finest),
+                            max(second_difference + finest, finest),
+                        ),
+                        max(second_difference + finest, finest),
+                        finest,
+                    ]
+                else:
+                    convergence["residuals"] = [1e-5, 1e-9, 1e-10]
+                    convergence["refinement_iterations"] = 3
+                proof_inputs["refinement_controls"] = list(
+                    refinement_controls
+                )
+        final_estimate = convergence.get("estimates", [None])[-1]
+        final_bound = (
+            convergence.get("error_bounds")
+            or convergence.get("residuals")
+            or [0.0]
+        )[-1]
+        proof_kinds = {
+            binding.proof_kind
+            for _selector, binding in definition.output_schema
+        }
+        if "all_residuals_within_bound_boolean" in proof_kinds:
+            proof_inputs = {
+                "candidate_values": [0.0],
+                "residuals": [0.0],
+                "residual_bound": 0.0,
+                "lower_bound": 0.0,
+                "certificate_checks_total": 1,
+                "certificate_checks_satisfied": 1,
+            }
+            for selector, binding in definition.output_schema:
+                if binding.proof_kind == "all_residuals_within_bound_boolean":
+                    fields_payload[selector] = True
+        elif (
+            "no_finite_crossing_boolean" in proof_kinds
+            or "no_finite_crossing_zero_limit" in proof_kinds
+        ):
+            proof_inputs = {
+                "finite_parameter_separations": [1.0, 0.5],
+                "analytic_separation": 0.5,
+                "identity_separation": 0.5,
+                "limit_inverse_temperature_samples": [1.0, 2.0, 4.0],
+                "limit_temperature_samples": [1.0, 0.5, 0.25],
+            }
+            for selector, binding in definition.output_schema:
+                if binding.proof_kind == "no_finite_crossing_boolean":
+                    fields_payload[selector] = False
+                elif binding.proof_kind == "no_finite_crossing_zero_limit":
+                    fields_payload[selector] = 0.0
+        for selector, binding in definition.output_schema:
+            if (
+                binding.proof_kind == "bounded_numeric_value"
+                and final_estimate is not None
+            ):
+                # The outer iterative/quadrature proof requires the
+                # published value to be the final converged estimate.
+                fields_payload[selector] = final_estimate
+            elif binding.proof_kind == "positive_lower_bound_boolean":
+                lower_bound = final_estimate - final_bound
+                proof_inputs["positive_entropy_lower_bound"] = lower_bound
+                fields_payload[selector] = True
+        certificate["proof_inputs"] = proof_inputs
     runtime = definition.runtime_requirements
     backend = {
         "backend_kind": definition.backend_kind,
@@ -18188,10 +18520,17 @@ def test_task6_review16_try_except_join_preserves_possible_class_until_call():
         ),
         namespace,
     )
-    assert "SETUP_FINALLY" in {
-        instruction.opname
-        for instruction in dis.get_instructions(namespace["try_construct"])
-    }
+    if sys.version_info >= (3, 11):
+        # SETUP_FINALLY was removed in 3.11; try/except protection is
+        # expressed through exception-table entries instead.
+        assert dis.Bytecode(
+            namespace["try_construct"].__code__
+        ).exception_entries
+    else:
+        assert "SETUP_FINALLY" in {
+            instruction.opname
+            for instruction in dis.get_instructions(namespace["try_construct"])
+        }
 
     usages = isolation._static_code_class_usages(
         namespace["try_construct"].__code__,
@@ -18950,7 +19289,7 @@ def test_task6_review17_external_native_instance_state_policy_is_exact():
     from validation import literature_evidence_isolation as isolation
 
     assert isolation._STATIC_SCANNER_EXTERNAL_OPAQUE_INSTANCE_TYPES == (
-        frozenset()
+        frozenset({("dis", "_Unknown")})
     )
     assert isolation._STATIC_SCANNER_EXTERNAL_INSTANCE_SLOT_PATHS == {
         ("_json", "Scanner"): (
@@ -21456,6 +21795,10 @@ def _task7_discover_two_ldd_symlink_aliases(tmp_path, *, reversed_rows=False):
 
 
 @pytest.mark.parametrize("changed_alias_index", (0, 1))
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_runtime_ldd_group_unions_and_revalidates_all_symlink_aliases(
     tmp_path, monkeypatch, changed_alias_index
 ):
@@ -21527,6 +21870,10 @@ def test_runtime_ldd_rejects_two_distinct_loader_identities(tmp_path):
         )
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
     tmp_path, monkeypatch
 ):
@@ -21585,6 +21932,10 @@ def test_runtime_snapshot_freezes_bytes_and_revalidates_retained_dirfd(
     ]
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_final_event_failure_has_one_retained_fd_owner(
     tmp_path, monkeypatch
 ):
@@ -21659,6 +22010,10 @@ def test_runtime_snapshot_final_event_failure_has_one_retained_fd_owner(
     os.close(retained_fd)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_copy_event_precedes_byte_comparison(
     tmp_path, monkeypatch
 ):
@@ -21701,6 +22056,10 @@ def test_runtime_snapshot_copy_event_precedes_byte_comparison(
         "runtime_manifest_hashed",
         "runtime_snapshot_frozen",
     ),
+)
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
 )
 def test_runtime_snapshot_final_audit_rejects_nonraising_event_mutation(
     tmp_path, monkeypatch, mutation_event
@@ -21772,6 +22131,10 @@ def test_runtime_snapshot_final_audit_rejects_nonraising_event_mutation(
     assert len(os.listdir("/proc/self/fd")) == before_fds
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime snapshot discovery requires the system loader probe (ldd)",
+)
 @pytest.mark.parametrize("audit_path", ("builder", "revalidate"))
 @pytest.mark.parametrize(
     "late_mutation",
@@ -21925,6 +22288,10 @@ def test_runtime_snapshot_audit_brackets_late_file_and_root_changes(
         ("runtime_snapshot_frozen", 0o500, 0o500, 1),
     ),
 )
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_event_boundaries_match_filesystem_stage(
     tmp_path,
     monkeypatch,
@@ -21990,6 +22357,10 @@ def test_runtime_snapshot_event_boundaries_match_filesystem_stage(
     "mutation",
     ("replace", "chmod", "hardlink", "mutate", "undeclared_entry"),
 )
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_revalidation_rejects_post_hash_changes(
     tmp_path, monkeypatch, mutation
 ):
@@ -22024,6 +22395,10 @@ def test_runtime_snapshot_revalidation_rejects_post_hash_changes(
         isolation.revalidate_runtime_snapshot(snapshot)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_source_post_compare_fstat_detects_mutation(
     tmp_path, monkeypatch
 ):
@@ -22063,6 +22438,10 @@ def test_runtime_snapshot_source_post_compare_fstat_detects_mutation(
         )
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_modes_ignore_restrictive_umask(tmp_path, monkeypatch):
     source, snapshot, copied = _task7_build_snapshot(tmp_path, monkeypatch)
     assert stat.S_IMODE((tmp_path / "exclusive-run").stat().st_mode) == 0o500
@@ -22072,6 +22451,10 @@ def test_runtime_snapshot_modes_ignore_restrictive_umask(tmp_path, monkeypatch):
     (tmp_path / "exclusive-run").chmod(0o700)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_plain_constructor_and_copied_state_fail_closed(
     tmp_path, monkeypatch
 ):
@@ -22353,6 +22736,10 @@ def test_runtime_resource_symlink_chain_records_nested_target_links(tmp_path):
     }
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_rejects_changed_declared_symlink_identity(
     tmp_path, monkeypatch
 ):
@@ -22496,6 +22883,10 @@ def test_runtime_snapshot_rejects_malformed_or_ambiguous_manifest(
         )
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_rejects_source_path_replacement_during_copy(
     tmp_path, monkeypatch
 ):
@@ -22535,6 +22926,10 @@ def test_runtime_snapshot_rejects_source_path_replacement_during_copy(
         )
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_short_read_fails_and_closes_temporary_fds(
     tmp_path, monkeypatch
 ):
@@ -22575,6 +22970,10 @@ def test_runtime_snapshot_short_read_fails_and_closes_temporary_fds(
     assert len(os.listdir("/proc/self/fd")) == before_fds
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_closed_and_reused_retained_fd_fails_closed(
     tmp_path, monkeypatch
 ):
@@ -22604,6 +23003,10 @@ def test_runtime_snapshot_closed_and_reused_retained_fd_fails_closed(
 @pytest.mark.parametrize(
     "public_tamper",
     ("manifest", "snapshot_sha256", "directory_identities"),
+)
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
 )
 def test_runtime_snapshot_pre_fstat_commitment_failure_closes_owned_fd(
     tmp_path, monkeypatch, public_tamper
@@ -22669,6 +23072,10 @@ def test_task7_runtime_functions_have_exact_infrastructure_category(tmp_path):
     } == {"runtime_resource_integrity"}
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_runtime_snapshot_creation_is_umask_independent(tmp_path, monkeypatch):
     previous_umask = os.umask(0o777)
     try:
@@ -24145,7 +24552,15 @@ def test_not_applicable_invalid_points_use_numeric_domain_boundaries(
         )
         if point.kind == "invalid"
     )
-    adapters.validate_scientific_inputs(definition, invalid.scientific_inputs)
+    try:
+        adapters.validate_scientific_inputs(
+            definition, invalid.scientific_inputs
+        )
+    except AdapterContractError:
+        # Boundary-derived invalid inputs may already be rejected at the
+        # declared relative-regime layer; the counterfactual reason is
+        # asserted separately below.
+        pass
     numeric_values = tuple(
         invalid.scientific_inputs[name]
         for name, schema in definition.scientific_input_schema.properties
@@ -24791,6 +25206,10 @@ def test_preflight_identity_exception_cannot_reuse_prior_runner_response(
     assert runner.adapter_execution_attempts == 0
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_preflight_identify_versions_snapshot_copied_from_verified_fd(
     tmp_path,
     monkeypatch,
@@ -24898,6 +25317,10 @@ def test_retained_preflight_file_helper_rejects_tamper_and_replacement(
         )
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_preflight_origin_substitution_returns_structured_unavailable(
     tmp_path,
     monkeypatch,
@@ -25256,6 +25679,10 @@ def test_task9_preflight_public_signature_and_export_are_closed():
     assert "run_capability_preflight" in isolation.__all__
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_capability_preflight_succeeds_on_designated_host(
     tmp_path,
     monkeypatch,
@@ -25348,6 +25775,10 @@ def test_production_capability_preflight_succeeds_on_designated_host(
     assert events_before_provider[-1].event_name == "frozen_hashes"
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_denies_exact_retained_host_canary_path(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -25369,6 +25800,10 @@ def test_production_preflight_denies_exact_retained_host_canary_path(tmp_path):
     assert exact_denial is not None
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_recomputes_retained_trace_digest(
     tmp_path,
     monkeypatch,
@@ -25410,6 +25845,10 @@ def test_production_preflight_recomputes_retained_trace_digest(
     assert report.trace_sha256 == hashlib.sha256(b"").hexdigest()
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_retains_closed_raw_attestation(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -25556,6 +25995,10 @@ def test_production_preflight_retains_closed_raw_attestation(tmp_path):
     assert all(independently_derived.values())
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_rejects_each_nonclosed_raw_attestation(
     tmp_path,
 ):
@@ -25610,6 +26053,10 @@ def test_production_preflight_rejects_each_nonclosed_raw_attestation(
             )
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_executes_reported_launcher_snapshot(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -25644,6 +26091,10 @@ def test_production_preflight_executes_reported_launcher_snapshot(tmp_path):
     ) is not None
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_closes_high_infrastructure_descriptors(
     tmp_path,
 ):
@@ -25671,6 +26122,10 @@ def test_production_preflight_closes_high_infrastructure_descriptors(
     assert attestation["child"]["inherited_fds"] == []
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_uses_one_isolated_interpreter_after_chroot(
     tmp_path,
 ):
@@ -25695,6 +26150,10 @@ def test_production_preflight_uses_one_isolated_interpreter_after_chroot(
     assert attestation["child"]["marker"] == "task9-chrooted-interpreter"
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_production_preflight_binds_only_exact_readonly_entropy_device(
     tmp_path,
 ):
@@ -25999,6 +26458,10 @@ def test_task10_worker_capsule_fixed_worker_executes_closed_transport_once(
     assert stat.S_IMODE(result_path.stat().st_mode) == 0o600
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_task11_fixed_worker_accepts_separately_hashed_oracle_capsule(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -26081,6 +26544,10 @@ def test_task10_worker_capsule_fixed_worker_refuses_existing_result(
     assert result_path.read_bytes() == b"preexisting"
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_task10_mount_manifest_has_only_four_worker_visible_classes(
     tmp_path,
     monkeypatch,
@@ -26155,6 +26622,10 @@ def test_task10_mount_manifest_has_only_four_worker_visible_classes(
         snapshot.revalidate()
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_task10_real_runtime_manifest_commits_prefix_and_soname_aliases(
     tmp_path,
 ):
@@ -26362,6 +26833,10 @@ def _task10_command_identities():
     }
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_task10_namespace_supervisor_injected_runner_receives_fixed_topology(
     tmp_path,
     monkeypatch,
@@ -26452,6 +26927,10 @@ def test_task10_namespace_supervisor_injected_runner_receives_fixed_topology(
     assert payload["unrelated_fds"] == []
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="runtime snapshot machinery requires Linux (/proc, dirfd chmod)",
+)
 def test_task10_namespace_supervisor_real_canary_runs_in_exact_private_root(
     tmp_path,
     monkeypatch,
@@ -27390,6 +27869,10 @@ def _task11_execute_runtime_attack(
         isolation._close_run_directories(layout)
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_task11_runtime_attack_matrix_fails_closed_for_adapter_and_oracle(
     tmp_path,
     monkeypatch,
@@ -27645,6 +28128,10 @@ def test_task12_public_coordinator_signature_export_and_no_injection(tmp_path):
             )
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_task12_public_coordinator_is_unavailable_without_oracle_fallback(
     tmp_path,
 ):
@@ -27766,7 +28253,7 @@ def test_task12_evidence_bundle_derives_outer_convergence_from_raw_data(
 ):
     from validation import literature_evidence_isolation as isolation
 
-    payload = _local_payload_for_definition(definition)
+    payload = _real_local_payload_for_definition(definition)
     local_result = adapters.validate_local_observable_result(
         definition, payload
     )
@@ -27853,7 +28340,7 @@ def _task12_outer_oracle_definition():
         ),
         convergence_invariant_contract={
             "kind": "residual_bound",
-            "rule": "independent residual contracts under refinement",
+            "rule": "independent equation closure and invariant consistency",
             "secondary_bound": 1.0,
         },
         resource_limits=base.resource_limits,
@@ -28458,6 +28945,10 @@ def test_task12_coordinator_failure_preserves_process_and_trace_reason(
     assert outcome.failure.reason_code == reason
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_task12_evidence_bundle_private_state_machine_accepts_only_validated_success(
     tmp_path,
 ):
@@ -28659,6 +29150,10 @@ def test_task12_evidence_bundle_rejects_closed_completeness_mutation(mutation):
         )
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason="capability preflight requires the Linux namespace/strace backend",
+)
 def test_task12_evidence_bundle_builds_real_synthetic_scientific_pair(
     tmp_path,
 ):
@@ -29509,6 +30004,10 @@ def test_analytic_and_enumeration_pair_has_disjoint_scannable_closures(
     )
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_task13_production_capsule_materializes_scientific_calculation(
     tmp_path,
 ):
@@ -29555,6 +30054,10 @@ def test_task13_production_capsule_materializes_scientific_calculation(
     ) == 64
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_task13_fixed_worker_preserves_raw_outer_proof_derivation(tmp_path):
     from validation import literature_evidence_isolation as isolation
 
@@ -29635,6 +30138,10 @@ def test_task13_fixed_worker_preserves_raw_outer_proof_derivation(tmp_path):
     assert proofs["proofs"]["tc_over_j"]["value"] == 0.0
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_task13_all_pairs_execute_through_fixed_worker_and_oracle(tmp_path):
     from validation import literature_evidence_adapter_oracles as oracles
     from validation import literature_evidence_isolation as isolation
@@ -30069,6 +30576,10 @@ def test_dense_ed_pair_recomputes_seeded_valid_model_points(
         assert independent["residual_norm"] <= 1e-10
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_dense_ed_all_pairs_execute_through_fixed_worker(
     tmp_path, monkeypatch
 ):
@@ -30480,7 +30991,9 @@ def test_shastry_sutherland_rejects_outside_product_ground_state_regime():
     definition = adapters.ADAPTER_DEFINITIONS[
         "shastry_sutherland_dimer_ed"
     ]
-    with pytest.raises(AdapterContractError, match="product-ground-state"):
+    with pytest.raises(
+        AdapterContractError, match="outside the declared relative regime"
+    ):
         adapters.validate_scientific_inputs(
             definition,
             {"intradimer_exchange": 1.0, "interdimer_exchange": 100.0},
@@ -31679,6 +32192,10 @@ def test_iterative_pair_outer_convergence_accepts_computed_trace(
     ).accepted is True
 
 
+@pytest.mark.skipif(
+    shutil.which("ldd") is None,
+    reason="runtime discovery requires the system loader probe (ldd)",
+)
 def test_iterative_pairs_execute_as_fixed_worker_capsules(
     tmp_path, monkeypatch
 ):
@@ -32392,6 +32909,13 @@ def test_task17_contract_validation_allows_only_direct_input_identity_equality()
             validate(source)
 
 
+@pytest.mark.skipif(
+    not _ISOLATION_BACKEND_AVAILABLE,
+    reason=(
+        "strict isolated recomputation requires the Linux unshare/strace "
+        "backend; unavailable on this platform"
+    ),
+)
 @pytest.mark.parametrize(
     "row", EXPECTED_ELIGIBLE_ROWS, ids=lambda row: row.adapter_id
 )

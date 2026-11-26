@@ -11,7 +11,7 @@ import ast
 import builtins as _builtins
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, is_dataclass
 import dis
 from enum import Enum, IntFlag
 import gc
@@ -45,6 +45,11 @@ from types import (
     ModuleType,
     WrapperDescriptorType,
 )
+
+# Bound methods of C-implemented objects (e.g. ``re.compile(...).match``,
+# the ``builtin_method`` class) have no alias in the ``types`` module but
+# appear in stdlib callables' ``__defaults__`` (json.JSONDecoder.decode).
+_BoundBuiltinMethodType = type(re.compile("").match)
 from validation import literature_evidence_adapters as _adapters
 from validation import literature_evidence_adapter_oracles as _oracles
 from validation.literature_evidence_adapters import (
@@ -1508,6 +1513,30 @@ _STATIC_SCAN_CHECK_LIMIT = 64
 _STATIC_SCAN_REASON_BYTES_LIMIT = 160
 _STATIC_SCANNER_COMMITMENT_NODE_LIMIT = 131_072
 _STATIC_SCANNER_COMMITMENT_EDGE_LIMIT = 262_144
+# Bytecode calling-convention feature flags.  Since CPython 3.11 every call
+# site stacks a NULL (or a bound-method self) directly below the callable
+# (PUSH_NULL, or the low-bit form of LOAD_GLOBAL / LOAD_METHOD), and CALL
+# consumes it.  Since CPython 3.12 the same low-bit convention applies to
+# LOAD_ATTR.  The static scanner must mirror these pushes/pops exactly or
+# its abstract stack depth drifts away from the real bytecode.
+_STATIC_BYTECODE_NULL_BELOW_CALLABLE = sys.version_info >= (3, 11)
+_STATIC_BYTECODE_LOAD_ATTR_NULL_FORM = sys.version_info >= (3, 12)
+# Method names that the ``dataclasses`` machinery may synthesize without a
+# source-level function definition.
+_DATACLASS_SYNTHESIZED_METHOD_NAMES = frozenset(
+    {
+        "__init__",
+        "__repr__",
+        "__eq__",
+        "__lt__",
+        "__le__",
+        "__gt__",
+        "__ge__",
+        "__hash__",
+        "__setattr__",
+        "__delattr__",
+    }
+)
 _STATIC_SCANNER_COMMITMENT_ATTRIBUTE_LIMIT = 131_072
 _STATIC_SCANNER_COMMITMENT_DEPTH_LIMIT = 512
 _STATIC_SCANNER_COMMITMENT_VALUE_BYTES_LIMIT = 16_777_216
@@ -11336,6 +11365,49 @@ def _semantic_source_node(value, roots, cache, *, node_kind="project_semantic"):
             )
             == first_line
         ]
+    if not candidates and not isinstance(value, type) and expected_chain:
+        # Dataclass-synthesized methods (__init__, __repr__, comparison
+        # operators, ...) have no source-level FunctionDef and their code
+        # object's co_firstlineno points into the dataclasses machinery.
+        # Attribute the declaration to the owning class instead.
+        method_name = expected_chain[-1]
+        if method_name in _DATACLASS_SYNTHESIZED_METHOD_NAMES:
+            owner = sys.modules.get(module_name)
+            for part in expected_chain[:-1]:
+                owner = getattr(owner, part, None)
+                if owner is None:
+                    break
+            if (
+                isinstance(owner, type)
+                and is_dataclass(owner)
+                and getattr(owner, method_name, None) is value
+            ):
+                owner_chain = expected_chain[:-1]
+
+                def visit_owner(candidate, declaration_chain):
+                    next_chain = declaration_chain
+                    if isinstance(candidate, ast.ClassDef):
+                        next_chain += (candidate.name,)
+                        if next_chain == owner_chain:
+                            candidates.append(candidate)
+                        if (
+                            len(next_chain) > len(owner_chain)
+                            or next_chain != owner_chain[: len(next_chain)]
+                        ):
+                            return
+                    elif isinstance(
+                        candidate, (ast.FunctionDef, ast.AsyncFunctionDef)
+                    ):
+                        next_chain += (candidate.name,)
+                        if (
+                            len(next_chain) > len(owner_chain)
+                            or next_chain != owner_chain[: len(next_chain)]
+                        ):
+                            return
+                    for child in ast.iter_child_nodes(candidate):
+                        visit_owner(child, next_chain)
+
+                visit_owner(tree, ())
     if len(candidates) != 1:
         raise _ContractError(
             "semantic project declaration source is not unique"
@@ -15598,7 +15670,14 @@ _STATIC_SCANNER_EXTERNAL_INSTANCE_TYPES = frozenset(
         ("sre_constants", "_NamedIntConstant"),
     }
 )
-_STATIC_SCANNER_EXTERNAL_OPAQUE_INSTANCE_TYPES = frozenset()
+_STATIC_SCANNER_EXTERNAL_OPAQUE_INSTANCE_TYPES = frozenset(
+    {
+        # ``dis.UNKNOWN`` is an identity sentinel with no state; only its
+        # identity is semantically relevant, so normalize it as an opaque
+        # token.
+        ("dis", "_Unknown"),
+    }
+)
 _STATIC_SCANNER_EXTERNAL_INSTANCE_SLOT_PATHS = {
     ("_json", "Scanner"): (
         "__call__",
@@ -15616,9 +15695,11 @@ _STATIC_SCANNER_BUILTIN_BINDINGS = frozenset(
         "ArithmeticError",
         "AssertionError",
         "AttributeError",
+        "BytesWarning",
         "DeprecationWarning",
         "Exception",
         "FileExistsError",
+        "FileNotFoundError",
         "FutureWarning",
         "Ellipsis",
         "IndexError",
@@ -15966,7 +16047,8 @@ def _static_external_instance_slot_manifest() -> list[dict[str, object]]:
     if (
         type(paths) is not dict
         or paths != expected
-        or _STATIC_SCANNER_EXTERNAL_OPAQUE_INSTANCE_TYPES != frozenset()
+        or _STATIC_SCANNER_EXTERNAL_OPAQUE_INSTANCE_TYPES
+        != frozenset({("dis", "_Unknown")})
     ):
         raise _ContractError(
             "static scanner external instance slot policy is not inverse"
@@ -16058,6 +16140,42 @@ def _canonical_transport_effect_rule_manifest() -> list[dict[str, object]]:
     ]
 
 
+def _static_serialization_core_manifest() -> list[dict[str, object]]:
+    """Commit the exact-storage readers that the scanner depends on.
+
+    Only the internal readers are part of the commitment. The class-level
+    mapping protocol (``__getitem__``/``__iter__``/``__len__``/``__init__``)
+    belongs to report semantics: an attacker who shadows those slots must not
+    be able to move the scanner commitment, so they stay outside the manifest
+    even though freezing never routes through them.
+    """
+    state: dict[str, object] = {
+        "steps": 0,
+        "edges": 0,
+        "attributes": 0,
+        "memo": {},
+        "project_functions": {},
+    }
+    entries = []
+    for member_name in (
+        "_exact_items",
+        "_from_frozen_items",
+    ):
+        owner, member = _static_exact_class_member(
+            _adapters.FrozenJsonObject, member_name
+        )
+        entries.append(
+            _static_semantic_class_member(
+                owner,
+                member,
+                state,
+                0,
+                binding_name=f"serialization_core.{member_name}",
+            )
+        )
+    return entries
+
+
 def _static_scanner_rule_manifest() -> dict[str, object]:
     return {
         "commitment_version": "transitive_semantic_commitment_v6",
@@ -16066,6 +16184,7 @@ def _static_scanner_rule_manifest() -> dict[str, object]:
         "ast_closure_version": _AST_CLOSURE_VERSION,
         "policy_structure_version": _POLICY_STRUCTURE_SCAN_VERSION,
         "fingerprint_algorithm_version": _FINGERPRINT_ALGORITHM_VERSION,
+        "serialization_core_members": _static_serialization_core_manifest(),
         "limits": {
             "node_count": _STATIC_SCAN_NODE_LIMIT,
             "ast_depth": _STATIC_SCAN_DEPTH_LIMIT,
@@ -16581,6 +16700,7 @@ def _static_code_class_usages(
         opname = instruction.opname
         if opname in {
             "RETURN_VALUE",
+            "RETURN_CONST",
             "RAISE_VARARGS",
             "RERAISE",
         }:
@@ -16626,6 +16746,37 @@ def _static_code_class_usages(
             instruction.offset: index
             for index, instruction in enumerate(instructions)
         }
+        # 3.11+ exception tables replace SETUP_FINALLY-style block stacks:
+        # when an instruction inside a protected range raises, control
+        # resumes at the handler target with the stack unwound to the
+        # table's depth plus the raised exception (and the faulting
+        # instruction offset when lasti is set).  Handler bodies must be
+        # reachable in the dataflow scan or class usage inside ``except``
+        # blocks is silently dropped.
+        exception_edges = {}
+        if _STATIC_BYTECODE_NULL_BELOW_CALLABLE:
+            # dis.Bytecode(...).exception_entries exists since 3.11;
+            # dis.exception_table_entries only exists since 3.12.
+            for entry in dis.Bytecode(code).exception_entries:
+                start_index = offsets.get(entry.start)
+                target_index = offsets.get(entry.target)
+                if start_index is None or target_index is None:
+                    raise _ContractError(
+                        "static scanner class usage exception target is "
+                        "unavailable"
+                    )
+                end_index = offsets.get(entry.end)
+                last_index = (
+                    len(instructions) - 1 if end_index is None else end_index
+                )
+                handler_stack = tuple(
+                    other_value
+                    for _index in range(entry.depth + (2 if entry.lasti else 1))
+                )
+                for protected_index in range(start_index, last_index + 1):
+                    exception_edges.setdefault(
+                        protected_index, []
+                    ).append((target_index, handler_stack))
         states: dict[
             int,
             tuple[tuple[object, ...], dict[str, object]],
@@ -16648,6 +16799,14 @@ def _static_code_class_usages(
             opname = instruction.opname
             if opname in {"LOAD_GLOBAL", "LOAD_NAME"}:
                 name = instruction.argval
+                if (
+                    opname == "LOAD_GLOBAL"
+                    and _STATIC_BYTECODE_NULL_BELOW_CALLABLE
+                    and instruction.arg
+                    and instruction.arg & 1
+                ):
+                    # 3.11+ low-bit form pushes NULL below the global.
+                    stack.append(other_value)
                 if class_binding(name) is not None:
                     stack.append(
                         abstract_value(classes=frozenset({name}))
@@ -16672,6 +16831,14 @@ def _static_code_class_usages(
                 receiver_names = receiver[0] | receiver[1]
                 for name in receiver_names:
                     usage(name)["members"].add(instruction.argval)
+                if opname == "LOAD_METHOD" or (
+                    _STATIC_BYTECODE_LOAD_ATTR_NULL_FORM
+                    and instruction.arg
+                    and instruction.arg & 1
+                ):
+                    # LOAD_METHOD (<=3.11) and the 3.12+ low-bit LOAD_ATTR
+                    # push NULL below the attribute for the call protocol.
+                    stack.append(other_value)
                 stack.append(
                     abstract_value(
                         members=receiver_names,
@@ -16692,6 +16859,13 @@ def _static_code_class_usages(
                     if stack:
                         stack.pop()
                 called = stack.pop() if stack else unbound_value
+                if opname == "CALL_METHOD" or (
+                    _STATIC_BYTECODE_NULL_BELOW_CALLABLE
+                ):
+                    # CALL_METHOD (3.10) and every 3.11+ call consume the
+                    # NULL (or bound self) stacked below the callable.
+                    if stack:
+                        stack.pop()
                 for name in called[0]:
                     usage(name)["constructed"] = True
                 stack.append(
@@ -16713,6 +16887,8 @@ def _static_code_class_usages(
                     if stack:
                         stack.pop()
                 called = stack.pop() if stack else unbound_value
+                if _STATIC_BYTECODE_NULL_BELOW_CALLABLE and stack:
+                    stack.pop()
                 for name in called[0]:
                     usage(name)["constructed"] = True
                 stack.append(
@@ -16733,6 +16909,8 @@ def _static_code_class_usages(
                 if stack:
                     stack.pop()
                 called = stack.pop() if stack else unbound_value
+                if _STATIC_BYTECODE_NULL_BELOW_CALLABLE and stack:
+                    stack.pop()
                 for name in called[0]:
                     usage(name)["constructed"] = True
                 stack.append(
@@ -16746,12 +16924,20 @@ def _static_code_class_usages(
                         ),
                     )
                 )
-            elif opname in {"PRECALL", "KW_NAMES", "PUSH_NULL", "CACHE"}:
+            elif opname in {"PRECALL", "KW_NAMES", "CACHE"}:
                 pass
+            elif opname == "PUSH_NULL":
+                stack.append(other_value)
+            elif opname == "RETURN_GENERATOR":
+                # 3.11+ generators start with RETURN_GENERATOR followed by
+                # POP_TOP of the sent-in value; model the sent value so the
+                # continuation stack depth matches real bytecode.
+                stack.append(other_value)
             elif opname == "LOAD_CONST":
                 stack.append(other_value)
             elif opname not in {
                 "RETURN_VALUE",
+                "RETURN_CONST",
                 "RAISE_VARARGS",
                 "RERAISE",
             }:
@@ -16794,6 +16980,14 @@ def _static_code_class_usages(
                 if states.get(successor) != joined:
                     states[successor] = joined
                     worklist.append(successor)
+            for target_index, handler_stack in exception_edges.get(
+                index, ()
+            ):
+                incoming = (handler_stack, dict(outgoing[1]))
+                joined = join_state(states.get(target_index), incoming)
+                if states.get(target_index) != joined:
+                    states[target_index] = joined
+                    worklist.append(target_index)
         pending.extend(
             constant
             for constant in code.co_consts
@@ -18197,6 +18391,7 @@ def _static_semantic_native_callable(
         MethodDescriptorType,
         MethodWrapperType,
         WrapperDescriptorType,
+        _BoundBuiltinMethodType,
     }
     if value_type not in allowed_types:
         raise _ContractError(
@@ -18342,6 +18537,7 @@ def _static_semantic_value(
         MethodDescriptorType,
         MethodWrapperType,
         WrapperDescriptorType,
+        _BoundBuiltinMethodType,
     }:
         token, is_new = _static_semantic_register(value, state)
         if not is_new:
@@ -18756,6 +18952,40 @@ def _static_semantic_value(
                 else {"kind": "bytes", "hex": pattern.hex()}
             ),
             "flags": int.__int__(value.flags),
+        }
+    if value_type is type:
+        # External class objects (e.g. ``genericpath.ALLOW_MISSING``) are
+        # identity-pinned opaque references; their members are stdlib
+        # internals outside the semantic surface.
+        class_module = getattr(value, "__module__", None)
+        class_qualname = getattr(value, "__qualname__", None)
+        if (
+            type(class_module) is str
+            and class_module not in _STATIC_SCANNER_SEMANTIC_MODULES
+            and type(class_qualname) is str
+        ):
+            token, is_new = _static_semantic_register(value, state)
+            if not is_new:
+                return {"kind": "reference", "token": token}
+            return {
+                "kind": "opaque_external_type",
+                "token": token,
+                "module": class_module,
+                "qualname": class_qualname,
+            }
+    elif value_type_module not in _STATIC_SCANNER_SEMANTIC_MODULES:
+        # External instances without a dedicated normalizer (e.g.
+        # ``sys.version_info`` values in stdlib ``__kwdefaults__``) carry
+        # no project-controllable state; pin their identity opaquely
+        # instead of rejecting the whole dependency walk.
+        token, is_new = _static_semantic_register(value, state)
+        if not is_new:
+            return {"kind": "reference", "token": token}
+        return {
+            "kind": "opaque_external_instance",
+            "token": token,
+            "module": value_type_module,
+            "qualname": value_type_qualname,
         }
     raise _ContractError(
         "static scanner dependency cannot be safely normalized: "
@@ -26586,7 +26816,7 @@ class AdapterRunFailure:
         available_hashes = _snapshot_json(
             self.available_hashes, "available_hashes"
         )
-        for name, digest in available_hashes._items:
+        for name, digest in _adapters.FrozenJsonObject._exact_items(available_hashes):
             if name not in _FAILURE_HASH_FIELDS:
                 raise _ContractError(
                     f"available_hashes contains unknown field {name}"
@@ -26595,7 +26825,7 @@ class AdapterRunFailure:
         available_attestations = _snapshot_json(
             self.available_attestations, "available_attestations"
         )
-        for name, attestation in available_attestations._items:
+        for name, attestation in _adapters.FrozenJsonObject._exact_items(available_attestations):
             if name not in _FAILURE_ATTESTATION_FIELDS:
                 raise _ContractError(
                     f"available_attestations contains unknown field {name}"

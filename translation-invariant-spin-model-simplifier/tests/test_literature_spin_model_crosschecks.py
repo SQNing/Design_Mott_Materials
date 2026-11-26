@@ -2074,6 +2074,9 @@ def test_square_jq_sandvik_qmc_critical_parse_matches_registered_deconfined_tran
 
 
 def test_stored_haldane_gap_matches_tenpy_infinite_mps_plane_wave_excitation():
+    pytest.importorskip(
+        "tenpy", reason="optional TeNPy backend is not connected"
+    )
     result = _standard_result("haldane_spin1_chain_gap_reference")
     status = spin_benchmarks.haldane_spin1_chain_gap_tenpy_plane_wave_status(
         bond_dimension=48,
@@ -3897,6 +3900,9 @@ def test_kagome_spin_half_heisenberg_small_ed_energies_miss_dmrg_tolerance():
 
 
 def test_kagome_spin_half_heisenberg_tenpy_idmrg_energy_reproduces_registered_dmrg_value():
+    pytest.importorskip(
+        "tenpy", reason="optional TeNPy backend is not connected"
+    )
     result = _standard_result("kagome_spin_half_heisenberg_energy_reference")
     status = spin_benchmarks.kagome_spin_half_heisenberg_tenpy_idmrg_energy_status(
         bond_dimension=112,
@@ -3918,6 +3924,9 @@ def test_kagome_spin_half_heisenberg_tenpy_idmrg_energy_reproduces_registered_dm
 
 
 def test_yan_kagome_energy_and_gap_match_tenpy_dmrg_recomputations():
+    pytest.importorskip(
+        "tenpy", reason="optional TeNPy backend is not connected"
+    )
     result = _standard_result("kagome_heisenberg_dmrg_spin_liquid_yan_reference")
     status = spin_benchmarks.kagome_yan_energy_gap_tenpy_dmrg_status(
         energy_bond_dimension=112,
@@ -4535,7 +4544,14 @@ def test_quantum_heisenberg_dimer_levels_match_total_spin_multiplets_for_s_great
     spin, expected_levels
 ):
     levels = quantum_heisenberg_dimer_levels(spin, exchange=1.0)
-    assert [(level["energy"], level["degeneracy"]) for level in levels] == pytest.approx(expected_levels)
+    # pytest.approx does not support nested (energy, degeneracy) tuples;
+    # compare energies with tolerance and degeneracies exactly.
+    assert [level["energy"] for level in levels] == pytest.approx(
+        [expected_energy for expected_energy, _degeneracy in expected_levels]
+    )
+    assert [level["degeneracy"] for level in levels] == [
+        degeneracy for _energy, degeneracy in expected_levels
+    ]
     assert sum(level["degeneracy"] for level in levels) == int((2.0 * spin + 1.0) ** 2)
 
 

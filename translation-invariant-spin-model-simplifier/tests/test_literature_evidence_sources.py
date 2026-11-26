@@ -7195,6 +7195,9 @@ def _round7_signed_sidecar_roundtrip_fixture(evidence_kind):
     "evidence_kind",
     ("author_publications_same_work", "core_same_work_output"),
 )
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_round7_f_signed_sidecar_full_fetch_write_and_offline_roundtrip(
     tmp_path,
     monkeypatch,
@@ -8815,6 +8818,9 @@ def test_round11_resume_verifies_json_sidecar_once_without_network_or_writes(
     assert _round7_tree_snapshot(source_dir) == before
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_round11_new_json_sidecar_write_immediately_replays_one_snapshot(
     tmp_path,
     monkeypatch,
@@ -9150,6 +9156,9 @@ def test_round12_strict_invalid_json_acquisition_fails_before_cache_write(
     "evidence_kind",
     ROUND12_JSON_ACQUISITION_KINDS,
     ids=("core-new", "openalex-legacy"),
+)
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
 )
 def test_round12_valid_json_acquisition_control(
     tmp_path,
@@ -11405,6 +11414,9 @@ def test_task5a_nonserializable_bibliographic_structure_reaches_real_provenance(
         "offline-candidate-replay",
     ),
 )
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_task5a_candidate_failure_at_every_stage_never_exposes_target_or_mutates_tree(
     tmp_path,
     monkeypatch,
@@ -11746,6 +11758,9 @@ def test_task5a_success_publishes_complete_target_only_after_real_offline_replay
             ),
         ),
     ),
+)
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
 )
 def test_task5a_public_success_teardown_reaps_strace_then_closes_optional_observer(
     tmp_path,
@@ -12744,6 +12759,9 @@ def test_task5a_hal_fetch_uses_exact_ordered_query_but_serializes_only_stable_ur
     assert "?" not in serialized
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_task5a_static_garel_route_acquires_after_real_offline_replay(
     tmp_path,
     monkeypatch,
@@ -13434,6 +13452,9 @@ def test_task5a_prepublication_close_failure_preserves_primary_and_closes_all_fd
     assert not any(cache_root.glob(".literature-evidence-staging-*"))
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_task5a_postpublication_close_failure_keeps_acquired_outcome(
     tmp_path,
     monkeypatch,
@@ -15426,6 +15447,9 @@ def test_task5a_oup_offline_replay_reads_one_hashed_snapshot_then_real_validator
     assert network_calls == []
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="requires Linux acquisition backend"
+)
 def test_task5a_oup_fetch_source_publishes_one_raw_snapshot_after_real_offline_replay(
     tmp_path,
     monkeypatch,

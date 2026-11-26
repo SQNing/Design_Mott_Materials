@@ -8,8 +8,21 @@ if str(PROJECT_ROOT / "reports") not in sys.path:
 if str(PROJECT_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
+import pytest
+
 from generate_literature_reproduction_audit_pdf import build_reproduction_pdf_payload
 from validation.literature_reproduction_audit import build_literature_reproduction_audit
+from validation.literature_runtime_evidence import DEFAULT_CACHE_ROOT
+
+
+def _source_cache_populated():
+    return DEFAULT_CACHE_ROOT.is_dir() and any(DEFAULT_CACHE_ROOT.iterdir())
+
+
+pytestmark = pytest.mark.skipif(
+    not _source_cache_populated(),
+    reason="requires populated local literature source cache",
+)
 
 
 def test_reproduction_audit_pdf_payload_uses_current_strict_audit_counts():

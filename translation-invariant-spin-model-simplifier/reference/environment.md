@@ -306,6 +306,28 @@ If missing:
 - `.txt` and `.tex` report outputs can still be generated.
 - PDF compilation should be reported as unavailable or skipped.
 
+### Required for literature PDF evidence
+
+The literature evidence wall extracts text from source PDFs, so the Poppler
+command-line tools must be installed and on `PATH` whenever that path runs.
+Without `pdftotext` the acquisition lifecycle fails closed with
+`cannot execute pdftotext` and every PDF-backed evidence test turns red.
+
+Required tool:
+
+- `pdftotext` (Poppler)
+
+Verification:
+
+```bash
+pdftotext -v
+```
+
+If missing, install Poppler (`brew install poppler`, `apt install
+poppler-utils`) and make sure its `bin` directory is exported in the
+non-interactive shell that runs the tests, not only in an interactive login
+shell.
+
 ## Input-file expectations
 
 These are not packages, but the skill should still confirm they exist before
@@ -341,6 +363,10 @@ test -d /path/to/output-dir
 - `pdflatex failed` or `pdflatex` not found
   Meaning:
   PDF output was requested without a working TeX installation.
+- `cannot execute pdftotext`
+  Meaning:
+  The literature PDF evidence path ran without Poppler on `PATH`; install
+  Poppler and export its `bin` directory for non-interactive shells.
 - `FileNotFoundError` for `POSCAR`, `hr.dat`, or output directories
   Meaning:
   The file-backed workflow was selected before input/output paths were checked.
