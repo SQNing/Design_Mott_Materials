@@ -61,6 +61,41 @@ Current canonical convention:
 }
 ```
 
+## Symmetry Declaration
+
+`normalize_cpn_pair_model` always writes `symmetry.operations`,
+`local_hilbert.operator_bases["op_basis:retained_local_matrix"].symmetry_actions`
+and a `symmetry_synthesis` summary. Three modes are possible:
+
+- `declared`: the payload already carried more than the identity, and every
+  operation had a declared matrix-unit action. The declaration is authoritative
+  and is preserved verbatim.
+- `derived-from-lattice`: the cell and the magnetic basis were sufficient, so
+  the crystal space group was taken from spglib, each operation was given the
+  matrix-unit action implied by the retained local space, and every operation
+  was re-checked against the declared `bond_terms`. Only operations that
+  reproduce the declared pair matrices are kept.
+- `identity-only`: nothing stronger could be certified. This is the floor, not
+  an error.
+
+A declaration that only repeats the identity carries no information and is
+treated as absent, so re-normalizing a payload is a fixed point and an older
+payload can still be upgraded.
+
+The local action is `kron(U, conj(U))` on the vectorized matrix units, where `U`
+is the local basis rotation. `U` is the axial rotation of the operation in the
+standard `|S, m>` basis when `retained_local_space.factorization.kind` is
+`generic_multiplet` or is `orbital_times_spin` with `orbital_count == 1`, and the
+identity when `local_dimension == 1`. Anything else (several orbitals per site,
+or no declared retained space) leaves the representation undetermined and the
+payload stays `identity-only`, because an orbital permutation cannot be invented.
+
+Because every derived operation is verified against the terms, the declared
+group is exactly the part of the crystal group the written model realises. An
+isotropic Heisenberg model on a cubic cell certifies all 48 operations, an XXZ
+model certifies the 16 tetragonal ones, and an XYZ model the 8 orthorhombic
+ones.
+
 ## Legacy Adapter Example
 
 A legacy `VR_hr.dat` import may still report:

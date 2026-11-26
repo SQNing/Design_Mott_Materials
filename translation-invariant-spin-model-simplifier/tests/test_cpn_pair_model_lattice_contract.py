@@ -1,11 +1,14 @@
 import sys
 from pathlib import Path
 
+import numpy as np
+
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from common.canonical_hamiltonian import compile_canonical_hamiltonian
 from common.cpn_pair_model import normalize_cpn_pair_model
+from common.hamiltonian_symmetry_gate import run_hamiltonian_symmetry_gate
 
 
 def _pair_matrix(dimension):
@@ -114,3 +117,189 @@ def test_normalized_pair_model_compiles_through_the_canonical_gate():
     assert [
         (entry["site"], tuple(entry["translation"])) for entry in term["cluster"]
     ] == [(0, (0, 0, 0)), (0, (1, 0, 0))]
+
+
+def _spin_half_operators():
+    return [
+        0.5 * np.array(matrix, dtype=complex)
+        for matrix in (
+            [[0.0, 1.0], [1.0, 0.0]],
+            [[0.0, -1.0j], [1.0j, 0.0]],
+            [[1.0, 0.0], [0.0, -1.0]],
+        )
+    ]
+
+
+def _exchange_pair_matrix(exchange):
+    return sum(
+        float(factor) * np.kron(operator, operator)
+        for factor, operator in zip(exchange, _spin_half_operators())
+    )
+
+
+def _spin_half_local_space():
+    return {
+        "dimension": 2,
+        "factorization": {
+            "kind": "orbital_times_spin",
+            "orbital_count": 1,
+            "spin_dimension": 2,
+        },
+        "tensor_factor_order": "orbital_major_spin_minor",
+        "basis_labels": ["up", "down"],
+    }
+
+
+def _cubic_chain_payload(exchange):
+    matrix = _exchange_pair_matrix(exchange)
+    bond_terms = []
+    for axis in range(3):
+        for sign in (1, -1):
+            translation = [0, 0, 0]
+            translation[axis] = sign
+            bond_terms.append(
+                {
+                    "source": 0,
+                    "target": 0,
+                    "translation": translation,
+                    "matrix_shape": [4, 4],
+                    "pair_matrix": matrix.tolist(),
+                }
+            )
+    return {
+        "schema_version": 1,
+        "model_bond_label": "cpn_pair_model",
+        "classical_bond_label": "cpn",
+        "local_dimension": 2,
+        "retained_local_space": _spin_half_local_space(),
+        "structure": {
+            "lattice_vectors": [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            "positions": [[0.0, 0.0, 0.0]],
+        },
+        "onsite_terms": [],
+        "bond_terms": bond_terms,
+    }
+
+
+def test_pseudospin_multiplet_certifies_exactly_the_exchange_symmetry():
+    expectations = [
+        ((1.0, 1.0, 1.0), 48),
+        ((1.0, 1.0, 1.6), 16),
+        ((1.0, 0.7, 1.6), 8),
+    ]
+    for exchange, expected in expectations:
+        normalized = normalize_cpn_pair_model(_cubic_chain_payload(exchange))
+
+        assert normalized["symmetry_synthesis"] == {
+            "mode": "derived-from-lattice",
+            "operation_count": expected,
+        }, exchange
+
+        canonical = compile_canonical_hamiltonian(normalized)
+        gate = run_hamiltonian_symmetry_gate(canonical)
+        assert gate["status"] == "ok", exchange
+        assert gate["symmetry_validation"]["max_absolute_residual"] < 1.0e-12
+
+
+def _decoded_matrix(matrix):
+    rows = []
+    for row in matrix:
+        rows.append([
+            complex(value["real"], value["imag"]) if isinstance(value, dict) else complex(value)
+            for value in row
+        ])
+    return np.asarray(rows, dtype=complex)
+
+
+def test_pseudospin_multiplet_actions_are_not_the_identity():
+    normalized = normalize_cpn_pair_model(_cubic_chain_payload((1.0, 1.0, 1.6)))
+
+    actions = normalized["local_hilbert"]["operator_bases"][
+        "op_basis:retained_local_matrix"
+    ]["symmetry_actions"]
+    rotating = [
+        operation_ref
+        for operation_ref, record in actions.items()
+        if operation_ref != "symmetry-operation:identity"
+        and not np.allclose(_decoded_matrix(record["matrix"]), np.eye(4))
+    ]
+    assert rotating
+
+
+def test_multi_sublattice_pair_model_certifies_sublattice_permuting_operations():
+    matrix = _exchange_pair_matrix((1.0, 1.0, 1.0))
+    bond_terms = []
+    for translation in ([0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]):
+        for source, target in ((0, 1), (1, 0)):
+            bond_terms.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "translation": list(translation),
+                    "matrix_shape": [4, 4],
+                    "pair_matrix": matrix.tolist(),
+                }
+            )
+    payload = {
+        "schema_version": 1,
+        "model_bond_label": "cpn_pair_model",
+        "classical_bond_label": "cpn",
+        "local_dimension": 2,
+        "retained_local_space": _spin_half_local_space(),
+        "structure": {
+            "lattice_vectors": [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 2.0],
+            ],
+            "positions": [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]],
+        },
+        "onsite_terms": [],
+        "bond_terms": bond_terms,
+    }
+
+    normalized = normalize_cpn_pair_model(payload)
+
+    assert normalized["symmetry_synthesis"]["mode"] == "derived-from-lattice"
+    operations = normalized["symmetry"]["operations"]
+    assert len(operations) > 1
+    assert any(
+        not np.allclose(np.asarray(operation["rotation"], dtype=float), np.eye(3))
+        for operation in operations
+    )
+    canonical = compile_canonical_hamiltonian(normalized)
+    assert len(canonical["terms"]) == len(bond_terms)
+    gate = run_hamiltonian_symmetry_gate(canonical)
+    assert gate["status"] == "ok"
+    assert gate["symmetry_validation"]["max_absolute_residual"] < 1.0e-12
+
+
+def test_orbital_times_spin_with_several_orbitals_stays_identity_only():
+    payload = _cubic_chain_payload((1.0, 1.0, 1.0))
+    payload["local_dimension"] = 4
+    payload["retained_local_space"] = {
+        "dimension": 4,
+        "factorization": {
+            "kind": "orbital_times_spin",
+            "orbital_count": 2,
+            "spin_dimension": 2,
+        },
+        "tensor_factor_order": "orbital_major_spin_minor",
+        "basis_labels": ["up_orb1", "down_orb1", "up_orb2", "down_orb2"],
+    }
+    for term in payload["bond_terms"]:
+        term["matrix_shape"] = [16, 16]
+        term["pair_matrix"] = (
+            np.kron(_exchange_pair_matrix((1.0, 1.0, 1.0)), np.eye(2)).tolist()
+        )
+
+    normalized = normalize_cpn_pair_model(payload)
+
+    assert normalized["symmetry_synthesis"] == {
+        "mode": "identity-only",
+        "operation_count": 1,
+    }

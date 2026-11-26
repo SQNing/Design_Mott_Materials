@@ -1,6 +1,18 @@
 #!/usr/bin/env python3
+"""Normalize a CPN pair model into the ``lattice-term-contract/v1`` shape.
+
+The first half of this module builds the contract itself: sites, orbits, term
+attachments and the solver request. The second half decides which structural
+symmetry the payload may claim, which is the part that needs a cell, a magnetic
+basis and a local representation. ``_resolved_symmetry_contract`` is the entry
+point for that decision, and ``reference/cpn-pair-model-schema.md`` documents the
+resulting modes.
+"""
 
 from copy import deepcopy
+
+from common.bond_orbits import canonicalize_directed_bond
+from common.canonical_hamiltonian import CanonicalHamiltonianError, swap_pair_matrix
 
 
 def _require_dict(payload):
@@ -31,6 +43,8 @@ def _structured_complex(value):
             "re": float(value.get("real", value.get("re", 0.0))),
             "im": float(value.get("imag", value.get("im", 0.0))),
         }
+    if isinstance(value, complex):
+        return {"kind": "complex", "re": float(value.real), "im": float(value.imag)}
     return {"kind": "complex", "re": float(value), "im": 0.0}
 
 
@@ -47,9 +61,10 @@ def _structured_pair_matrix(matrix):
 def _identity_symmetry_operation():
     """Declare the trivial space-group operation every lattice admits.
 
-    A CPN payload carries no space-group data, so the identity is the only
-    operation that can be asserted without fabricating symmetry. Representative
-    bond orbits still need a declared operator action for every operation.
+    The identity is the floor of every CPN contract: it is always sound, and it
+    is the only operation left when the declared cell or the declared terms do
+    not certify anything stronger. Representative bond orbits still need a
+    declared operator action for every operation.
     """
     return {
         "operation_ref": "symmetry-operation:identity",
@@ -74,6 +89,547 @@ def _identity_matrix_unit_action(dimension):
         [1.0 if row == column else 0.0 for column in range(size)]
         for row in range(size)
     ]
+
+
+_SPACE_GROUP_TOLERANCE = 1.0e-5
+_BOND_MATRIX_TOLERANCE = 1.0e-10
+_ROTATION_TOLERANCE = 1.0e-8
+
+
+def _identity_rotation():
+    return [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+
+
+def _local_representation_kind(payload):
+    """Return how the retained local space transforms, or ``None``.
+
+    ``scalar`` means a single retained state, where every structural operation
+    can only multiply the state by a phase. ``pseudospin_multiplet`` means the
+    retained space is one irreducible multiplet, so an operation acts through
+    the axial rotation of that multiplet expressed in the standard ``|S, m>``
+    basis. ``None`` means the payload does not determine the representation, and
+    no operation beyond the identity may be asserted.
+
+    A ``generic_multiplet`` payload only labels its states ``state_1 .. state_d``,
+    so reading it as a multiplet is an assumption. It is never trusted on its
+    own: every operation built from it is re-checked against the declared pair
+    matrices, and an operation whose matrices disagree is dropped.
+    """
+    if int(payload.get("local_dimension", 0)) == 1:
+        return "scalar"
+    space = payload.get("retained_local_space")
+    if not isinstance(space, dict):
+        return None
+    factorization = space.get("factorization")
+    if not isinstance(factorization, dict):
+        return None
+    kind = str(factorization.get("kind") or "")
+    if kind == "generic_multiplet":
+        return "pseudospin_multiplet"
+    if kind != "orbital_times_spin":
+        return None
+    if int(factorization.get("orbital_count") or 0) == 1:
+        return "pseudospin_multiplet"
+    return None
+
+
+def _axis_angle(rotation):
+    """Return the axis and angle of a proper Cartesian rotation."""
+    import numpy
+
+    matrix = numpy.asarray(rotation, dtype=float)
+    cosine = max(-1.0, min(1.0, (float(numpy.trace(matrix)) - 1.0) / 2.0))
+    angle = float(numpy.arccos(cosine))
+    if angle <= _ROTATION_TOLERANCE:
+        return numpy.zeros(3), 0.0
+    values, vectors = numpy.linalg.eig(matrix)
+    axis = numpy.real(vectors[:, int(numpy.argmin(numpy.abs(values - 1.0)))])
+    norm = float(numpy.linalg.norm(axis))
+    if norm <= _ROTATION_TOLERANCE:
+        return numpy.zeros(3), 0.0
+    return axis / norm, angle
+
+
+def _multiplet_rotation(axis, angle, dimension):
+    """Return the ``dimension``-dimensional rotation of one multiplet."""
+    import numpy
+
+    size = int(dimension)
+    if size <= 1 or abs(float(angle)) <= _ROTATION_TOLERANCE:
+        return numpy.eye(size, dtype=complex)
+    spin = (size - 1) / 2.0
+    sz = numpy.diag([spin - index for index in range(size)]).astype(complex)
+    raising = numpy.zeros((size, size), dtype=complex)
+    for index in range(size - 1):
+        moment = spin - index
+        raising[index, index + 1] = numpy.sqrt(spin * (spin + 1.0) - moment * (moment - 1.0))
+    sx = 0.5 * (raising + raising.conj().T)
+    sy = -0.5j * (raising - raising.conj().T)
+    generator = axis[0] * sx + axis[1] * sy + axis[2] * sz
+    values, vectors = numpy.linalg.eigh(generator)
+    phases = numpy.exp(-1.0j * float(angle) * values)
+    return (vectors * phases) @ vectors.conj().T
+
+
+def _matrix_unit_action(representation):
+    """Vectorize the action of a local basis rotation on matrix units.
+
+    A matrix unit maps as ``|a><c| -> U |a><c| U^dagger``, whose row-major
+    vectorization is ``kron(U, conj(U))``. A global phase of ``U`` therefore
+    cancels, which is what makes the axis sign of a half turn irrelevant.
+    """
+    import numpy
+
+    matrix = numpy.asarray(representation, dtype=complex)
+    return numpy.kron(matrix, matrix.conjugate()).tolist()
+
+
+def _json_safe_matrix(matrix):
+    """Encode a matrix so a payload stays serializable without a custom hook.
+
+    Real entries stay plain floats; entries with an imaginary part use the
+    ``{"real", "imag"}`` form that pair matrices already use in this contract.
+    """
+    rows = []
+    for row in matrix:
+        values = []
+        for value in row:
+            number = complex(value)
+            if number.imag == 0.0:
+                values.append(float(number.real))
+            else:
+                values.append(
+                    {"real": float(number.real), "imag": float(number.imag)}
+                )
+        rows.append(values)
+    return rows
+
+
+def _local_actions_for(payload, operations):
+    """Return one matrix-unit action per operation, or ``None``.
+
+    ``None`` means the retained local space does not determine a
+    representation, so the caller must fall back to the identity alone.
+    """
+    kind = _local_representation_kind(payload)
+    if kind is None:
+        return None
+    dimension = int(payload.get("local_dimension", 0))
+    lattice_vectors = _structure_field(payload, "lattice_vectors")
+    if kind == "scalar" or dimension <= 1:
+        return [[[1.0]] for _operation in operations]
+    if not isinstance(lattice_vectors, list) or len(lattice_vectors) != 3:
+        return None
+    from common.hamiltonian_symmetry_action import axial_spin_rotation
+
+    actions = []
+    for operation in operations:
+        try:
+            axial = axial_spin_rotation(lattice_vectors, operation["rotation"])
+        except (CanonicalHamiltonianError, TypeError, ValueError):
+            return None
+        axis, angle = _axis_angle(axial)
+        actions.append(_matrix_unit_action(_multiplet_rotation(axis, angle, dimension)))
+    return actions
+
+
+def _is_identity_operation(operation):
+    rotation = operation.get("rotation")
+    translation = operation.get("translation")
+    if not isinstance(rotation, list) or len(rotation) != 3:
+        return False
+    if not isinstance(translation, list) or len(translation) != 3:
+        return False
+    for row in range(3):
+        if not isinstance(rotation[row], list) or len(rotation[row]) != 3:
+            return False
+        for column in range(3):
+            expected = 1.0 if row == column else 0.0
+            if abs(float(rotation[row][column]) - expected) > _SPACE_GROUP_TOLERANCE:
+                return False
+    return all(abs(float(value)) <= _SPACE_GROUP_TOLERANCE for value in translation)
+
+
+def _declared_symmetry(payload):
+    """Return the producer's symmetry declaration, or ``None``.
+
+    A declaration that only repeats the identity carries no information: every
+    lattice admits it, and ``normalize_cpn_pair_model`` always appends it. Such
+    a declaration is treated as absent so that re-normalizing an already
+    normalized payload can still derive the space group from the cell. A
+    declaration with any further operation is authoritative and preserved.
+    """
+    symmetry = payload.get("symmetry")
+    if not isinstance(symmetry, dict):
+        return None
+    operations = symmetry.get("operations")
+    if not isinstance(operations, list) or not operations:
+        return None
+    normalized = []
+    for operation in operations:
+        if not isinstance(operation, dict):
+            return None
+        rotation = operation.get("rotation")
+        translation = operation.get("translation") or [0.0, 0.0, 0.0]
+        if not isinstance(rotation, list) or len(rotation) != 3:
+            return None
+        if any(not isinstance(row, list) or len(row) != 3 for row in rotation):
+            return None
+        if not isinstance(translation, list) or len(translation) != 3:
+            return None
+        normalized.append(
+            {
+                "operation_ref": str(operation.get("operation_ref") or ""),
+                "kind": str(operation.get("kind") or "space_group"),
+                "rotation": [[float(value) for value in row] for row in rotation],
+                "translation": [float(value) for value in translation],
+            }
+        )
+    if any(not operation["operation_ref"] for operation in normalized):
+        return None
+    if len(normalized) == 1 and _is_identity_operation(normalized[0]):
+        return None
+    return {
+        "operations": normalized,
+        "spin_space_rotations": deepcopy(symmetry.get("spin_space_rotations") or []),
+        "local_frame_actions": deepcopy(symmetry.get("local_frame_actions") or []),
+    }
+
+
+def _declared_symmetry_actions(payload, basis_ref):
+    local_hilbert = payload.get("local_hilbert")
+    if not isinstance(local_hilbert, dict):
+        return None
+    bases = local_hilbert.get("operator_bases")
+    if not isinstance(bases, dict):
+        return None
+    record = bases.get(basis_ref)
+    if not isinstance(record, dict):
+        return None
+    actions = record.get("symmetry_actions")
+    if not isinstance(actions, dict) or not actions:
+        return None
+    normalized = {}
+    for operation_ref, action in actions.items():
+        if not isinstance(action, dict) or "matrix" not in action:
+            return None
+        matrix = action.get("matrix")
+        if not isinstance(matrix, list) or not matrix:
+            return None
+        if any(not isinstance(row, list) or len(row) != len(matrix) for row in matrix):
+            return None
+        # The matrices are kept in the encoding the producer used, so a payload
+        # stays serializable and a re-normalization is a fixed point.
+        normalized[str(operation_ref)] = {"matrix": deepcopy(matrix)}
+    return normalized
+
+
+def _structure_site_numbers(payload):
+    """Return one integer species label per crystallographic position.
+
+    POSCAR-style payloads list positions in species blocks, so ``species`` plus
+    ``counts`` reconstructs the per-site labels that spglib needs. Without them
+    every site counts as one species, which can only over-generate the group and
+    is filtered again by the term-invariance check.
+    """
+    positions = _structure_positions(payload)
+    structure = payload.get("structure")
+    if not isinstance(structure, dict):
+        return [1] * len(positions)
+    species = structure.get("species")
+    counts = structure.get("counts")
+    if not isinstance(species, list) or not isinstance(counts, list):
+        return [1] * len(positions)
+    if len(species) != len(counts) or not species:
+        return [1] * len(positions)
+    numbers = []
+    for index, count in enumerate(counts):
+        numbers.extend([index + 1] * int(count))
+    if len(numbers) != len(positions):
+        return [1] * len(positions)
+    return numbers
+
+
+def _space_group_operations(payload):
+    """Derive the crystal space group from the declared cell, or return [].
+
+    The cell uses every crystallographic position with its species label, so
+    the result is the symmetry of the crystal rather than of the magnetic
+    sublattice alone. Operations are returned in a deterministic order with the
+    identity first; admissibility is decided afterwards by the term check.
+    """
+    lattice_vectors = _structure_field(payload, "lattice_vectors")
+    positions = _structure_positions(payload)
+    if not lattice_vectors or not positions:
+        return []
+    try:
+        import numpy
+        import spglib
+    except ImportError:
+        return []
+    cell = (
+        numpy.asarray(lattice_vectors, dtype=float),
+        numpy.asarray(positions, dtype=float),
+        numpy.asarray(_structure_site_numbers(payload), dtype=int),
+    )
+    try:
+        symmetry = spglib.get_symmetry(cell, symprec=_SPACE_GROUP_TOLERANCE)
+    except (TypeError, ValueError, RuntimeError):
+        return []
+    if not symmetry:
+        return []
+    candidates = []
+    seen = set()
+    for rotation, translation in zip(symmetry["rotations"], symmetry["translations"]):
+        key = (
+            tuple(int(value) for row in rotation for value in row),
+            tuple(round(float(value) % 1.0, 9) for value in translation),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(
+            {
+                "rotation": [[float(value) for value in row] for row in rotation],
+                "translation": [float(value) for value in translation],
+            }
+        )
+    identity_index = None
+    for index, candidate in enumerate(candidates):
+        if candidate["rotation"] == _identity_rotation() and all(
+            abs(value) <= _SPACE_GROUP_TOLERANCE
+            for value in candidate["translation"]
+        ):
+            identity_index = index
+            break
+    operations = []
+    if identity_index is not None:
+        identity = candidates.pop(identity_index)
+        operations.append(
+            {
+                "operation_ref": "symmetry-operation:identity",
+                "kind": "identity",
+                "rotation": identity["rotation"],
+                "translation": [0.0, 0.0, 0.0],
+            }
+        )
+    for index, candidate in enumerate(candidates, start=1):
+        operations.append(
+            {
+                "operation_ref": f"symmetry-operation:space-group:{index}",
+                "kind": "space_group",
+                "rotation": candidate["rotation"],
+                "translation": candidate["translation"],
+            }
+        )
+    return operations
+
+
+def _fractional_image(position, rotation, translation):
+    return [
+        sum(rotation[row][column] * position[column] for column in range(3))
+        + translation[row]
+        for row in range(3)
+    ]
+
+
+def _resolve_basis_position(position, basis_positions, tolerance=1.0e-6):
+    for index, basis in enumerate(basis_positions):
+        offset = [
+            int(round(position[axis] - basis[axis])) for axis in range(3)
+        ]
+        if all(
+            abs(position[axis] - basis[axis] - offset[axis]) <= tolerance
+            for axis in range(3)
+        ):
+            return index, offset
+    return None
+
+
+def _map_bond_member(member, operation, basis_positions):
+    source, target, translation = member
+    rotation = operation["rotation"]
+    shift = operation["translation"]
+    source_position = _fractional_image(
+        basis_positions[source], rotation, shift
+    )
+    target_position = _fractional_image(
+        [
+            basis_positions[target][axis] + translation[axis]
+            for axis in range(3)
+        ],
+        rotation,
+        shift,
+    )
+    resolved_source = _resolve_basis_position(source_position, basis_positions)
+    resolved_target = _resolve_basis_position(target_position, basis_positions)
+    if resolved_source is None or resolved_target is None:
+        return None
+    mapped_source, source_offset = resolved_source
+    mapped_target, target_offset = resolved_target
+    return (
+        mapped_source,
+        mapped_target,
+        tuple(
+            target_offset[axis] - source_offset[axis] for axis in range(3)
+        ),
+    )
+
+
+def _bond_term_index(payload):
+    """Index the declared bond terms by their directed bond identity."""
+    index = {}
+    for term in list(payload.get("bond_terms") or []):
+        if not isinstance(term, dict):
+            return {}
+        key = (
+            int(term.get("source", 0)),
+            int(term.get("target", 0)),
+            tuple(int(value) for value in list(term.get("translation") or [0, 0, 0])),
+        )
+        index.setdefault(key, []).append(term)
+    return index
+
+
+def _canonical_bond_matrix(bond, matrix):
+    """Return the pair matrix in the canonical directed-bond orientation.
+
+    The canonical compiler reverses a bond whose orientation is not canonical
+    and exchanges the two Hilbert factors, so invariance has to be compared
+    after the same exchange. A matrix that cannot be exchanged is reported as
+    unavailable rather than raised, because an unreadable term simply means the
+    operation is not certified.
+    """
+    if canonicalize_directed_bond(*bond) == bond:
+        return matrix
+    try:
+        return swap_pair_matrix(matrix)
+    except (CanonicalHamiltonianError, TypeError, ValueError):
+        return None
+
+
+def _matrices_match(left, right, tolerance=_BOND_MATRIX_TOLERANCE):
+    if not isinstance(left, list) or not isinstance(right, list):
+        return False
+    if len(left) != len(right):
+        return False
+    for left_row, right_row in zip(left, right):
+        if not isinstance(left_row, list) or not isinstance(right_row, list):
+            return False
+        if len(left_row) != len(right_row):
+            return False
+        for left_value, right_value in zip(left_row, right_row):
+            left_complex = _structured_complex(left_value)
+            right_complex = _structured_complex(right_value)
+            scale = max(
+                1.0,
+                abs(left_complex["re"]),
+                abs(left_complex["im"]),
+                abs(right_complex["re"]),
+                abs(right_complex["im"]),
+            )
+            if abs(left_complex["re"] - right_complex["re"]) > tolerance * scale:
+                return False
+            if abs(left_complex["im"] - right_complex["im"]) > tolerance * scale:
+                return False
+    return True
+
+
+def _numeric_matrix(matrix):
+    """Return a dense complex array from any accepted pair-matrix encoding."""
+    import numpy
+
+    rows = []
+    for row in list(matrix or []):
+        values = []
+        for value in list(row or []):
+            record = _structured_complex(value)
+            values.append(complex(record["re"], record["im"]))
+        rows.append(values)
+    try:
+        return numpy.asarray(rows, dtype=complex)
+    except ValueError:
+        return numpy.asarray([], dtype=complex)
+
+
+def _apply_local_action(matrix, action):
+    """Contract one matrix-unit action onto both legs of a pair matrix.
+
+    The stored pair matrix is indexed ``(left_bra, right_bra, left_ket,
+    right_ket)`` while a matrix-unit action acts on the ``(bra, ket)`` pair of
+    one site, so the two middle axes are exchanged before and after the
+    contraction. This mirrors ``transform_operator_coefficient`` exactly.
+    """
+    import numpy
+    from math import isqrt
+
+    array = _numeric_matrix(matrix)
+    operator = numpy.asarray(action, dtype=complex)
+    if array.ndim != 2 or array.shape[0] != array.shape[1]:
+        return None
+    if operator.shape != array.shape:
+        return None
+    dimension = isqrt(int(array.shape[0]))
+    if dimension * dimension != array.shape[0]:
+        return None
+    tensor = array.reshape([dimension] * 4).transpose(0, 2, 1, 3).reshape(array.shape)
+    tensor = operator @ tensor @ operator.T
+    return (
+        tensor.reshape([dimension] * 4).transpose(0, 2, 1, 3).reshape(array.shape).tolist()
+    )
+
+
+def _transformed_bond_matrix(bond, image, matrix, action):
+    """Return the pair matrix an operation produces on its image bond.
+
+    Orientation reversal is applied exactly where the canonical compiler
+    applies it: to the incoming representative before the local action, and to
+    the outgoing image before it is compared.
+    """
+    canonical = _canonical_bond_matrix(bond, matrix)
+    if canonical is None:
+        return None
+    transformed = _apply_local_action(canonical, action)
+    if transformed is None:
+        return None
+    return _canonical_bond_matrix(image, transformed)
+
+
+def _operation_preserves_terms(operation, action, term_index, basis_positions):
+    """Return whether the declared terms are invariant under one operation.
+
+    The operation is admissible only when it permutes the declared bonds onto
+    each other and every pair matrix is carried onto its partner's matrix by
+    the declared local action. Rejecting an operation here keeps the
+    declaration inside the verified subgroup, so the strict gate downstream can
+    only confirm what was already checked.
+    """
+    images = set()
+    for bond, terms in term_index.items():
+        image = _map_bond_member(bond, operation, basis_positions)
+        if image is None or image in images:
+            return False
+        images.add(image)
+        partners = term_index.get(image)
+        if not partners:
+            return False
+        for term in terms:
+            transformed = _transformed_bond_matrix(
+                bond, image, term.get("pair_matrix"), action
+            )
+            if not any(
+                _matrices_match(
+                    transformed,
+                    _canonical_bond_matrix(image, partner.get("pair_matrix")),
+                )
+                for partner in partners
+            ):
+                return False
+    return True
 
 
 def _structure_field(payload, name):
@@ -148,11 +704,16 @@ def _magnetic_site_count(payload):
     return 2
 
 
-def _retained_local_hilbert(payload):
+def _retained_local_hilbert(payload, symmetry_actions=None):
     local_dimension = int(payload.get("local_dimension", 0))
     basis_labels = list(payload.get("local_basis_labels") or [f"state:{index}" for index in range(local_dimension)])
     basis_semantics = dict(payload.get("basis_semantics") or {})
     site_count = _magnetic_site_count(payload)
+    actions = dict(symmetry_actions or {})
+    actions.setdefault(
+        "symmetry-operation:identity",
+        {"matrix": _identity_matrix_unit_action(local_dimension)},
+    )
     return {
         "sites": [
             {
@@ -176,11 +737,7 @@ def _retained_local_hilbert(payload):
             "op_basis:retained_local_matrix": {
                 "kind": "dense_local_matrix_units",
                 "dimension": local_dimension,
-                "symmetry_actions": {
-                    "symmetry-operation:identity": {
-                        "matrix": _identity_matrix_unit_action(local_dimension),
-                    }
-                },
+                "symmetry_actions": actions,
             }
         },
         "classical_spaces": {
@@ -197,18 +754,24 @@ def _orbit_ref_for_bond_term(index):
 
 
 def _lattice_structure_from_bond_terms(bond_terms, payload):
+    positions = _magnetic_positions(payload)
     bond_orbits = []
     for index, term in enumerate(list(bond_terms or [])):
         translation = [int(value) for value in list(term.get("translation") or [0, 0, 0])]
         source = int(term.get("source", 0))
         target = int(term.get("target", 0))
+        representative = {
+            "source": source,
+            "target": target,
+            "translation": translation,
+        }
         bond_orbits.append(
             {
                 "orbit_ref": _orbit_ref_for_bond_term(index),
                 "kind": "pair",
                 "directed": True,
-                "representative": {"source": source, "target": target, "translation": translation},
-                "members": [{"source": source, "target": target, "translation": translation}],
+                "representative": representative,
+                "members": [deepcopy(representative)],
                 "source_labels": [str(term.get("orbit", _orbit_ref_for_bond_term(index)))],
                 "reverse_orientation": {
                     "kind": "swap_tensor_factors_then_adjoint",
@@ -217,7 +780,6 @@ def _lattice_structure_from_bond_terms(bond_terms, payload):
                 },
             }
         )
-    positions = _magnetic_positions(payload)
     if positions:
         basis_sites = [
             {"site_ref": f"site:{index}", "position": position}
@@ -296,16 +858,113 @@ def _term_attachments_from_bond_terms(payload):
     }
 
 
+def _derived_symmetry(payload):
+    """Return verified operations with their local actions, or ``[]``.
+
+    The crystal group is only a candidate set: a CPN payload may describe a
+    magnetic order, an anisotropic exchange model, or a bond subset that breaks
+    part of it. Every candidate is therefore verified against the declared bond
+    terms, with the local action its retained space implies, and the identity is
+    the floor.
+    """
+    candidates = _space_group_operations(payload)
+    if len(candidates) <= 1:
+        return []
+    actions = _local_actions_for(payload, candidates)
+    if actions is None:
+        return []
+    positions = _magnetic_positions(payload)
+    term_index = _bond_term_index(payload)
+    if not positions or not term_index:
+        return []
+    verified = [
+        (operation, action)
+        for operation, action in zip(candidates, actions)
+        if _operation_preserves_terms(operation, action, term_index, positions)
+    ]
+    if len(verified) <= 1:
+        return []
+    return verified
+
+
+def _resolved_symmetry_contract(payload):
+    """Resolve the symmetry declaration and its local operator actions.
+
+    A producer that knows the retained-space representation may declare
+    ``symmetry.operations`` together with ``operator_bases[...].symmetry_actions``;
+    that declaration is authoritative and is preserved. Otherwise the identity
+    is always available, and the space group of the declared cell is derived and
+    verified against the declared terms, with the matrix-unit action that the
+    retained local space implies.
+    """
+    local_dimension = int(payload.get("local_dimension", 0))
+    declared = _declared_symmetry(payload)
+    if declared is not None:
+        actions = _declared_symmetry_actions(
+            payload, "op_basis:retained_local_matrix"
+        ) or {}
+        missing = [
+            operation["operation_ref"]
+            for operation in declared["operations"]
+            if operation["operation_ref"] not in actions
+            and operation["operation_ref"] != "symmetry-operation:identity"
+        ]
+        if missing:
+            raise ValueError(
+                "cpn-pair-model-symmetry-action-missing:"
+                + ",".join(sorted(missing))
+            )
+        return declared, actions, {
+            "mode": "declared",
+            "operation_count": len(declared["operations"]),
+        }
+
+    derived = _derived_symmetry(payload)
+    if derived:
+        operations = [operation for operation, _action in derived]
+        actions = {
+            operation["operation_ref"]: {"matrix": _json_safe_matrix(action)}
+            for operation, action in derived
+        }
+        return (
+            {
+                "operations": operations,
+                "spin_space_rotations": [],
+                "local_frame_actions": [],
+            },
+            actions,
+            {"mode": "derived-from-lattice", "operation_count": len(operations)},
+        )
+
+    return (
+        {
+            "operations": [_identity_symmetry_operation()],
+            "spin_space_rotations": [],
+            "local_frame_actions": [],
+        },
+        {
+            "symmetry-operation:identity": {
+                "matrix": _identity_matrix_unit_action(local_dimension)
+            }
+        },
+        {"mode": "identity-only", "operation_count": 1},
+    )
+
+
 def _attach_lattice_term_contract(normalized):
     bond_terms = list(normalized.get("bond_terms") or [])
     normalized["schema_version"] = "lattice-term-contract/v1"
-    normalized["local_hilbert"] = _retained_local_hilbert(normalized)
-    normalized["lattice_structure"] = _lattice_structure_from_bond_terms(bond_terms, normalized)
-    normalized["symmetry"] = {
-        "operations": [_identity_symmetry_operation()],
-        "spin_space_rotations": [],
-        "local_frame_actions": [],
-    }
+    symmetry, symmetry_actions, synthesis = _resolved_symmetry_contract(
+        normalized
+    )
+    normalized["symmetry"] = symmetry
+    normalized["symmetry_synthesis"] = synthesis
+    normalized["local_hilbert"] = _retained_local_hilbert(
+        normalized, symmetry_actions
+    )
+    normalized["lattice_structure"] = _lattice_structure_from_bond_terms(
+        bond_terms, normalized
+    )
     normalized["term_attachments"] = _term_attachments_from_bond_terms(normalized)
     normalized["solver_request"] = {
         "task": "classical_ground_state",

@@ -136,6 +136,32 @@ def _operator_basis_record(term, context):
     return record if isinstance(record, Mapping) else None
 
 
+def _declared_action_matrix(matrix):
+    """Read a declared local action in either plain or structured encoding.
+
+    Payloads keep complex numbers JSON-safe by writing entries as
+    ``{"real": ..., "imag": ...}``; plain numbers stay numbers.
+    """
+    rows = []
+    for row in list(matrix or []):
+        values = []
+        for value in list(row or []):
+            if isinstance(value, Mapping):
+                values.append(
+                    complex(
+                        float(value.get("real", value.get("re", 0.0))),
+                        float(value.get("imag", value.get("im", 0.0))),
+                    )
+                )
+            else:
+                values.append(complex(value))
+        rows.append(values)
+    try:
+        return np.asarray(rows, dtype=complex)
+    except ValueError:
+        return np.asarray([], dtype=complex)
+
+
 def _declared_leg_actions(term, operation, mapped_cluster, context):
     record = _operator_basis_record(term, context)
     actions = record.get("symmetry_actions") if isinstance(record, Mapping) else None
@@ -150,7 +176,7 @@ def _declared_leg_actions(term, operation, mapped_cluster, context):
         raise CanonicalHamiltonianError(
             "symmetry-representation-unavailable", term.get("operator_basis_ref")
         )
-    array = np.asarray(matrix, dtype=complex)
+    array = _declared_action_matrix(matrix)
     if array.ndim != 2 or array.shape[0] != array.shape[1]:
         raise CanonicalHamiltonianError("invalid-operator-representation", operation_ref)
     return [array.copy() for _entry in mapped_cluster]
