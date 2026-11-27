@@ -42,11 +42,27 @@ def validate_many_body_hr_orbital_to_atom_mapping(mapping, structure, local_spac
     missing_levels = sorted(set(range(local_level_count)) - set(level_owner_by_index))
     _require(not missing_levels, f"missing level ownership: {missing_levels}")
 
-    return {
+    result = {
         "schema_version": 1,
         "site_level_mapping": normalized_mappings,
         "level_owner_by_index": {int(key): int(value) for key, value in level_owner_by_index.items()},
     }
+
+    representation = mapping.get("orbital_representation")
+    if representation is not None:
+        from common.orbital_representation import OrbitalRepresentation
+
+        _require(
+            str(local_space_spec.get("kind") or "") == "orbital_times_spin",
+            "orbital_representation requires an orbital_times_spin local space",
+        )
+        orbital_count = int(local_space_spec.get("orbital_count") or 0)
+        _require(orbital_count > 0, "orbital_space.orbital_count must be positive")
+        # Constructing the representation validates the encoding, its size and,
+        # for generators, that they close into a group.
+        OrbitalRepresentation(representation, orbital_count=orbital_count)
+        result["orbital_representation"] = dict(representation)
+    return result
 
 
 def load_many_body_hr_orbital_to_atom_mapping(mapping_path, structure, local_space_spec):

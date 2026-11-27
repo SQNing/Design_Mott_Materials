@@ -11,8 +11,7 @@ resulting modes.
 
 from copy import deepcopy
 
-from common.bond_orbits import canonicalize_directed_bond
-from common.canonical_hamiltonian import CanonicalHamiltonianError, swap_pair_matrix
+from common.canonical_hamiltonian import CanonicalHamiltonianError
 
 
 def _require_dict(payload):
@@ -111,8 +110,10 @@ def _local_representation_kind(payload):
     can only multiply the state by a phase. ``pseudospin_multiplet`` means the
     retained space is one irreducible multiplet, so an operation acts through
     the axial rotation of that multiplet expressed in the standard ``|S, m>``
-    basis. ``None`` means the payload does not determine the representation, and
-    no operation beyond the identity may be asserted.
+    basis. ``orbital_representation`` means the payload declares how the
+    orbitals themselves transform, either by real-orbital character or by
+    generator matrices. ``None`` means the payload does not determine the
+    representation, and no operation beyond the identity may be asserted.
 
     A ``generic_multiplet`` payload only labels its states ``state_1 .. state_d``,
     so reading it as a multiplet is an assumption. It is never trusted on its
@@ -132,6 +133,8 @@ def _local_representation_kind(payload):
         return "pseudospin_multiplet"
     if kind != "orbital_times_spin":
         return None
+    if isinstance(space.get("orbital_representation"), dict):
+        return "orbital_representation"
     if int(factorization.get("orbital_count") or 0) == 1:
         return "pseudospin_multiplet"
     return None
@@ -209,6 +212,56 @@ def _json_safe_matrix(matrix):
     return rows
 
 
+def _orbital_actions(payload, operations):
+    """Return one matrix-unit action per operation from the orbital record.
+
+    The local action is ``kron(D_orbital, S_spin)`` in the declared
+    ``orbital_major_spin_minor`` order. The orbital factor comes from the
+    payload's ``orbital_representation``; a malformed record raises rather than
+    silently degrading, because a broken declaration is a producer bug, not a
+    model without symmetry.
+    """
+    import numpy
+
+    from common.hamiltonian_symmetry_action import (
+        axial_spin_rotation,
+        cartesian_rotation,
+    )
+    from common.orbital_representation import OrbitalRepresentation
+
+    space = payload.get("retained_local_space")
+    factorization = space.get("factorization") if isinstance(space, dict) else None
+    if not isinstance(factorization, dict):
+        return None
+    orbital_count = int(factorization.get("orbital_count") or 0)
+    spin_dimension = int(factorization.get("spin_dimension") or 2)
+    lattice_vectors = _structure_field(payload, "lattice_vectors")
+    if orbital_count <= 0 or not isinstance(lattice_vectors, list) or len(lattice_vectors) != 3:
+        return None
+    if orbital_count * spin_dimension != int(payload.get("local_dimension", 0)):
+        raise ValueError("cpn-pair-model-orbital-space-dimension-mismatch")
+    representation = OrbitalRepresentation(
+        space.get("orbital_representation"), orbital_count=orbital_count
+    )
+    actions = []
+    for operation in operations:
+        try:
+            cartesian = cartesian_rotation(lattice_vectors, operation["rotation"])
+            axial = axial_spin_rotation(lattice_vectors, operation["rotation"])
+        except (CanonicalHamiltonianError, TypeError, ValueError):
+            return None
+        orbital = representation.action(operation["rotation"], cartesian)
+        if orbital is None:
+            # The declared generators do not cover this operation; it is
+            # simply not a candidate. The rest of the group is still usable.
+            actions.append(None)
+            continue
+        axis, angle = _axis_angle(axial)
+        spin = _multiplet_rotation(axis, angle, spin_dimension)
+        actions.append(_matrix_unit_action(numpy.kron(orbital, spin)))
+    return actions
+
+
 def _local_actions_for(payload, operations):
     """Return one matrix-unit action per operation, or ``None``.
 
@@ -224,6 +277,8 @@ def _local_actions_for(payload, operations):
         return [[[1.0]] for _operation in operations]
     if not isinstance(lattice_vectors, list) or len(lattice_vectors) != 3:
         return None
+    if kind == "orbital_representation":
+        return _orbital_actions(payload, operations)
     from common.hamiltonian_symmetry_action import axial_spin_rotation
 
     actions = []
@@ -495,23 +550,6 @@ def _bond_term_index(payload):
     return index
 
 
-def _canonical_bond_matrix(bond, matrix):
-    """Return the pair matrix in the canonical directed-bond orientation.
-
-    The canonical compiler reverses a bond whose orientation is not canonical
-    and exchanges the two Hilbert factors, so invariance has to be compared
-    after the same exchange. A matrix that cannot be exchanged is reported as
-    unavailable rather than raised, because an unreadable term simply means the
-    operation is not certified.
-    """
-    if canonicalize_directed_bond(*bond) == bond:
-        return matrix
-    try:
-        return swap_pair_matrix(matrix)
-    except (CanonicalHamiltonianError, TypeError, ValueError):
-        return None
-
-
 def _matrices_match(left, right, tolerance=_BOND_MATRIX_TOLERANCE):
     if not isinstance(left, list) or not isinstance(right, list):
         return False
@@ -583,20 +621,18 @@ def _apply_local_action(matrix, action):
     )
 
 
-def _transformed_bond_matrix(bond, image, matrix, action):
+def _transformed_bond_matrix(matrix, action):
     """Return the pair matrix an operation produces on its image bond.
 
-    Orientation reversal is applied exactly where the canonical compiler
-    applies it: to the incoming representative before the local action, and to
-    the outgoing image before it is compared.
+    The declared pair matrix is already expressed for the directed bond, with
+    the source factor on the left. A structural operation maps that directed
+    bond onto another one and carries the factors with it, so the matrix is
+    transformed by the local action alone: no factor exchange is applied here.
+    Exchanging factors is a bookkeeping step of the canonical compiler, and
+    applying it on both the incoming and the outgoing bond would cancel the
+    orientation twice and silently accept matrices that are not invariant.
     """
-    canonical = _canonical_bond_matrix(bond, matrix)
-    if canonical is None:
-        return None
-    transformed = _apply_local_action(canonical, action)
-    if transformed is None:
-        return None
-    return _canonical_bond_matrix(image, transformed)
+    return _apply_local_action(matrix, action)
 
 
 def _operation_preserves_terms(operation, action, term_index, basis_positions):
@@ -618,14 +654,9 @@ def _operation_preserves_terms(operation, action, term_index, basis_positions):
         if not partners:
             return False
         for term in terms:
-            transformed = _transformed_bond_matrix(
-                bond, image, term.get("pair_matrix"), action
-            )
+            transformed = _transformed_bond_matrix(term.get("pair_matrix"), action)
             if not any(
-                _matrices_match(
-                    transformed,
-                    _canonical_bond_matrix(image, partner.get("pair_matrix")),
-                )
+                _matrices_match(transformed, partner.get("pair_matrix"))
                 for partner in partners
             ):
                 return False
@@ -880,7 +911,8 @@ def _derived_symmetry(payload):
     verified = [
         (operation, action)
         for operation, action in zip(candidates, actions)
-        if _operation_preserves_terms(operation, action, term_index, positions)
+        if action is not None
+        and _operation_preserves_terms(operation, action, term_index, positions)
     ]
     if len(verified) <= 1:
         return []

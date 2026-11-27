@@ -86,10 +86,58 @@ The local action is `kron(U, conj(U))` on the vectorized matrix units, where `U`
 is the local basis rotation. `U` is the axial rotation of the operation in the
 standard `|S, m>` basis when `retained_local_space.factorization.kind` is
 `generic_multiplet` or is `orbital_times_spin` with `orbital_count == 1`, and the
-identity when `local_dimension == 1`. Anything else (several orbitals per site,
-or no declared retained space) leaves the representation undetermined and the
-payload stays `identity-only`, because an orbital permutation cannot be invented.
+identity when `local_dimension == 1`.
 
+When several orbitals are retained per site the orbital factor has to be
+declared, because a rotation mixes orbitals in a way that cannot be inferred
+from their number. `retained_local_space.orbital_representation` carries it in
+exactly one of two encodings:
+
+```json
+"orbital_representation": {
+  "convention": "real_spherical_harmonics",
+  "characters": ["d_z2", "d_xz", "d_yz", "d_xy", "d_x2-y2"],
+  "quantization_axis": [0.0, 0.0, 1.0]
+}
+```
+
+```json
+"orbital_representation": {
+  "convention": "generator_matrices",
+  "generators": [
+    {"rotation": [[0, -1, 0], [1, 0, 0], [0, 0, 1]], "matrix": [[...]]}
+  ]
+}
+```
+
+`characters` names the real orbital on every retained level in basis order
+(`s`, `p_x`, `p_y`, `p_z`, `d_z2`, `d_xz`, `d_yz`, `d_xy`, `d_x2-y2`). The
+action is derived from the polynomial form of those functions, so the only
+convention that matters is `d_z2 = 2z^2 - x^2 - y^2` and its siblings; a mixed
+set of degrees acts block-diagonally. `quantization_axis` defaults to the
+Cartesian `z` axis of `structure.lattice_vectors`, and an explicit `z` axis is
+identical to leaving it out.
+
+`generators` declares the action of a few operations directly, in the same
+fractional-rotation convention as `symmetry.operations[].rotation`, and the
+group is closed from them. Use it when the retained functions are Wannier
+hybrids rather than pure harmonics. Operations the declared generators do not
+cover are simply not candidates.
+
+`build_pseudospin_orbital_payload` takes the record from the level-to-site
+mapping sidecar (`--local-level-to-site-mapping`), which validates it against
+the local space before the payload is built: the character count must equal
+`orbital_count`, generator matrices must be unitary and of the orbital size, and
+a record is rejected for a `generic_multiplet` local space. The mapping sidecar
+may be passed together with a pair-identity sidecar, in which case it only
+contributes the representation. A malformed record raises instead of degrading,
+because a broken declaration is a producer bug rather than a model without
+symmetry.
+
+With a declared representation the payload can certify an orbital-selective
+model: exchange that couples only the three `t2g` orbitals certifies all 48
+cubic operations, exchange on a single orbital certifies the 16 that stabilise
+it, and the same payload without a representation stays `identity-only`.
 Because every derived operation is verified against the terms, the declared
 group is exactly the part of the crystal group the written model realises. An
 isotropic Heisenberg model on a cubic cell certifies all 48 operations, an XXZ

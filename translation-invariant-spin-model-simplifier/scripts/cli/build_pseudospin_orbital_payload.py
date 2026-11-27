@@ -103,7 +103,7 @@ def _explicit_magnetic_site_payload(structure, pair_records):
     }
 
 
-def _retained_local_space_payload(local_space_spec, local_basis_labels):
+def _retained_local_space_payload(local_space_spec, local_basis_labels, orbital_representation=None):
     factorization = {"kind": str(local_space_spec["kind"])}
     if local_space_spec["kind"] == "orbital_times_spin":
         factorization["orbital_count"] = int(local_space_spec["orbital_count"])
@@ -114,6 +114,8 @@ def _retained_local_space_payload(local_space_spec, local_basis_labels):
             "tensor_factor_order": str(local_space_spec["basis_order"]),
             "basis_labels": list(local_basis_labels),
         }
+        if orbital_representation is not None:
+            payload["orbital_representation"] = orbital_representation
         return payload
 
     factorization["multiplet_dimension"] = int(local_space_spec["local_dimension"])
@@ -254,6 +256,16 @@ def build_pseudospin_orbital_payload(
 
     bond_blocks = []
     operator_basis_labels = None
+    mapping = None
+    orbital_representation = None
+    if local_level_to_site_mapping_path is not None:
+        mapping = load_many_body_hr_orbital_to_atom_mapping(
+            mapping_path=local_level_to_site_mapping_path,
+            structure=structure,
+            local_space_spec=local_space_spec,
+        )
+        orbital_representation = mapping.get("orbital_representation")
+
     if pair_identity_sidecar_path is not None:
         sidecar = load_many_body_hr_pair_identity_sidecar(
             sidecar_path=pair_identity_sidecar_path,
@@ -270,12 +282,7 @@ def build_pseudospin_orbital_payload(
         pair_identity_status = "available"
         pair_identity_provider = "sidecar"
         pair_identity_source = "sidecar"
-    elif local_level_to_site_mapping_path is not None:
-        mapping = load_many_body_hr_orbital_to_atom_mapping(
-            mapping_path=local_level_to_site_mapping_path,
-            structure=structure,
-            local_space_spec=local_space_spec,
-        )
+    elif mapping is not None:
         active_hamiltonian = {
             **hamiltonian,
             "entries": [
@@ -347,7 +354,9 @@ def build_pseudospin_orbital_payload(
         "basis_order": str(local_space_spec["basis_order"]),
         "pair_basis_order": str(local_space_spec["pair_basis_order"]),
         "local_basis_labels": local_basis_labels,
-        "retained_local_space": _retained_local_space_payload(local_space_spec, local_basis_labels),
+        "retained_local_space": _retained_local_space_payload(
+            local_space_spec, local_basis_labels, orbital_representation
+        ),
         "pair_operator_convention": {
             "representation": "pair_matrix",
             "pair_basis_order": str(local_space_spec["pair_basis_order"]),
